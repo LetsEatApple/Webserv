@@ -1,7 +1,7 @@
 CC := c++
 CXXFLAGS := -Wall -Wextra -Werror -std=c++98 -g
 NAME := config
-SRC := main.cpp Lexer.cpp Token.cpp Parser.cpp
+SRC := main.cpp Lexer.cpp Parser.cpp Validator.cpp Utils.cpp
 OBJ := $(SRC:.cpp=.o)
 
 all: $(NAME)

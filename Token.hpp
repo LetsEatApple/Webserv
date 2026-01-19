@@ -15,9 +15,6 @@ struct Token {
   TokenType type;
   std::string value;
   size_t line;
-
-  Token();
-  Token(TokenType type, std::string value, size_t line);
 };
 
 #endif //! TOKEN_HPP

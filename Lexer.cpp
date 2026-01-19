@@ -1,7 +1,7 @@
 #include "Lexer.hpp"
 #include "Token.hpp"
+#include "Utils.hpp"
 #include <cctype>
-#include <cstddef>
 #include <cstdio>
 #include <fstream>
 #include <stdexcept>
@@ -41,25 +41,35 @@ Token Lexer::next() {
   skipWhitespaceAndComments();
 
   int c = get();
-  if (c == EOF)
-    return Token(TOK_EOF, "", _line);
+  if (c == EOF) {
+    Token tok = {TOK_EOF, "", _line};
+    return tok;
+  }
 
-  if (c == '{')
-    return Token(TOK_LBRACE, "{", _line);
-  if (c == '}')
-    return Token(TOK_RBRACE, "}", _line);
-  if (c == ';')
-    return Token(TOK_SEMICOLON, ";", _line);
+  if (c == '{') {
+    Token tok = {TOK_LBRACE, "{", _line};
+    return tok;
+  }
+
+  if (c == '}') {
+    Token tok = {TOK_RBRACE, "}", _line};
+    return tok;
+  }
+  if (c == ';') {
+    Token tok = {TOK_SEMICOLON, ";", _line};
+    return tok;
+  }
 
   std::string word;
   if (c == '"' || c == '\'') {
     int quote = c;
     while ((c = get()) != quote) {
       if (c == EOF)
-        throw std::runtime_error("Unterminated string");
+        throw std::runtime_error(Utils::errorMsg("Unterminated string", _line));
       word += c;
     }
-    return Token(TOK_WORD, word, _line);
+    Token tok = {TOK_WORD, word, _line};
+    return tok;
   }
 
   while (c != EOF && !std::isspace(c) && c != '{' && c != '}' && c != ';') {
@@ -70,5 +80,6 @@ Token Lexer::next() {
   if (c == '{' || c == '}' || c == ';')
     _file.unget();
 
-  return Token(TOK_WORD, word, _line);
+  Token tok = {TOK_WORD, word, _line};
+  return tok;
 }

@@ -1,6 +1,7 @@
 #include "AST.hpp"
 #include "Lexer.hpp"
 #include "Parser.hpp"
+#include "Validator.hpp"
 #include <cstddef>
 #include <exception>
 #include <iostream>
@@ -34,9 +35,9 @@ int main(int argc, char *argv[]) {
   try {
     Lexer lexer(argv[1]);
     Parser parser(lexer);
-    Block root = parser.parse();
-
-    printBlock(root);
+    Block http = parser.parse();
+    Validator::validate(http);
+    printBlock(http);
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << std::endl;
     return 1;
