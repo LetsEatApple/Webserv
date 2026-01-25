@@ -65,7 +65,7 @@ Token Lexer::next() {
     int quote = c;
     while ((c = get()) != quote) {
       if (c == EOF)
-        throw std::runtime_error(Utils::errorMsg("Unterminated string", _line));
+        throw std::runtime_error(utils::errorMsg("Unterminated string", _line));
       word += c;
     }
     Token tok = {TOK_WORD, word, _line};

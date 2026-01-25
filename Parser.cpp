@@ -19,7 +19,7 @@ void Parser::parseBlockBody(Block &block) {
   while (_current.type != TOK_RBRACE) {
     if (_current.type != TOK_WORD)
       throw std::runtime_error(
-          Utils::errorMsg("Unexpected token inside block", _current.line));
+          utils::errorMsg("Unexpected token inside block", _current.line));
 
     // Read entry name
     std::string name = _current.value;
@@ -43,7 +43,7 @@ void Parser::parseBlockBody(Block &block) {
       block.blocks.push_back(child);
     } else
       throw std::runtime_error(
-          Utils::errorMsg("Expected ';' or '{' inside block", _current.line));
+          utils::errorMsg("Expected ';' or '{' inside block", _current.line));
   }
 
   advance(); // consume '}'
@@ -60,7 +60,7 @@ Block Parser::parseBlock(const std::string &name,
   // Expect opening brace
   if (_current.type != TOK_LBRACE)
     throw std::runtime_error(
-        Utils::errorMsg("Expected '{' after block name", _current.line));
+        utils::errorMsg("Expected '{' after block name", _current.line));
   advance(); // consume '{'
 
   // Fill block body
@@ -78,7 +78,7 @@ Block Parser::parse() {
   while (_current.type != TOK_EOF) {
     if (_current.type != TOK_WORD)
       throw std::runtime_error(
-          Utils::errorMsg("Unexpected token at top level", _current.line));
+          utils::errorMsg("Unexpected token at top level", _current.line));
     std::string name = _current.value;
     size_t line = _current.line;
     advance();
@@ -97,7 +97,7 @@ Block Parser::parse() {
       http.blocks.push_back(b);
     } else
       throw std::runtime_error(
-          Utils::errorMsg("Expected ';' or '{'", _current.line));
+          utils::errorMsg("Expected ';' or '{'", _current.line));
   }
   return http;
 }

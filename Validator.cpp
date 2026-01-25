@@ -1,14 +1,12 @@
 #include "Validator.hpp"
 #include "Utils.hpp"
-#include "ValidationState.hpp"
-#include "ValidatorTypes.hpp"
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
 #include <stddef.h>
 #include <stdexcept>
 
-namespace Validator {
+namespace validator {
 static void validateBlock(const Block &b, ContextType ctx);
 static DirectiveType directiveType(const std::string &name) {
   if (name == "client_max_body_size")
@@ -24,13 +22,13 @@ static DirectiveType directiveType(const std::string &name) {
 // TODO: validate path
 static void validateErrorPage(const Directive &d) {
   if (d.args.size() < 2)
-    throw std::runtime_error(Utils::errorMsg(
+    throw std::runtime_error(utils::errorMsg(
         "Expected at least 2 arguments for 'error_page' directive", d.line));
   for (size_t i = 1; i < d.args.size() - 1; ++i) {
     int status = std::atoi(d.args[i].c_str());
     if (d.args[i].length() != 3 || status < 300 || status > 599)
       throw std::runtime_error(
-          Utils::errorMsg("Invalid value '" + d.args[i] + "'", d.line));
+          utils::errorMsg("Invalid value '" + d.args[i] + "'", d.line));
   }
 }
 
@@ -38,9 +36,9 @@ static void validateErrorPage(const Directive &d) {
 static void validateClientMaxBodySize(const Directive &d, ValidationState &vs) {
   if (vs.has_client_max_body_size)
     throw std::runtime_error(
-        Utils::errorMsg("Duplicate '" + d.name + "' directive", d.line));
+        utils::errorMsg("Duplicate '" + d.name + "' directive", d.line));
   if (d.args.size() != 1)
-    throw std::runtime_error(Utils::errorMsg(
+    throw std::runtime_error(utils::errorMsg(
         "Expected exactly 1 argument for '" + d.name + "' directive", d.line));
   vs.has_client_max_body_size = true;
 }
@@ -48,10 +46,10 @@ static void validateClientMaxBodySize(const Directive &d, ValidationState &vs) {
 // TODO: validate argument
 static void validateListen(const Directive &d, ContextType ctx) {
   if (ctx != CTX_SERVER)
-    throw std::runtime_error(Utils::errorMsg(
+    throw std::runtime_error(utils::errorMsg(
         "'" + d.name + "' directive is not allowed here", d.line));
   if (d.args.size() != 1)
-    throw std::runtime_error(Utils::errorMsg(
+    throw std::runtime_error(utils::errorMsg(
         "Expected exactly 1 argument for '" + d.name + "' directive", d.line));
 }
 
@@ -84,7 +82,7 @@ static void validateHTTP(const Block &b) {
 
   for (size_t i = 0; i < b.blocks.size(); ++i) {
     if (b.blocks[i].name != "server")
-      throw std::runtime_error(Utils::errorMsg(
+      throw std::runtime_error(utils::errorMsg(
           "'" + b.blocks[i].name + "' directive is not allowed here",
           b.blocks[i].line));
     validateBlock(b.blocks[i], CTX_SERVER);
@@ -99,7 +97,7 @@ static void validateServer(const Block &b) {
 
   for (size_t i = 0; i < b.blocks.size(); ++i) {
     if (b.blocks[i].name != "location")
-      throw std::runtime_error(Utils::errorMsg(
+      throw std::runtime_error(utils::errorMsg(
           "'" + b.blocks[i].name + "' directive is not allowed here",
           b.blocks[i].line));
     validateBlock(b.blocks[i], CTX_LOCATION);
@@ -114,7 +112,7 @@ static void validateLocation(const Block &b) {
 
   for (size_t i = 0; i < b.blocks.size(); ++i) {
     if (b.blocks[i].name != "location")
-      throw std::runtime_error(Utils::errorMsg(
+      throw std::runtime_error(utils::errorMsg(
           "'" + b.blocks[i].name + "' directive is not allowed here",
           b.blocks[i].line));
     validateBlock(b.blocks[i], CTX_LOCATION);
@@ -134,7 +132,7 @@ static void validateBlock(const Block &b, ContextType ctx) {
     break;
   default:
     throw std::runtime_error(
-        Utils::errorMsg("Unexpected context type", b.line));
+        utils::errorMsg("Unexpected context type", b.line));
   }
 }
 
@@ -148,4 +146,4 @@ void validate(const Block &http) {
   validateBlock(http, CTX_HTTP);
 }
 
-} // namespace Validator
+} // namespace validator
