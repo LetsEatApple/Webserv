@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:14:49 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/24 17:41:51 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/25 15:48:21 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,6 +51,10 @@ int Reactor::init(){
 	if (sfd == -1)
 		return error(5);
 	if (!registerHandler(new Signal(sfd), EPOLLIN))
+		return false;
+
+	// stdin
+	if(!registerHandler(new Stdin(STDIN_FILENO), EPOLLIN))
 		return false;
 
 	// register listening sockets and their handlers
