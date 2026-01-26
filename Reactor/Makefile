@@ -6,7 +6,7 @@
 #    By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/08/25 12:32:34 by lea               #+#    #+#              #
-#    Updated: 2026/01/22 15:42:37 by lhagemos         ###   ########.fr        #
+#    Updated: 2026/01/26 18:08:18 by lhagemos         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -16,8 +16,12 @@ SRC = main.cpp \
 AEventHandler.cpp \
 handler.cpp \
 reactor.cpp \
-server.cpp
-
+server.cpp \
+../Parser/Config.cpp \
+../Parser/Lexer.cpp \
+../Parser/Parser.cpp \
+../Parser/Utils.cpp \
+../Parser/Validator.cpp \
 
 CPP = c++
 CPPFLAGS = -std=c++98 -Wall -Werror -Wextra

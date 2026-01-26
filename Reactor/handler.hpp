@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:20:30 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/22 16:19:52 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/25 16:15:48 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,6 +31,7 @@ class Connection : public EventHandler{
 
 private:
 	Data data;
+	//adding struct containing data from config depending on fd / listening fd? or through reactor _server?
 public:
 	Connection(int fd);
 	int handleRead();

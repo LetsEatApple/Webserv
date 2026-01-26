@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:06:56 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/23 13:04:03 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/26 17:55:47 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,22 +14,23 @@
 
 #include "lib.h"
 
-struct server_list{
+struct server{
 	int sock;
 	int port;
 	struct sockaddr_in s_addr;
 };
 
+typedef std::vector<struct server> server_list;
 
 class Server{
 private:
 	Server();
 public:
-	Server(int nports, char **ports);
-	int s_sock;
-	int c_sock;
-	std::vector<struct server_list> s_list;
-	int nports;
-	int createServer();
+	//Server(int nports, char **ports);
+	Server(config::Listeners &listeners);
+	config::Listeners&	listeners;
+	server_list			s_list;
+	int					nports;
+	int					createServer();
 	~Server();
 };

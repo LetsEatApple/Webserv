@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:21:43 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/25 15:49:14 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/25 16:13:37 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,7 +26,7 @@ int process(Data &data, int fd){
 		std::string single_request = data.request.substr(0, delimeter +2);
 		data.request.erase(0, delimeter +2);
 		std::stringstream ss;
-		ss << "Client message was: \"" << single_request << "\"\n";
+		ss << "Client request recieved (\"" << single_request << "\")\n";
 		data.response.append(ss.str());
 		ssize_t sent = send(fd, data.response.c_str(), data.response.length(), MSG_DONTWAIT);
 		if (sent < 0)
@@ -45,11 +45,11 @@ int Connection::handleRead() {
 	//read 
 	data.buflen = recv(_fd, data.buffer, MAX-1, MSG_DONTWAIT); // flag similar to O_NONBLOCK of fcntl()
 	if (data.buflen == 0) // client disconnected
-		return (reactor->removeHandler(this, 0));
+		return (_reactor->removeHandler(this, 0));
 	if (data.buflen < 0) // Error occured, epoll decides what to do 
 		return false;
 	if (!process(data, this->get_fd()))
-		return (reactor->modifyHandler(this, EPOLLIN | EPOLLOUT));
+		return (_reactor->modifyHandler(this, EPOLLIN | EPOLLOUT));
 	return true;
 }
 
@@ -61,13 +61,13 @@ int Connection::handleRead() {
 int Connection::handleWrite() {
 
 	if (data.response.empty())
-		return (reactor->modifyHandler(this, EPOLLIN));
+		return (_reactor->modifyHandler(this, EPOLLIN));
 
 	int sent = send(_fd, data.response.c_str(), data.response.length(), MSG_DONTWAIT);
 	if (sent > 0)
 		data.response.erase(0, sent);
 	if (data.response.empty())
-		return (reactor->modifyHandler(this, EPOLLIN));
+		return (_reactor->modifyHandler(this, EPOLLIN));
 	if (sent < 0)
 		return false; // decision up to epoll; Wait for epoll to report EPOLLERR / EPOLLHUP
 
@@ -92,7 +92,7 @@ int Acceptor::handleRead() {
 		int ret = fcntl(cfd, F_SETFL, flags | O_NONBLOCK);
 		if (ret == -1 || flags == -1)
 			return false;
-		if (!reactor->registerHandler(new Connection(cfd), EPOLLIN)) // close program?
+		if (!_reactor->registerHandler(new Connection(cfd), EPOLLIN)) // close program?
 			return false;
 	}
 	return true;
@@ -110,11 +110,10 @@ Signal::Signal(int fd) : EventHandler(fd){
 
 int Signal::handleRead(){
 
-	char buf[16];
-	while (read(_fd, buf, sizeof(buf)) > 0) {}
-	std::cout << "\nSignal detected: quitting program ..." << std::endl;
-	reactor->stop(SET);
-	return true;
+	char buffer[MAX];
+	while (read(_fd, buffer, sizeof(buffer)) > 0) {}
+	std::cout << "\nSignal detected: Shutting down ..." << std::endl;
+	return (_reactor->stop(SET));
 }
 
 int Signal::handleWrite(){
@@ -135,7 +134,7 @@ int Stdin::handleRead(){
 	input.append(buffer, size);
 	if (input.compare("quit")){
 		std::cout << "Quit called: Shutting down ..." << std::endl;
-		reactor->stop(SET);
+		_reactor->stop(SET);
 	}
 	return true;
 }

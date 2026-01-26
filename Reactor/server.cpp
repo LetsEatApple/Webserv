@@ -6,13 +6,13 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:07:37 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/24 17:33:49 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/26 17:55:32 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "server.hpp"
 
-Server::Server(int nports, char** ports) : nports(nports) {
+/* Server::Server(int nports, char** ports) : nports(nports){
 
 	s_list.resize(nports);
 	for (int i = 0; i < nports; i++){
@@ -24,6 +24,26 @@ Server::Server(int nports, char** ports) : nports(nports) {
 		s_list[i].s_addr.sin_addr.s_addr = INADDR_ANY;
 		s_list[i].sock = -1;
 	}
+} */
+
+Server::Server(config::Listeners &listeners) : listeners(listeners){
+
+	nports = listeners.size();
+	s_list.resize(nports);
+	config::Listeners::iterator it;
+	int i = 0;
+
+	for (it = listeners.begin(); it != listeners.end(); ++it){
+
+		s_list[i].port = it->first.second;
+		std::memset(&s_list[i].s_addr, 0, sizeof(s_list[i].s_addr));
+		s_list[i].s_addr.sin_port = htons(s_list[i].port); 
+		s_list[i].s_addr.sin_family = AF_INET;
+		s_list[i].s_addr.sin_addr.s_addr = INADDR_ANY;
+		s_list[i].sock = -1;
+		i++;
+	}
+	
 }
 
 int Server::createServer(){

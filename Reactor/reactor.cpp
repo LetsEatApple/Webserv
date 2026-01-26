@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:14:49 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/25 15:48:21 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/26 17:32:41 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -70,7 +70,7 @@ int Reactor::registerHandler(EventHandler *handler, uint32_t event){
 	epoll_event ev;
 	std::memset(&ev, 0, sizeof(ev));
 	ev.data.fd = handler->get_fd();
-	handler->reactor = this;
+	handler->reactor(this);
 	ev.events = event;
 	
 	if (epoll_ctl(_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev) < 0){
