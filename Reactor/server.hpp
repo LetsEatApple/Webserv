@@ -14,6 +14,8 @@
 
 #include "lib.h"
 
+class RequestHandler;
+
 struct server_list{
 	int sock;
 	int port;
@@ -24,12 +26,16 @@ struct server_list{
 class Server{
 private:
 	Server();
+	RequestHandler*					_handler;
+	int								_s_sock;
+	int								_c_sock;
+	std::vector<struct server_list>	_s_list;
+	int								_nports;
 public:
-	Server(int nports, char **ports);
-	int s_sock;
-	int c_sock;
-	std::vector<struct server_list> s_list;
-	int nports;
-	int createServer();
+	Server(int nports, char **ports, RequestHandler* handler);
+	RequestHandler*	getHandler() const;
+	int				getNports() const;
+	std::vector<struct server_list>&	getServerList();
+	int				createServer();
 	~Server();
 };

@@ -33,7 +33,6 @@ public:
 	int		modifyHandler (EventHandler *handler, uint32_t event);
 	int		handleEvents();
 	bool	stop (int mode);
-	Server *getServerDetails();
 	~Reactor();
 };
 

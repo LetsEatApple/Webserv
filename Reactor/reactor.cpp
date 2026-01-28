@@ -58,8 +58,8 @@ int Reactor::init(){
 		return false;
 
 	// register listening sockets and their handlers
-	for (int i = 0; i < _server.nports; i++){
-		if (!registerHandler(new Acceptor(_server.s_list[i].sock), EPOLLIN))
+	for (int i = 0; i < _server.getNports(); i++){
+		if (!registerHandler(new Acceptor(_server.getServerList()[i].sock, _server.getHandler()), EPOLLIN))
 			return error(6);
 	}
 	return true;
@@ -72,7 +72,7 @@ int Reactor::registerHandler(EventHandler *handler, uint32_t event){
 	ev.data.fd = handler->get_fd();
 	handler->reactor = this;
 	ev.events = event;
-	
+
 	if (epoll_ctl(_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev) < 0){
 		return false; //error handling? differs between listening/signal and client sockets
 	}
@@ -140,8 +140,8 @@ Reactor::~Reactor(){
 	std::map<int, EventHandler *>::iterator it;
 
 	if (!_handlers.empty()){
-		for (int i = 0; i < _server.nports; i++)
-		_server.s_list[i].sock = -1;
+		for (int i = 0; i < _server.getNports(); i++)
+		_server.getServerList()[i].sock = -1;
 	}
 
 	for (it = _handlers.begin(); it != _handlers.end(); ++it){

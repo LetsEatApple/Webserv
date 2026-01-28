@@ -14,25 +14,21 @@
 
 #include "lib.h"
 #include "AEventHandler.hpp"
+#include "Request.hpp"
+#include "Response.hpp"
+#include "RequestHandler.hpp"
 
 class Reactor;
 
-// storing read and write data for request and response
-struct Data{
-	std::string	request;
-	int			max_size;
-	std::string	response;
-	char		buffer[MAX];
-	int			buflen;
-};
-
-// handling client sockets
+// handling client sockets with HTTP protocol
 class Connection : public EventHandler{
 
 private:
-	Data data;
+	Request			_request;
+	std::string		_readBuffer;
+	RequestHandler*	_handler;
 public:
-	Connection(int fd);
+	Connection(int fd, RequestHandler* handler);
 	int handleRead();
 	int handleWrite();
 };
@@ -40,8 +36,10 @@ public:
 // handling listening sockets
 class Acceptor : public EventHandler{
 
+private:
+	RequestHandler*	_handler;
 public:
-	Acceptor(int fd);
+	Acceptor(int fd, RequestHandler* handler);
 	int handleRead();
 	int handleWrite();
 };

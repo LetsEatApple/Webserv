@@ -12,35 +12,47 @@
 
 #include "server.hpp"
 
-Server::Server(int nports, char** ports) : nports(nports) {
+Server::Server(int nports, char** ports, RequestHandler* handler) : _handler(handler), _s_sock(-1), _c_sock(-1), _nports(nports) {
 
-	s_list.resize(nports);
+	_s_list.resize(nports);
 	for (int i = 0; i < nports; i++){
-		s_list[i].port = atoi(ports[i+1]);
-		std::memset(&s_list[i].s_addr, 0, sizeof(s_list[i].s_addr));
-		s_list[i].s_addr.sin_port = htons(s_list[i].port); 
+		_s_list[i].port = atoi(ports[i+1]);
+		std::memset(&_s_list[i].s_addr, 0, sizeof(_s_list[i].s_addr));
+		_s_list[i].s_addr.sin_port = htons(_s_list[i].port);
 		//s_list[i].s_addr.sin_port = htons(80); //for error testing (bind)
-		s_list[i].s_addr.sin_family = AF_INET;
-		s_list[i].s_addr.sin_addr.s_addr = INADDR_ANY;
-		s_list[i].sock = -1;
+		_s_list[i].s_addr.sin_family = AF_INET;
+		_s_list[i].s_addr.sin_addr.s_addr = INADDR_ANY;
+		_s_list[i].sock = -1;
 	}
 }
 
+RequestHandler* Server::getHandler() const{
+	return _handler;
+}
+
+int Server::getNports() const{
+	return _nports;
+}
+
+std::vector<struct server_list>& Server::getServerList(){
+	return _s_list;
+}
+
 int Server::createServer(){
-	
-	for (int i = 0; i < static_cast<int>(s_list.size()); i++){
+
+	for (int i = 0; i < static_cast<int>(_s_list.size()); i++){
 		// socket
-		s_list[i].sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
-		if (s_list[i].sock < 0) // close all sockets and return? set sock -1 before starting loop? or in main on error check
+		_s_list[i].sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+		if (_s_list[i].sock < 0) // close all sockets and return? set sock -1 before starting loop? or in main on error check
 			return error(1);
-		
+
 		// bind
-		int bind_val = bind(s_list[i].sock, (struct sockaddr *)&s_list[i].s_addr, sizeof(s_list[i].s_addr));
+		int bind_val = bind(_s_list[i].sock, (struct sockaddr *)&_s_list[i].s_addr, sizeof(_s_list[i].s_addr));
 		if(bind_val < 0) // open fds
 			return error(2);
 
 		// listen
-		int listen_val = listen(s_list[i].sock, 1);
+		int listen_val = listen(_s_list[i].sock, 1);
 		if(listen_val < 0)
 			return error(3);
 	}
@@ -49,9 +61,8 @@ int Server::createServer(){
 
 Server::~Server(){
 
-	for (int i = 0; i < nports; i++){
-		if (s_list[i].sock != -1)
-			close (s_list[i].sock);
+	for (int i = 0; i < _nports; i++){
+		if (_s_list[i].sock != -1)
+			close (_s_list[i].sock);
 	}
-	// close every lasting fd in _handler instead?
 }
