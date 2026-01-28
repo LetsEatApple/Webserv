@@ -76,11 +76,11 @@ int main(int ac, char **av){
 
 	Server server(ac -1, av, &router);
 	if (!server.createServer())
-		return false;
+		return 1;
 
 	Reactor reactor(server);
 	if (!reactor.init())
-		return false;
+		return 1;
 
 	// Event loop
 	for(;;){
@@ -92,5 +92,5 @@ int main(int ac, char **av){
 		if (reactor.stop(GET))
 			break ;
 	}
-	return true;
+	return 0;
 }
