@@ -15,19 +15,7 @@
 #include "AEventHandler.hpp"
 #include "handler.hpp"
 #include "Router.hpp"
-#include "Request.hpp"
-#include "Response.hpp"
-
-static void handleDefault(Response::Writer& w, const Request& req) {
-	(void)req;
-	const char* body = "<html><body><h1>200 OK</h1></body></html>";
-	int bodyLen = static_cast<int>(std::strlen(body));
-	Headers h = Response::getDefaultHeaders(bodyLen);
-	h.replace("content-type", "text/html");
-	w.writeStatusLine(Response::StatusOk);
-	w.writeHeaders(h);
-	w.writeBody(body, bodyLen);
-}
+#include "routes.hpp"
 
 int	error(int err){
 
@@ -72,7 +60,20 @@ int main(int ac, char **av){
 		return error(0); // later config ac != 2
 
 	Router router;
-	router.setDefault(handleDefault);
+
+	// Register middleware
+	router.use(logRequest);
+
+	// Register routes
+	router.get("/", handleHome);
+	router.get("/health", handleHealth);
+	router.get("/echo", handleEcho);
+
+	// Register prefix route (matches /api/*)
+	router.prefix("/api", handleApi);
+
+	// Default handler for unmatched routes
+	router.setDefault(handleNotFound);
 
 	Server server(ac -1, av, &router);
 	if (!server.createServer())

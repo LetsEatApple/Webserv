@@ -9,6 +9,8 @@ set(CMAKE_CXX_STANDARD 98)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+add_compile_options(-Wall -Wextra -Werror)
+
 option(ENABLE_TESTING "Enable Unit Testing Build" ON)
 option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" ON)
 
@@ -35,7 +37,8 @@ set(HTTP_LIBRARY http_lib)
 add_subdirectory(Http)
 add_subdirectory(Reactor)
 
-add_executable(webserv main.cpp)
+add_executable(webserv main.cpp routes/routes.cpp)
+target_include_directories(webserv PRIVATE routes)
 target_link_libraries(webserv ${REACTOR_LIBRARY})
 
 if(ENABLE_TESTING)
