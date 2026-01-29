@@ -1,7 +1,7 @@
 #ifndef RESPONSE_HPP
 #define RESPONSE_HPP
 
-#include "Headers.hpp"
+#include "../request/Headers.hpp"
 
 namespace Response {
 

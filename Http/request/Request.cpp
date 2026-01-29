@@ -138,7 +138,7 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
                     return totalRead; // Need more data
                 }
                 totalRead += result.bytesConsumed;
-                if (result.done) {
+                if (result.done) { // at this point headers are complete
                     if (isChunkedEncoding()) {
                         state = ParserState::ChunkedSize;
                     } else if (hasBody()) {

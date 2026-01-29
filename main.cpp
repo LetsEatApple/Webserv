@@ -6,16 +6,16 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:05:42 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/24 17:41:17 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/31 16:31:02 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "server.hpp"
-#include "reactor.hpp"
-#include "AEventHandler.hpp"
-#include "handler.hpp"
-#include "Router.hpp"
-#include "routes.hpp"
+#include "Reactor/server.hpp"
+#include "Reactor/reactor.hpp"
+#include "Reactor/AEventHandler.hpp"
+#include "Reactor/handler.hpp"
+#include "Http/router/Router.hpp"
+#include "Http/routes/routes.hpp"
 
 int	error(int err){
 
@@ -73,15 +73,14 @@ int main(int ac, char **av) {
         Server server(listeners);
         if (!server.createServer())
             return 1;
-
         // // change later
         // Router router;
         //
 
 
         // Reactor reactor(server, &router);
-        Reactor reactor(server);
-        if (!reactor.init())
+        Reactor reactor;
+        if (!reactor.init(server.get_listeners()))
             return 1;
 
         // Event loop
