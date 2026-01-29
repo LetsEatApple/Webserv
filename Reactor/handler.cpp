@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:21:43 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/28 21:12:28 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/25 15:49:14 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,15 +44,46 @@ int process(Data &data, int fd){
 
 int Connection::handleRead() {
 
+    /*char buf[MAX];
+    ssize_t n = recv(_fd, buf, MAX - 1, MSG_DONTWAIT);
+    if (n == 0) // client disconnected
+        return (reactor->removeHandler(this, 0));
+    if (n < 0) // Error occured, epoll decides what to do
+        return false;*/
+
 	//read 
 	_data.buflen = recv(_fd, _data.buffer, MAX-1, MSG_DONTWAIT); // flag similar to O_NONBLOCK of fcntl()
 	if (_data.buflen == 0) // client disconnected
 		return (_reactor->removeHandler(this, 0));
-	if (_data.buflen < 0) // Error occured, epoll decides what to do 
+	if (_data.buflen < 0) // Error occured, epoll decides what to do
 		return false;
 	if (!process(_data, this->get_fd()))
 		return (_reactor->modifyHandler(this, EPOLLIN | EPOLLOUT));
-	return true;
+    return true;
+	//
+	// _readBuffer.append(buf, n);
+	//
+	// std::string errorMsg;
+	// int consumed = _request.parse(_readBuffer, errorMsg);
+	// if (consumed < 0) {
+	// 	Response::Writer w(_fd);
+	// 	w.writeStatusLine(Response::StatusBadRequest);
+	// 	w.writeHeaders(Response::getDefaultHeaders(0));
+	// 	return (reactor->removeHandler(this, 0));
+	// }
+	// if (consumed > 0)
+	// 	_readBuffer.erase(0, consumed);
+	// if (_request.done()) {
+	// 	Response::Writer w(_fd);
+	// 	if (_request.error()) {
+	// 		w.writeStatusLine(Response::StatusBadRequest);
+	// 		w.writeHeaders(Response::getDefaultHeaders(0));
+	// 	} else {
+	// 		_requestHandler->handle(w, _request);
+	// 	}
+	// 	return (reactor->removeHandler(this, 0));
+	// }
+	// return true;
 }
 
 // if send returns 0 -> dead connection remove socket, if -1 -> error but do not decide anything here just wait for epoll to tell whats wrong

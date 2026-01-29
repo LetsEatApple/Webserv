@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:07:37 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/27 22:03:16 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/24 17:33:49 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,13 +37,13 @@
 
 		s_list[i].port = it->first.second;
 		std::memset(&s_list[i].s_addr, 0, sizeof(s_list[i].s_addr));
-		s_list[i].s_addr.sin_port = htons(s_list[i].port); 
+		s_list[i].s_addr.sin_port = htons(s_list[i].port);
 		s_list[i].s_addr.sin_family = AF_INET;
 		s_list[i].s_addr.sin_addr.s_addr = INADDR_ANY;
 		s_list[i].sock = -1;
 		i++;
 	}
-	
+
 } */
 
 std::string str(uint16_t port){
@@ -69,7 +69,7 @@ Server::Server(config::Listeners &listeners) : listeners(listeners){
 	hints.ai_family   = AF_UNSPEC; // IPv4 or IPv6
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags    = AI_PASSIVE; // if host is NULL → bind to 0.0.0.0 / ::if host is set → bind to that exact address
-	
+
 	config::Listeners::iterator it;
 	int i = 0;
 	for (it = listeners.begin(); it != listeners.end(); ++it){
@@ -84,7 +84,7 @@ Server::Server(config::Listeners &listeners) : listeners(listeners){
 		s_list[i].sock = -1;
 		i++;
 	}
-	
+
 }
 
 int Server::createServer(){

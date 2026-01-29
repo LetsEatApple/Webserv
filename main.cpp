@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:05:42 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/29 13:02:49 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/24 17:41:17 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,6 +14,8 @@
 #include "reactor.hpp"
 #include "AEventHandler.hpp"
 #include "handler.hpp"
+#include "Router.hpp"
+#include "routes.hpp"
 
 int	error(int err){
 
@@ -51,45 +53,63 @@ int	error(int err){
 	return false;
 }
 
-int main(int ac, char **av){
 
-	// PARSING
-	if (ac != 2)
-		return error(0);
+int main(int ac, char **av) {
+    // PARSING
+    if (ac != 2)
+        return error(0);
 
-	config::Listeners listeners;
-	try {
-		listeners = config::buildConfig(av[1]);
-	}
-	catch (const std::exception &e) {
-		std::cerr << "Error: " << e.what() << std::endl;
-		return 1;
-	}
+    config::Listeners listeners;
+    try {
+        listeners = config::buildConfig(av[1]);
+    }
+    catch (const std::exception &e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    }
 
-	// LOW-LEVEL NETWORKING
-	try
-	{
-		Server server(listeners);
-		if (!server.createServer())
-				return 1;
-		
-		Reactor reactor(server);
-		if (!reactor.init())
-			return 1;
-		
-		for(;;){
-			if (!reactor.handleEvents()){
-				if (errno == EINTR)
-					continue ;
-				return error(7);
-			}
-			if (reactor.stop(GET))
-				break ;
-		}
-		return 0;
-	}
-	catch(const std::exception& e)
-	{
-		std::cerr << e.what() << '\n';
-	}
+    // LOW-LEVEL NETWORKING
+    try {
+        Server server(listeners);
+        if (!server.createServer())
+            return 1;
+
+        // // change later
+        // Router router;
+        //
+        // // Register middleware
+        // router.use(logRequest);
+        //
+        // // Register routes
+        // router.get("/", handleHome);
+        // router.get("/health", handleHealth);
+        // router.get("/echo", handleEcho);
+        //
+        // // Register prefix route (matches /api/*)
+        // router.prefix("/api", handleApi);
+        //
+        // // Default handler for unmatched routes
+        // router.setDefault(handleNotFound);
+
+
+        // Reactor reactor(server, &router);
+        Reactor reactor(server);
+        if (!reactor.init())
+            return 1;
+
+        // Event loop
+        for(;;) {
+            if (!reactor.handleEvents()){
+                if (errno == EINTR)
+                    continue ;
+                return error(7);
+            }
+            if (reactor.stop(GET))
+                break ;
+        }
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
 }
