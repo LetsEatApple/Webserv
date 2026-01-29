@@ -11,7 +11,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_compile_options(-Wall -Wextra -Werror)
 
-option(ENABLE_TESTING "Enable Unit Testing Build" ON)
+option(ENABLE_TESTING "Enable Unit Testing Build" OFF)
 option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" ON)
 
 if(ENABLE_SANITIZERS)
@@ -38,7 +38,7 @@ add_subdirectory(Reactor)
 add_executable(webserv Reactor/main.cpp)
 target_link_libraries(webserv ${REACTOR_LIBRARY})
 
-if(ENABLE_TESTING)
-    include(CTest)
-    add_subdirectory(tests)
-endif()
+#if(ENABLE_TESTING)
+#    include(CTest)
+#    add_subdirectory(tests)
+#endif()

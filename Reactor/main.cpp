@@ -80,11 +80,11 @@ int main(int ac, char **av){
 	{
 		Server server(listeners);
 		if (!server.createServer())
-				return false;
+				return 1;
 		
 		Reactor reactor(server);
 		if (!reactor.init())
-			return false;
+			return 1;
 		
 		for(;;){
 			if (!reactor.handleEvents()){
@@ -95,7 +95,7 @@ int main(int ac, char **av){
 			if (reactor.stop(GET))
 				break ;
 		}
-		return true;
+		return 0;
 	}
 	catch(const std::exception& e)
 	{
