@@ -33,14 +33,15 @@ endif()
 
 set(REACTOR_LIBRARY reactor_lib)
 set(HTTP_LIBRARY http_lib)
+set(CONFIG_LIBRARY config_lib)
 
 add_subdirectory(Http)
 add_subdirectory(Reactor)
 add_subdirectory(Config)
 
-add_executable(webserv main.cpp routes/routes.cpp)
+add_executable(webserv main.cpp)
 target_include_directories(webserv PRIVATE routes)
-target_link_libraries(webserv ${REACTOR_LIBRARY} ${CONFIG_LIBRARY}})
+target_link_libraries(webserv ${REACTOR_LIBRARY} ${CONFIG_LIBRARY})
 
 if(ENABLE_TESTING)
     include(CTest)

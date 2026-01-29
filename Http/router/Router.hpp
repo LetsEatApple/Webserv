@@ -20,7 +20,7 @@ public:
 
     void use(MiddlewareFunc mw);
 
-    void get(const std::string& path, HandlerFunc handler);
+    // void get(const std::string& path, HandlerFunc handler);
     void get(const std::string& path, RouteHandler& handler);
 
     void prefix(const std::string& pathPrefix, HandlerFunc handler);

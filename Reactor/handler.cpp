@@ -12,10 +12,27 @@
 
 #include "handler.hpp"
 #include "reactor.hpp"
+#include "Router.hpp"
 
 //	CONNECTION HANDLER
 Connection::Connection(int fd, Reactor *reactor, int lfd) : EventHandler(fd, reactor), _lfd(lfd) {
 	_httpServer = _reactor->getServerDetails(_lfd);
+    _requestHandler = new Router();
+    // Register middleware
+    //router.use(logRequest);
+
+    // Register routes
+    router.get("/", _httpServer);
+    router.get("/health", handleHealth);
+    router.get("/echo", handleEcho);
+
+    // Register prefix route (matches /api/*)
+    router.prefix("/api", handleApi);
+
+    // Default handler for unmatched routes
+    router.setDefault(handleNotFound);
+
+
 };
 
 int process(Data &data, int fd){

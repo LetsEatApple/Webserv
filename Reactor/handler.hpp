@@ -35,7 +35,7 @@ class Connection : public EventHandler{
 private:
 	Request			_request;
 	std::string		_readBuffer;
-	// RequestHandler*	_requestHandler;
+	RequestHandler*	_requestHandler;
 	Data					_data;
 	int						_lfd;
 	config::ListenerData	_httpServer;

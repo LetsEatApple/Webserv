@@ -7,3 +7,4 @@ set(CONFIG_SOURCES
 )
 
 add_library(${CONFIG_LIBRARY} STATIC ${CONFIG_SOURCES})
+target_include_directories(${CONFIG_LIBRARY} PUBLIC .)

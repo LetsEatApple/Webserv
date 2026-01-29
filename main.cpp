@@ -77,19 +77,6 @@ int main(int ac, char **av) {
         // // change later
         // Router router;
         //
-        // // Register middleware
-        // router.use(logRequest);
-        //
-        // // Register routes
-        // router.get("/", handleHome);
-        // router.get("/health", handleHealth);
-        // router.get("/echo", handleEcho);
-        //
-        // // Register prefix route (matches /api/*)
-        // router.prefix("/api", handleApi);
-        //
-        // // Default handler for unmatched routes
-        // router.setDefault(handleNotFound);
 
 
         // Reactor reactor(server, &router);
