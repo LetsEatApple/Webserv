@@ -36,7 +36,7 @@ int set_signalfd(){
 	return pfd[0];
 }
 
-Reactor::Reactor(Server &server) : _epfd(-1), _server(server), _sig(false){}
+Reactor::Reactor(Server &server, RequestHandler* requestHandler) : _epfd(-1), _server(server), _requestHandler(requestHandler), _sig(false){}
 
 int Reactor::init(){
 
@@ -59,7 +59,7 @@ int Reactor::init(){
 
 	// register listening sockets and their handlers
 	for (int i = 0; i < _server.getNports(); i++){
-		if (!registerHandler(new Acceptor(_server.getServerList()[i].sock, _server.getRequestHandler()), EPOLLIN))
+		if (!registerHandler(new Acceptor(_server.getServerList()[i].sock, _requestHandler), EPOLLIN))
 			return error(6);
 	}
 	return true;

@@ -42,27 +42,27 @@ Webserv/
 │                            main.cpp                                │
 │  1. Create Router + register routes/middleware                     │
 │  2. Create Server (binds listening sockets)                        │
-│  3. Create Reactor (epoll event loop)                              │
+│  3. Create Reactor (server, &router)                               │
 │  4. Run event loop until signal                                    │
 └──────────────────────────┬─────────────────────────────────────────┘
                            │
         ┌──────────────────┼──────────────────┐
         ▼                  ▼                  ▼
-   ┌─────────┐       ┌──────────┐       ┌─────────┐
-   │ Router  │       │  Server  │       │ Reactor │
-   │ (HTTP)  │       │ (Sockets)│       │ (epoll) │
-   └────┬────┘       └────┬─────┘       └────┬────┘
-        │                 │                  │
-        │                 │    ┌─────────────┴─────────────┐
-        │                 │    │      Event Handlers       │
-        │                 │    ├───────────┬───────────────┤
-        │                 │    │ Acceptor  │  Connection   │
-        │                 │    │ (listen)  │  (client)     │
-        │                 │    └─────┬─────┴───────┬───────┘
-        │                 │          │             │
-        │                 └──────────┘             │
-        │                                          │
-        └──────────────────────────────────────────┘
+   ┌─────────┐       ┌──────────┐       ┌─────────────────┐
+   │ Router  │       │  Server  │       │     Reactor     │
+   │ (HTTP)  │       │ (Sockets)│       │ (epoll + router)│
+   └────┬────┘       └────┬─────┘       └────────┬────────┘
+        │                 │                      │
+        │                 │    ┌─────────────────┴────────────┐
+        │                 │    │        Event Handlers        │
+        │                 │    ├───────────┬──────────────────┤
+        │                 │    │ Acceptor  │    Connection    │
+        │                 │    │ (listen)  │     (client)     │
+        │                 │    └─────┬─────┴────────┬─────────┘
+        │                 │          │              │
+        │                 └──────────┘              │
+        │                                           │
+        └───────────────────────────────────────────┘
                     Router.handle(w, req)
 ```
 

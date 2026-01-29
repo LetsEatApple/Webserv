@@ -12,7 +12,7 @@
 │  │             │  Does NOT know: what to do with parsed request         │
 │  └──────┬──────┘                                                        │
 │         │                                                               │
-│         │  _handler->handle(writer, request)                            │
+│         │  _requestHandler->handle(writer, request)                     │
 │         │                                                               │
 └─────────┼───────────────────────────────────────────────────────────────┘
           │
@@ -20,9 +20,9 @@
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                      RequestHandler (Interface)                         │
 │                                                                         │
-│   virtual void handle(Response::Writer& w, const Request& req) = 0;    │
+│   virtual void handle(Response::Writer& w, const Request& req) = 0;     │
 │                                                                         │
-│   INPUT:  Request (parsed HTTP: method, path, headers, body)           │
+│   INPUT:  Request (parsed HTTP: method, path, headers, body)            │
 │   OUTPUT: Response::Writer (writes directly to socket)                  │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -103,7 +103,7 @@ Direct socket writer with methods:
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  4. DELEGATE TO RequestHandler                                          │
-│     _handler->handle(w, _request);  ← THE BRIDGE                       │
+│     _requestHandler->handle(w, _request);  ← THE BRIDGE                 │
 │                                                                         │
 │     Connection doesn't know what happens here!                          │
 │     Could be Router, could be any RequestHandler implementation.        │
@@ -163,8 +163,8 @@ int Connection::handleRead() {
     // ... error handling ...
 
     if (_request.done()) {
-        Response::Writer w(_fd);           // Wrap socket fd
-        _handler->handle(w, _request);     // Delegate to RequestHandler
+        Response::Writer w(_fd);                    // Wrap socket fd
+        _requestHandler->handle(w, _request);       // Delegate to RequestHandler
         return reactor->removeHandler(this, 0);
     }
     return true;

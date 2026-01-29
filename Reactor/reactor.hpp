@@ -23,10 +23,11 @@ private:
 	struct epoll_event				_evlist[MAX];
 	std::map<int, EventHandler *>	_handlers;
 	Server&							_server;
+	RequestHandler*					_requestHandler;
 	bool							_sig;
 	Reactor();
 public:
-	Reactor(Server &server);
+	Reactor(Server &server, RequestHandler* requestHandler);
 	int		init();
 	int		registerHandler (EventHandler *handler, uint32_t event);
 	int		removeHandler (EventHandler *handler, uint32_t event);

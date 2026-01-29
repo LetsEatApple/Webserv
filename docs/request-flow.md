@@ -71,7 +71,7 @@ CLIENT                    SERVER
   │                         │            ▼
   │                         │    ┌────────────────────────────────────┐
   │                         │    │ if (_request.done())               │
-  │                         │    │   _handler->handle(writer, req)    │
+  │                         │    │   _requestHandler->handle(w, req)  │
   │                         │    │         │                          │
   │                         │    │         ▼                          │
   │                         │    │  Router::handle()                  │

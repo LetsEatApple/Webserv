@@ -75,11 +75,11 @@ int main(int ac, char **av){
 	// Default handler for unmatched routes
 	router.setDefault(handleNotFound);
 
-	Server server(ac -1, av, &router);
+	Server server(ac - 1, av);
 	if (!server.createServer())
 		return 1;
 
-	Reactor reactor(server);
+	Reactor reactor(server, &router);
 	if (!reactor.init())
 		return 1;
 

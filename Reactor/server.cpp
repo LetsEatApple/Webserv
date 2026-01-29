@@ -12,7 +12,7 @@
 
 #include "server.hpp"
 
-Server::Server(int nports, char** ports, RequestHandler* requestHandler) : _requestHandler(requestHandler), _s_sock(-1), _c_sock(-1), _nports(nports) {
+Server::Server(int nports, char** ports) : _s_sock(-1), _c_sock(-1), _nports(nports) {
 
 	_s_list.resize(nports);
 	for (int i = 0; i < nports; i++){
@@ -24,10 +24,6 @@ Server::Server(int nports, char** ports, RequestHandler* requestHandler) : _requ
 		_s_list[i].s_addr.sin_addr.s_addr = INADDR_ANY;
 		_s_list[i].sock = -1;
 	}
-}
-
-RequestHandler* Server::getRequestHandler() const{
-	return _requestHandler;
 }
 
 int Server::getNports() const{
