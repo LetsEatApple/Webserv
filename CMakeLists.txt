@@ -40,7 +40,6 @@ add_subdirectory(Reactor)
 add_subdirectory(Config)
 
 add_executable(webserv main.cpp)
-target_include_directories(webserv PRIVATE routes)
 target_link_libraries(webserv ${REACTOR_LIBRARY} ${CONFIG_LIBRARY})
 
 if(ENABLE_TESTING)

@@ -94,7 +94,11 @@ int Server::createServer(){
 		s_list[i].sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 		if (s_list[i].sock < 0) // close all sockets and return? set sock -1 before starting loop? or in main on error check
 			return error(1);
-		
+
+		// allow immediate restart
+		int opt = 1;
+		setsockopt(s_list[i].sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
 		// bind
 		int bind_val = bind(s_list[i].sock, (struct sockaddr *)s_list[i].n_server->ai_addr, s_list[i].n_server->ai_addrlen);
 		if(bind_val < 0) // open fds
