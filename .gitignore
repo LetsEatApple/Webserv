@@ -1,0 +1,3 @@
+build/
+.cashe/
+compile_commands.json
