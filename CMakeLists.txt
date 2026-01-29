@@ -15,9 +15,9 @@ option(ENABLE_TESTING "Enable Unit Testing Build" OFF)
 option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" ON)
 
 if(ENABLE_SANITIZERS)
-    add_compile_options(-stdlib=libc++ -fsanitize=address,undefined -fno-omit-frame-pointer)
+    add_compile_options(-stdlib=libstdc++ -fsanitize=address,undefined -fno-omit-frame-pointer)
     add_compile_definitions(_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG)
-    add_link_options(-stdlib=libc++ -fsanitize=address,undefined)
+    add_link_options(-stdlib=libstdc++ -fsanitize=address,undefined)
 endif()
 
 include(FetchContent)
@@ -32,13 +32,10 @@ if(ENABLE_TESTING)
 endif()
 
 set(REACTOR_LIBRARY reactor_lib)
+set(CONFIG_LIBRARY config_lib)
 
+add_subdirectory(Config)
 add_subdirectory(Reactor)
 
 add_executable(webserv Reactor/main.cpp)
-target_link_libraries(webserv ${REACTOR_LIBRARY})
-
-#if(ENABLE_TESTING)
-#    include(CTest)
-#    add_subdirectory(tests)
-#endif()
+target_link_libraries(webserv ${REACTOR_LIBRARY} ${CONFIG_LIBRARY})

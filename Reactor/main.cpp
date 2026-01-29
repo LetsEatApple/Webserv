@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:05:42 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/28 22:07:25 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/29 13:02:49 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,15 +51,6 @@ int	error(int err){
 	return false;
 }
 
-config::Listeners parse_config(char *argv){
-	Lexer lexer(argv);
-	Parser parser(lexer);
-	Block http = parser.parse();
-	validator::validate(http);
-	config::Listeners listeners = config::buildConfig(http);
-	return listeners;
-}
-
 int main(int ac, char **av){
 
 	// PARSING
@@ -68,7 +59,7 @@ int main(int ac, char **av){
 
 	config::Listeners listeners;
 	try {
-		listeners = parse_config(av[1]);
+		listeners = config::buildConfig(av[1]);
 	}
 	catch (const std::exception &e) {
 		std::cerr << "Error: " << e.what() << std::endl;

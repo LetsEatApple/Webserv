@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:38:09 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/26 18:00:29 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/29 13:01:55 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,13 +29,13 @@
 #include <cerrno>
 #include <cstring>
 #include <cstdlib>
-#include "../Parser/AST.hpp"
-#include "../Parser/Config.hpp"
-#include "../Parser/Lexer.hpp"
-#include "../Parser/Parser.hpp"
-#include "../Parser/Token.hpp"
-#include "../Parser/Utils.hpp"
-#include "../Parser/Validator.hpp"
+#include "../Config/AST.hpp"
+#include "../Config/Config.hpp"
+#include "../Config/Lexer.hpp"
+#include "../Config/Config.hpp"
+#include "../Config/Token.hpp"
+#include "../Config/Utils.hpp"
+#include "../Config/Validator.hpp"
 
 # define MAX 1024
 # define SET 1

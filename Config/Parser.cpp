@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-Parser::Parser(Lexer &lexer) : _lexer(lexer) { advance(); }
+Parser::Parser(Lexer &lexer) : _lexer(lexer), _current(lexer.next()) {}
 
 // Yield next token
 void Parser::advance() { _current = _lexer.next(); }
@@ -71,7 +71,10 @@ Block Parser::parseBlock(const std::string &name,
 
 // Create root 'http' block and parse derictives inside it
 Block Parser::parse() {
-  std::stringstream err;
+
+  if (_current.type == TOK_EOF)
+    throw std::runtime_error(
+        utils::errorMsg("Unexpected token 'EOF' at top level", _current.line));
 
   Block http = {"http", std::vector<std::string>(), std::vector<Directive>(),
                 std::vector<Block>(), _current.line};
