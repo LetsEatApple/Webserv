@@ -37,34 +37,44 @@ Webserv/
 
 ## Component Diagram
 
+### Object Creation (main.cpp)
+
 ```
-┌────────────────────────────────────────────────────────────────────┐
-│                            main.cpp                                │
-│  1. Create Router + register routes/middleware                     │
-│  2. Create Server (binds listening sockets)                        │
-│  3. Create Reactor (server, &router)                               │
-│  4. Run event loop until signal                                    │
-└──────────────────────────┬─────────────────────────────────────────┘
-                           │
-        ┌──────────────────┼──────────────────┐
-        ▼                  ▼                  ▼
-   ┌─────────┐       ┌──────────┐       ┌─────────────────┐
-   │ Router  │       │  Server  │       │     Reactor     │
-   │ (HTTP)  │       │ (Sockets)│       │ (epoll + router)│
-   └────┬────┘       └────┬─────┘       └────────┬────────┘
-        │                 │                      │
-        │                 │    ┌─────────────────┴────────────┐
-        │                 │    │        Event Handlers        │
-        │                 │    ├───────────┬──────────────────┤
-        │                 │    │ Acceptor  │    Connection    │
-        │                 │    │ (listen)  │     (client)     │
-        │                 │    └─────┬─────┴────────┬─────────┘
-        │                 │          │              │
-        │                 └──────────┘              │
-        │                                           │
-        └───────────────────────────────────────────┘
-                    Router.handle(w, req)
+main.cpp
+    │
+    ├─► Router router          // HTTP routing (standalone)
+    │
+    ├─► Server server(ports)   // listening sockets (standalone)
+    │
+    └─► Reactor reactor(server, &router)
+              │
+              └─► creates Acceptor, Connection, Signal, Stdin handlers
 ```
+
+### Runtime Dependencies
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                         Reactor                              │
+│                                                              │
+│  _server ──────────► Server                                  │
+│                        └─► getServerList() (socket fds)      │
+│                                                              │
+│  _requestHandler ───► Router                                 │
+│                        └─► passed to Acceptor/Connection     │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Request Flow
+
+```
+Client ──► Acceptor ──► Connection ──► Router
+              │              │            │
+         (accept fd)    (parse HTTP)  (route & respond)
+```
+
+**Key point**: Router and Server are independent. Neither knows about the other.
+Reactor is the only component that holds references to both.
 
 ## Component Responsibilities
 
