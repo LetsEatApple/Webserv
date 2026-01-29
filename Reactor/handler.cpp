@@ -14,8 +14,8 @@
 #include "reactor.hpp"
 
 //	CONNECTION HANDLER
-Connection::Connection(int fd, RequestHandler* handler)
-	: EventHandler(fd), _handler(handler){}
+Connection::Connection(int fd, RequestHandler* rhandler)
+	: EventHandler(fd), _requestHandler(rhandler){}
 
 int Connection::handleRead() {
 
@@ -44,7 +44,7 @@ int Connection::handleRead() {
 			w.writeStatusLine(Response::StatusBadRequest);
 			w.writeHeaders(Response::getDefaultHeaders(0));
 		} else {
-			_handler->handle(w, _request);
+			_requestHandler->handle(w, _request);
 		}
 		return (reactor->removeHandler(this, 0));
 	}
@@ -56,7 +56,7 @@ int Connection::handleWrite() {
 }
 
 // ACCEPT HANDLER
-Acceptor::Acceptor(int fd, RequestHandler* handler) : EventHandler(fd), _handler(handler){};
+Acceptor::Acceptor(int fd, RequestHandler* requestHandler) : EventHandler(fd), _requestHandler(requestHandler){};
 
 int Acceptor::handleRead() {
 
@@ -73,7 +73,7 @@ int Acceptor::handleRead() {
 		int ret = fcntl(cfd, F_SETFL, flags | O_NONBLOCK);
 		if (ret == -1 || flags == -1)
 			return false;
-		if (!reactor->registerHandler(new Connection(cfd, _handler), EPOLLIN))
+		if (!reactor->registerHandler(new Connection(cfd, _requestHandler), EPOLLIN))
 			return false;
 	}
 	return true;

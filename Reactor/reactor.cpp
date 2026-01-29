@@ -59,7 +59,7 @@ int Reactor::init(){
 
 	// register listening sockets and their handlers
 	for (int i = 0; i < _server.getNports(); i++){
-		if (!registerHandler(new Acceptor(_server.getServerList()[i].sock, _server.getHandler()), EPOLLIN))
+		if (!registerHandler(new Acceptor(_server.getServerList()[i].sock, _server.getRequestHandler()), EPOLLIN))
 			return error(6);
 	}
 	return true;

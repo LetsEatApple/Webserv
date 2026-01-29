@@ -26,9 +26,9 @@ class Connection : public EventHandler{
 private:
 	Request			_request;
 	std::string		_readBuffer;
-	RequestHandler*	_handler;
+	RequestHandler*	_requestHandler;
 public:
-	Connection(int fd, RequestHandler* handler);
+	Connection(int fd, RequestHandler* requestHandler);
 	int handleRead();
 	int handleWrite();
 };
@@ -37,9 +37,9 @@ public:
 class Acceptor : public EventHandler{
 
 private:
-	RequestHandler*	_handler;
+	RequestHandler*	_requestHandler;
 public:
-	Acceptor(int fd, RequestHandler* handler);
+	Acceptor(int fd, RequestHandler* requestHandler);
 	int handleRead();
 	int handleWrite();
 };
