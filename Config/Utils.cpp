@@ -8,6 +8,12 @@ const std::string errorMsg(std::string const &message, size_t line) {
   return err.str();
 }
 
+const std::string toString(size_t val) {
+  std::stringstream str;
+  str << val;
+  return str.str();
+}
+
 bool isNumber(const std::string &s) {
   if (s.empty())
     return false;

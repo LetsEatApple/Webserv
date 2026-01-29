@@ -1,9 +1,7 @@
 #ifndef CONFIG_HPP
 #define CONFIG_HPP
 
-#include "AST.hpp"
 #include <cstddef>
-#include <cstdint>
 #include <map>
 #include <set>
 #include <stdint.h>
@@ -14,16 +12,18 @@
 namespace config {
 struct Location {
   std::string path;
-  std::set<std::string> methods;
-  std::string root;
+  std::set<std::string> limit_exept;
+  std::string alias;
   bool autoindex;
   std::string index;
   size_t client_max_body_size;
+  std::map<int, std::string> returns;
   std::map<int, std::string> error_pages;
+  std::string upload;
 };
 
 struct Server {
-  std::vector<std::string> server_name;
+  std::vector<std::string> server_names;
   std::vector<Location> locations;
 };
 
@@ -34,7 +34,7 @@ struct ListenerData {
 };
 typedef std::map<ListenerKey, ListenerData> Listeners;
 
-Listeners buildConfig(const Block &http);
+Listeners buildConfig(const std::string &path);
 } // namespace config
 
 #endif // !CONFIG_HPP

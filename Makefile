@@ -1,18 +1,23 @@
-CC := c++
-CXXFLAGS := -Wall -Wextra -Werror -std=c++98 -g
-NAME := config
-SRC := main.cpp Lexer.cpp Parser.cpp Validator.cpp Utils.cpp Config.cpp
+CXX := c++
+CXXFLAGS := -Wall -Wextra -Werror -std=c++98
+NAME := webserv
+SRC := main.cpp
+SRC += Config/Lexer.cpp
+SRC += Config/Parser.cpp
+SRC += Config/Validator.cpp
+SRC += Config/Utils.cpp
+SRC += Config/Config.cpp
 OBJ := $(SRC:.cpp=.o)
 
 all: $(NAME)
 
 $(NAME): $(OBJ)
 	@echo "Linking $@"
-	@$(CC) $(OBJ) -o $@
+	@$(CXX) $(OBJ) -o $@
 
 %.o: %.cpp
 	@echo "Compiling $<"
-	@$(CC) $(CXXFLAGS) -c $< -o $@
+	@$(CXX) $(CXXFLAGS) -IConfig -c $< -o $@
 
 clean:
 	@echo "Removing objects"

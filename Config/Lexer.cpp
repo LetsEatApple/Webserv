@@ -9,7 +9,8 @@
 
 Lexer::Lexer(const std::string &path) : _file(path.c_str()), _line(1) {
   if (!_file.is_open())
-    throw std::runtime_error("Failed to open configuration file");
+    throw std::runtime_error("Failed to open configuration file at '" + path +
+                             "'");
 }
 
 int Lexer::get() {
