@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:21:43 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/25 16:13:37 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/28 21:12:28 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,7 +14,9 @@
 #include "reactor.hpp"
 
 //	CONNECTION HANDLER
-Connection::Connection(int fd) : EventHandler(fd){};
+Connection::Connection(int fd, Reactor *reactor, int lfd) : EventHandler(fd, reactor), _lfd(lfd) {
+	_httpServer = _reactor->getServerDetails(_lfd);
+};
 
 int process(Data &data, int fd){
 
@@ -43,12 +45,12 @@ int process(Data &data, int fd){
 int Connection::handleRead() {
 
 	//read 
-	data.buflen = recv(_fd, data.buffer, MAX-1, MSG_DONTWAIT); // flag similar to O_NONBLOCK of fcntl()
-	if (data.buflen == 0) // client disconnected
+	_data.buflen = recv(_fd, _data.buffer, MAX-1, MSG_DONTWAIT); // flag similar to O_NONBLOCK of fcntl()
+	if (_data.buflen == 0) // client disconnected
 		return (_reactor->removeHandler(this, 0));
-	if (data.buflen < 0) // Error occured, epoll decides what to do 
+	if (_data.buflen < 0) // Error occured, epoll decides what to do 
 		return false;
-	if (!process(data, this->get_fd()))
+	if (!process(_data, this->get_fd()))
 		return (_reactor->modifyHandler(this, EPOLLIN | EPOLLOUT));
 	return true;
 }
@@ -60,13 +62,13 @@ int Connection::handleRead() {
 
 int Connection::handleWrite() {
 
-	if (data.response.empty())
+	if (_data.response.empty())
 		return (_reactor->modifyHandler(this, EPOLLIN));
 
-	int sent = send(_fd, data.response.c_str(), data.response.length(), MSG_DONTWAIT);
+	int sent = send(_fd, _data.response.c_str(), _data.response.length(), MSG_DONTWAIT);
 	if (sent > 0)
-		data.response.erase(0, sent);
-	if (data.response.empty())
+		_data.response.erase(0, sent);
+	if (_data.response.empty())
 		return (_reactor->modifyHandler(this, EPOLLIN));
 	if (sent < 0)
 		return false; // decision up to epoll; Wait for epoll to report EPOLLERR / EPOLLHUP
@@ -75,7 +77,7 @@ int Connection::handleWrite() {
 }
 
 // ACCEPT HANDLER
-Acceptor::Acceptor(int fd) : EventHandler(fd){};
+Acceptor::Acceptor(int fd, Reactor *reactor) : EventHandler(fd, reactor){};
 
 int Acceptor::handleRead() {
 
@@ -92,7 +94,7 @@ int Acceptor::handleRead() {
 		int ret = fcntl(cfd, F_SETFL, flags | O_NONBLOCK);
 		if (ret == -1 || flags == -1)
 			return false;
-		if (!_reactor->registerHandler(new Connection(cfd), EPOLLIN)) // close program?
+		if (!_reactor->registerHandler(new Connection(cfd, _reactor, this->get_fd()), EPOLLIN)) // close program?
 			return false;
 	}
 	return true;
@@ -103,7 +105,7 @@ int Acceptor::handleWrite() {
 }
 
 // SIGNAL HANDLER
-Signal::Signal(int fd) : EventHandler(fd){
+Signal::Signal(int fd, Reactor *reactor) : EventHandler(fd, reactor){
 	signal(SIGINT, on_signal);
 	signal(SIGTERM, on_signal);
 };
@@ -122,7 +124,7 @@ int Signal::handleWrite(){
 
 
 // STDIN HANDLER
-Stdin::Stdin(int fd) : EventHandler(fd){}
+Stdin::Stdin(int fd, Reactor *reactor) : EventHandler(fd, reactor){}
 
 int Stdin::handleRead(){
 

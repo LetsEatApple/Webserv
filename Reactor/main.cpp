@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:05:42 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/26 18:51:03 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/28 22:07:25 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,39 +51,11 @@ int	error(int err){
 	return false;
 }
 
-
-/* int main(int ac, char **av){
-
-	if (ac < 2)
-		return error(0); // later config ac != 2
-
-	Server server(ac -1, av); // data from parser later as arg
-	if (!server.createServer())
-		return false;
-
-	Reactor reactor(server);
-	if (!reactor.init())
-		return false;
-
-	// Event loop
-	for(;;){
-		if (!reactor.handleEvents()){
-			if (errno == EINTR)
-				continue ;
-			return error(7);
-		}
-		if (reactor.stop(GET))
-			break ;
-	}
-	return true;
-} */
-
 config::Listeners parse_config(char *argv){
 	Lexer lexer(argv);
 	Parser parser(lexer);
 	Block http = parser.parse();
 	validator::validate(http);
-	// printBlock(http);
 	config::Listeners listeners = config::buildConfig(http);
 	return listeners;
 }
@@ -104,22 +76,29 @@ int main(int ac, char **av){
 	}
 
 	// LOW-LEVEL NETWORKING
-	Server server(listeners);
-	if (!server.createServer())
-		return false;
-
-	Reactor reactor(server);
-	if (!reactor.init())
-		return false;
-
-	for(;;){
-		if (!reactor.handleEvents()){
-			if (errno == EINTR)
-				continue ;
-			return error(7);
+	try
+	{
+		Server server(listeners);
+		if (!server.createServer())
+				return false;
+		
+		Reactor reactor(server);
+		if (!reactor.init())
+			return false;
+		
+		for(;;){
+			if (!reactor.handleEvents()){
+				if (errno == EINTR)
+					continue ;
+				return error(7);
+			}
+			if (reactor.stop(GET))
+				break ;
 		}
-		if (reactor.stop(GET))
-			break ;
+		return true;
 	}
-	return true;
+	catch(const std::exception& e)
+	{
+		std::cerr << e.what() << '\n';
+	}
 }

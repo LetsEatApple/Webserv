@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:20:30 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/25 16:15:48 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/28 20:42:38 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,10 +30,12 @@ struct Data{
 class Connection : public EventHandler{
 
 private:
-	Data data;
+	Data					_data;
+	int						_lfd;
+	config::ListenerData	_httpServer;
 	//adding struct containing data from config depending on fd / listening fd? or through reactor _server?
 public:
-	Connection(int fd);
+	Connection(int fd, Reactor *reactor, int lfd);
 	int handleRead();
 	int handleWrite();
 };
@@ -42,7 +44,7 @@ public:
 class Acceptor : public EventHandler{
 
 public:
-	Acceptor(int fd);
+	Acceptor(int fd, Reactor *reactor);
 	int handleRead();
 	int handleWrite();
 };
@@ -51,7 +53,7 @@ public:
 class Signal : public EventHandler{
 
 public:
-	Signal(int fd);
+	Signal(int fd, Reactor *reactor);
 	int handleRead();
 	int handleWrite();
 };
@@ -60,7 +62,7 @@ public:
 class Stdin : public EventHandler{
 
 public:
-	Stdin(int fd);
+	Stdin(int fd, Reactor *reactor);
 	int handleRead();
 	int handleWrite();
 };
