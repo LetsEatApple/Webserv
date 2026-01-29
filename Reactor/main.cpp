@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:05:42 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/24 17:41:17 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/28 22:07:25 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,7 +21,7 @@ int	error(int err){
 	switch (err)
 	{
 	case 0:
-		std::cout << "Wrong/missing input: Program demands one configuration file as input!" << std::endl;
+		std::cout << "Usage: ./webserv config.conf" << std::endl;
 		return false;
 	case 1:
 		std::cout << "Creating socket failed: ";
@@ -51,29 +51,54 @@ int	error(int err){
 	return false;
 }
 
+config::Listeners parse_config(char *argv){
+	Lexer lexer(argv);
+	Parser parser(lexer);
+	Block http = parser.parse();
+	validator::validate(http);
+	config::Listeners listeners = config::buildConfig(http);
+	return listeners;
+}
 
 int main(int ac, char **av){
 
-	if (ac < 2)
-		return error(0); // later config ac != 2
+	// PARSING
+	if (ac != 2)
+		return error(0);
 
-	Server server(ac -1, av); // data from parser later as arg
-	if (!server.createServer())
-		return 1;
-
-	Reactor reactor(server);
-	if (!reactor.init())
-		return 1;
-
-	// Event loop
-	for(;;){
-		if (!reactor.handleEvents()){
-			if (errno == EINTR)
-				continue ;
-			return error(7);
-		}
-		if (reactor.stop(GET))
-			break ;
+	config::Listeners listeners;
+	try {
+		listeners = parse_config(av[1]);
 	}
-	return 0;
+	catch (const std::exception &e) {
+		std::cerr << "Error: " << e.what() << std::endl;
+		return 1;
+	}
+
+	// LOW-LEVEL NETWORKING
+	try
+	{
+		Server server(listeners);
+		if (!server.createServer())
+				return false;
+		
+		Reactor reactor(server);
+		if (!reactor.init())
+			return false;
+		
+		for(;;){
+			if (!reactor.handleEvents()){
+				if (errno == EINTR)
+					continue ;
+				return error(7);
+			}
+			if (reactor.stop(GET))
+				break ;
+		}
+		return true;
+	}
+	catch(const std::exception& e)
+	{
+		std::cerr << e.what() << '\n';
+	}
 }

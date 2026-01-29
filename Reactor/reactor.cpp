@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:14:49 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/25 15:48:21 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/28 21:14:07 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -50,16 +50,16 @@ int Reactor::init(){
 	int sfd = set_signalfd();
 	if (sfd == -1)
 		return error(5);
-	if (!registerHandler(new Signal(sfd), EPOLLIN))
+	if (!registerHandler(new Signal(sfd, this), EPOLLIN))
 		return false;
 
 	// stdin
-	if(!registerHandler(new Stdin(STDIN_FILENO), EPOLLIN))
+	if(!registerHandler(new Stdin(STDIN_FILENO, this), EPOLLIN))
 		return false;
 
 	// register listening sockets and their handlers
 	for (int i = 0; i < _server.nports; i++){
-		if (!registerHandler(new Acceptor(_server.s_list[i].sock), EPOLLIN))
+		if (!registerHandler(new Acceptor(_server.s_list[i].sock, this), EPOLLIN))
 			return error(6);
 	}
 	return true;
@@ -70,13 +70,12 @@ int Reactor::registerHandler(EventHandler *handler, uint32_t event){
 	epoll_event ev;
 	std::memset(&ev, 0, sizeof(ev));
 	ev.data.fd = handler->get_fd();
-	handler->reactor = this;
+	//handler->reactor(this);
 	ev.events = event;
 	
 	if (epoll_ctl(_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev) < 0){
 		return false; //error handling? differs between listening/signal and client sockets
 	}
-
 	_handlers[ev.data.fd] = handler;
 	return true;
 }
@@ -133,6 +132,26 @@ bool Reactor::stop(int mode){
 		_sig = true;
 
 	return _sig;
+}
+
+config::ListenerData Reactor::getServerDetails(int lfd){
+
+	int i;
+	for (i = 0; i < _server.nports; i++){
+		if (_server.s_list[i].sock == lfd)
+			break;
+	}
+
+	config::ListenerKey key;
+	key.first = _server.s_list[i].host;
+	key.second = _server.s_list[i].port;
+	config::Listeners::iterator it = _server.listeners.find(key);
+	if (it == _server.listeners.end())
+		std::cout << "key not found" << std::endl;
+	config::ListenerData httpServer = it->second;
+	return httpServer;
+
+	//segfaulting why?
 }
 
 Reactor::~Reactor(){

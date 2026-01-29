@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:14:10 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/23 13:42:46 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/27 20:41:57 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,7 +33,7 @@ public:
 	int		modifyHandler (EventHandler *handler, uint32_t event);
 	int		handleEvents();
 	bool	stop (int mode);
-	Server *getServerDetails();
+	config::ListenerData	getServerDetails(int lfd);
 	~Reactor();
 };
 
