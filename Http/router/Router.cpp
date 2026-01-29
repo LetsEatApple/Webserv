@@ -19,9 +19,9 @@ void Router::use(MiddlewareFunc mw) {
     middlewares.push_back(mw);
 }
 
-void Router::get(const std::string& path, HandlerFunc handler) {
-    get(path, *wrap(handler));
-}
+//void Router::get(const std::string& path, HandlerFunc handler) {
+//    get(path, *wrap(handler));
+//}
 
 void Router::get(const std::string& path, RouteHandler& handler) {
     Route r;

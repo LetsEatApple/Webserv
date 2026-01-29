@@ -22,15 +22,15 @@ Connection::Connection(int fd, Reactor *reactor, int lfd) : EventHandler(fd, rea
     //router.use(logRequest);
 
     // Register routes
-    router.get("/", _httpServer);
-    router.get("/health", handleHealth);
-    router.get("/echo", handleEcho);
+    //router.get("/", _httpServer);
+    //router.get("/health", handleHealth);
+    //router.get("/echo", handleEcho);
 
     // Register prefix route (matches /api/*)
-    router.prefix("/api", handleApi);
+    //router.prefix("/api", handleApi);
 
     // Default handler for unmatched routes
-    router.setDefault(handleNotFound);
+    //router.setDefault(handleNotFound);
 
 
 };
