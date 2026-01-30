@@ -1,12 +1,16 @@
 #include "Config.hpp"
 #include "AST.hpp"
+#include "Debug.hpp"
 #include "Lexer.hpp"
 #include "Parser.hpp"
 #include "Utils.hpp"
 #include "Validator.hpp"
 #include <cstddef>
 #include <cstdlib>
+#include <iomanip>
+#include <iostream>
 #include <netdb.h>
+#include <ostream>
 #include <set>
 #include <stdexcept>
 #include <stdint.h>
@@ -173,6 +177,86 @@ void buildServers(Listeners &listeners, const Block &server,
   }
 }
 
+std::ostream &operator<<(std::ostream &out, Listeners const &l) {
+  for (Listeners::const_iterator it = l.begin(); it != l.end(); ++it) {
+    out << dbg::BOLD << dbg::BLUE << "{" << dbg::RESET << std::endl;
+    out << "  " << dbg::BOLD << dbg::YELLOW << it->first.first << ":"
+        << it->first.second << " {" << dbg::RESET << std::endl;
+    for (size_t i = 0; i < it->second.servers.size(); ++i)
+      out << it->second.servers[i];
+    out << dbg::BOLD << dbg::YELLOW << "}" << dbg::RESET << std::endl;
+  }
+  return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Server const &s) {
+  out << dbg::BOLD << dbg::BLUE << "  server {" << dbg::RESET << std::endl;
+  out << dbg::CYAN << "    server_names:" << dbg::RESET;
+  for (size_t i = 0; i < s.server_names.size(); ++i) {
+    out << " " << s.server_names[i];
+  }
+  out << std::endl;
+  for (size_t i = 0; i < s.locations.size(); ++i) {
+    out << s.locations[i];
+  }
+  out << dbg::BOLD << dbg::BLUE << "  }" << dbg::RESET << std::endl;
+  return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Location const &l) {
+  out << dbg::BOLD << dbg::BLUE << "    location {" << dbg::RESET << std::endl;
+
+  out << "      " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
+      << "path" << dbg::RESET << ": " << l.path << std::endl;
+
+  out << "      " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
+      << "alias" << dbg::RESET << ": " << l.alias << std::endl;
+
+  out << "      " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
+      << "autoindex" << dbg::RESET << ": "
+      << (l.autoindex ? dbg::GREEN : dbg::RED) << (l.autoindex ? "on" : "off")
+      << dbg::RESET << std::endl;
+
+  out << "      " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
+      << "client_max_body_size" << dbg::RESET << ": " << dbg::YELLOW
+      << l.client_max_body_size << dbg::RESET << std::endl;
+
+  out << "      " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
+      << "index" << dbg::RESET << ": " << l.index << std::endl;
+
+  out << "      " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
+      << "upload" << dbg::RESET << ": " << l.upload << std::endl;
+
+  out << "      " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
+      << "limit_except" << dbg::RESET << ":";
+  for (std::set<std::string>::iterator it = l.limit_except.begin();
+       it != l.limit_except.end(); ++it) {
+    out << " " << *it;
+  }
+  out << std::endl;
+
+  out << "      " << dbg::CYAN << "error_pages" << dbg::RESET << " {"
+      << std::endl;
+  for (std::map<int, std::string>::const_iterator it = l.error_pages.begin();
+       it != l.error_pages.end(); ++it) {
+    out << "          " << dbg::YELLOW << it->first << dbg::RESET << " "
+        << it->second << std::endl;
+  }
+  out << "      }" << std::endl;
+
+  out << "      " << dbg::CYAN << "returns" << dbg::RESET << " {" << std::endl;
+  for (std::map<int, std::string>::const_iterator it = l.returns.begin();
+       it != l.returns.end(); ++it) {
+    out << "          " << dbg::YELLOW << it->first << dbg::RESET << " "
+        << it->second << std::endl;
+  }
+  out << "      }" << std::endl;
+
+  out << dbg::BOLD << dbg::BLUE << "    }" << dbg::RESET << std::endl;
+
+  return out;
+}
+
 Listeners buildConfig(const std::string &path) {
   Listeners listeners;
   Lexer lexer(path);
@@ -182,19 +266,22 @@ Listeners buildConfig(const std::string &path) {
 
   Location http_default_location;
   std::map<int, std::string> returns;
-  std::set<std::string> limit_exept;
+  std::set<std::string> limit_except;
+  std::map<int, std::string> error_pages;
   http_default_location.path = "/";
   http_default_location.alias = "/var/www";
   http_default_location.index = "index.html";
   http_default_location.returns = returns;
   http_default_location.client_max_body_size = 1024 * 1024;
-  http_default_location.error_pages = std::map<int, std::string>();
+  http_default_location.error_pages = error_pages;
   http_default_location.autoindex = false;
   http_default_location.upload = "";
-  http_default_location.limit_exept = limit_exept;
+  http_default_location.limit_except = limit_except;
 
   for (size_t i = 0; i < http.blocks.size(); ++i)
     buildServers(listeners, http.blocks[i], http_default_location);
+
+  std::cout << listeners;
   return listeners;
 }
 }; // namespace config

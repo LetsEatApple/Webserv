@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <map>
+#include <ostream>
 #include <set>
 #include <stdint.h>
 #include <string>
@@ -12,7 +13,7 @@
 namespace config {
 struct Location {
   std::string path;
-  std::set<std::string> limit_exept;
+  std::set<std::string> limit_except;
   std::string alias;
   bool autoindex;
   std::string index;
@@ -35,6 +36,9 @@ struct ListenerData {
 typedef std::map<ListenerKey, ListenerData> Listeners;
 
 Listeners buildConfig(const std::string &path);
+std::ostream &operator<<(std::ostream &out, Location const &l);
+std::ostream &operator<<(std::ostream &out, Server const &l);
+std::ostream &operator<<(std::ostream &out, Listeners const &l);
 } // namespace config
 
 #endif // !CONFIG_HPP
