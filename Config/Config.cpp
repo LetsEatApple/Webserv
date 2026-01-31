@@ -160,7 +160,7 @@ void buildServers(Listeners &listeners, const Block &server,
     }
     if (!hasRootLocation(s.locations))
       s.locations.push_back(server_default_location);
-    listeners[defaultKey].servers.push_back(s);
+    listeners[defaultKey].push_back(s);
   }
 
   for (size_t i = 0; i < listens.size(); ++i) {
@@ -173,7 +173,7 @@ void buildServers(Listeners &listeners, const Block &server,
     }
     if (!hasRootLocation(s.locations))
       s.locations.push_back(server_default_location);
-    listeners[listens[i]].servers.push_back(s);
+    listeners[listens[i]].push_back(s);
   }
 }
 
@@ -182,8 +182,8 @@ std::ostream &operator<<(std::ostream &out, Listeners const &l) {
     out << dbg::BOLD << dbg::BLUE << "{" << dbg::RESET << std::endl;
     out << "  " << dbg::BOLD << dbg::YELLOW << it->first.first << ":"
         << it->first.second << " {" << dbg::RESET << std::endl;
-    for (size_t i = 0; i < it->second.servers.size(); ++i)
-      out << it->second.servers[i];
+    for (size_t i = 0; i < it->second.size(); ++i)
+      out << it->second[i];
     out << dbg::BOLD << dbg::YELLOW << "}" << dbg::RESET << std::endl;
   }
   return out;

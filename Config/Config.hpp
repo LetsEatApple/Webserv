@@ -29,11 +29,7 @@ struct Server {
 };
 
 typedef std::pair<std::string, uint16_t> ListenerKey;
-struct ListenerData {
-  std::vector<Server> servers;
-  size_t default_index;
-};
-typedef std::map<ListenerKey, ListenerData> Listeners;
+typedef std::map<ListenerKey, std::vector<Server> > Listeners;
 
 Listeners buildConfig(const std::string &path);
 std::ostream &operator<<(std::ostream &out, Location const &l);

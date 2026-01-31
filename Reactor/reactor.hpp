@@ -33,7 +33,7 @@ public:
 	int		modifyHandler (EventHandler *handler, uint32_t event);
 	int		handleEvents();
 	bool	stop (int mode);
-	config::ListenerData	getServerDetails(int lfd);
+  std::vector<config::Server>	getServerDetails(int lfd);
 	~Reactor();
 };
 

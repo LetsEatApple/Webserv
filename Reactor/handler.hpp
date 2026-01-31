@@ -17,6 +17,7 @@
 #include "Request.hpp"
 #include "Response.hpp"
 #include "RequestHandler.hpp"
+#include <vector>
 
 class Reactor;
 
@@ -38,7 +39,7 @@ private:
 	RequestHandler*	_requestHandler;
 	Data					_data;
 	int						_lfd;
-	config::ListenerData	_httpServer;
+  std::vector<config::Server>	_httpServer;
 	//adding struct containing data from config depending on fd / listening fd? or through reactor _server?
 public:
 	//Connection(int fd, RequestHandler* requestHandler);

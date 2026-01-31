@@ -134,7 +134,7 @@ bool Reactor::stop(int mode){
 	return _sig;
 }
 
-config::ListenerData Reactor::getServerDetails(int lfd){
+std::vector<config::Server> Reactor::getServerDetails(int lfd){
 
 	int i;
 	for (i = 0; i < _server.nports; i++){
@@ -148,7 +148,7 @@ config::ListenerData Reactor::getServerDetails(int lfd){
 	config::Listeners::iterator it = _server.listeners.find(key);
 	if (it == _server.listeners.end())
 		std::cout << "key not found" << std::endl;
-	config::ListenerData httpServer = it->second;
+  std::vector<config::Server> httpServer = it->second;
 	return httpServer;
 
 	//segfaulting why?
