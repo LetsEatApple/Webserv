@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:07:37 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/31 16:38:02 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/31 22:32:47 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -67,6 +67,7 @@ Server::Server(config::Listeners &listeners) /*: listeners(listeners)*/{
 	hints.ai_family   = AF_UNSPEC; // IPv4 or IPv6
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags    = AI_PASSIVE; // if host is NULL → bind to 0.0.0.0 / ::if host is set → bind to that exact address
+	_slist.resize(listeners.size());
 
 	config::Listeners::iterator it;
 	int i = 0;
@@ -123,7 +124,10 @@ const serverListeners	&Server::get_listeners(){
 	return _listeners;
 }
 
-Server::~Server() {}
+Server::~Server() {
+	for (size_t i = 0; i < _slist.size(); i++)
+		freeaddrinfo(_slist[i].n_server);
+}
 
 const char* Server::InvalidAddrException::what() const throw(){
 	return "Error: getaddrinfo: Invalid address";
