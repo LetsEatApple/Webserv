@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:06:56 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/23 13:04:03 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/31 16:45:22 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,27 +14,33 @@
 
 #include "lib.h"
 
-struct server{
-	int sock;
-	int port;
-	std::string s_port;
-	std::string host; //addr
-	struct sockaddr_in s_addr;
-	struct addrinfo *n_server; //network server
-};
-
+typedef std::pair<int, config::ListenerData> ListenerSocket;
+typedef std::vector<ListenerSocket> serverListeners;
 typedef std::vector<struct server> server_list;
 
+struct server{
+	ListenerSocket		ls;
+	int					sock;
+	int					portNum;
+	std::string			portStr;
+	std::string			host; //addr
+	struct addrinfo *	n_server; //network server
+};
+
+
 class Server{
+
 private:
+	serverListeners	_listeners;
+	server_list		_slist;
 	Server();
+
 public:
-	//Server(int nports, char **ports);
-	Server(config::Listeners &listeners);
-	config::Listeners&	listeners;
-	server_list			s_list;
-	int					nports;
-	int					createServer();
+	Server(config::Listeners &configlisteners);
+
+	const serverListeners	&get_listeners();
+	int						createServer();
+	int						error_close(int err, int index);
 
 	class InvalidAddrException : public std::exception{
 	public:

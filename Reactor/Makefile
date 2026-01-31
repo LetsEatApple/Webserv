@@ -6,22 +6,27 @@
 #    By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/08/25 12:32:34 by lea               #+#    #+#              #
-#    Updated: 2026/01/26 18:08:18 by lhagemos         ###   ########.fr        #
+#    Updated: 2026/01/31 15:57:52 by lhagemos         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
-NAME = reactor
+NAME = webserv
 
-SRC = main.cpp \
+SRC = ../main.cpp \
 AEventHandler.cpp \
 handler.cpp \
 reactor.cpp \
 server.cpp \
-../Parser/Config.cpp \
-../Parser/Lexer.cpp \
-../Parser/Parser.cpp \
-../Parser/Utils.cpp \
-../Parser/Validator.cpp \
+../Config/Config.cpp \
+../Config/Lexer.cpp \
+../Config/Parser.cpp \
+../Config/Utils.cpp \
+../Config/Validator.cpp \
+../Http/request/Headers.cpp \
+../Http/request/Request.cpp \
+../Http/response/Response.cpp \
+../Http/router/Router.cpp \
+../Http/routes/routes.cpp \
 
 CPP = c++
 CPPFLAGS = -std=c++98 -Wall -Werror -Wextra

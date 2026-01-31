@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:18:00 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/28 20:41:10 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/31 15:49:31 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,7 +15,7 @@
 
 EventHandler::EventHandler() : _fd(-1){};
 
-EventHandler::EventHandler(int fd, Reactor *reactor) : _fd(fd), _reactor(reactor){};
+EventHandler::EventHandler(int fd) : _fd(fd) {};
 
 void EventHandler::set_fd(int fd){
 

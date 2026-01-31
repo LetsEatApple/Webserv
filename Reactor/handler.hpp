@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:20:30 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/22 16:19:52 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/31 16:52:07 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,9 +14,9 @@
 
 #include "lib.h"
 #include "AEventHandler.hpp"
-#include "Request.hpp"
-#include "Response.hpp"
-#include "RequestHandler.hpp"
+#include "../Http/request/Request.hpp"
+#include "../Http/response/Response.hpp"
+#include "../Http/router/RequestHandler.hpp"
 
 class Reactor;
 
@@ -33,25 +33,29 @@ struct Data{
 class Connection : public EventHandler{
 
 private:
-	Request			_request;
-	std::string		_readBuffer;
-	RequestHandler*	_requestHandler;
+	Request					_request;
+	std::string				_readBuffer;
+	RequestHandler*			_requestHandler;
 	Data					_data;
 	int						_lfd;
 	config::ListenerData	_httpServer;
 	//adding struct containing data from config depending on fd / listening fd? or through reactor _server?
 public:
 	//Connection(int fd, RequestHandler* requestHandler);
-	Connection(int fd, Reactor *reactor, int lfd);
+	Connection(int fd, int lfd);
 	int handleRead();
 	int handleWrite();
+	~Connection();
 };
 
 // handling listening sockets
-class Acceptor : public EventHandler{
+typedef std::pair<int, config::ListenerData> ListenerSocket;
 
+class Acceptor : public EventHandler{
+private:
+	ListenerSocket	_ls;
 public:
-	Acceptor(int fd, Reactor *reactor);
+	Acceptor(const ListenerSocket &ls);
 	int handleRead();
 	int handleWrite();
 };
@@ -60,7 +64,7 @@ public:
 class Signal : public EventHandler{
 
 public:
-	Signal(int fd, Reactor *reactor);
+	Signal(int fd);
 	int handleRead();
 	int handleWrite();
 };
@@ -69,7 +73,7 @@ public:
 class Stdin : public EventHandler{
 
 public:
-	Stdin(int fd, Reactor *reactor);
+	Stdin(int fd);
 	int handleRead();
 	int handleWrite();
 };
