@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:21:43 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/31 17:07:45 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/31 22:33:27 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,7 +17,6 @@
 
 //	CONNECTION HANDLER
 Connection::Connection(int fd, const ListenerSocket &ls) : EventHandler(fd), _ls(ls) {
-	//_httpServer = _reactor->getServerDetails(_lfd);
     Router* router = new Router(); //leaking when exiting with signal
     _requestHandler = router;
     // Register middleware
@@ -126,7 +125,6 @@ int Connection::handleWrite() {
 }
 
 Connection::~Connection() {
-	std::cout << "delete reqHandler" << std::endl;
 	delete _requestHandler;
 }
 
