@@ -12,15 +12,15 @@
 
 namespace config {
 struct Location {
-  std::string path;
-  std::set<std::string> limit_except;
-  std::string alias;
   bool autoindex;
-  std::string index;
   size_t client_max_body_size;
-  std::map<int, std::string> returns;
-  std::map<int, std::string> error_pages;
+  std::string path;
+  std::string alias;
+  std::string index;
   std::string upload;
+  std::map<int, std::string> returns;
+  std::set<std::string> limit_except;
+  std::map<int, std::string> error_pages;
 };
 
 struct Server {

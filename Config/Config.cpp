@@ -5,10 +5,13 @@
 #include "Parser.hpp"
 #include "Utils.hpp"
 #include "Validator.hpp"
+#include <asm-generic/errno-base.h>
+#include <cerrno>
 #include <cstddef>
 #include <cstdlib>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <netdb.h>
 #include <ostream>
 #include <set>
@@ -23,14 +26,15 @@ namespace config {
 
 static bool isBracketedIPv6(const std::string &s) {
   bool onlyAddress = s.size() >= 2 && s[0] == '[' && s[s.size() - 1] == ']';
+  size_t last_close_pos = s.find_last_of("]");
   bool addressAndPort = s.size() >= 2 && s[0] == '[' &&
-                        s.find(']') != std::string::npos &&
-                        s[s.size() - 1] != ']';
+                        last_close_pos != std::string::npos &&
+                        last_close_pos != s.size() + 1 && s[last_close_pos + 1] == ':';
   return onlyAddress || addressAndPort;
 }
 
 static std::string getAddress(std::string &address, std::string &port,
-                              Directive const &d) {
+                              Directive const &d, bool isV6) {
   if (address == "*")
     address = "0.0.0.0";
   if (address == "localhost")
@@ -38,7 +42,10 @@ static std::string getAddress(std::string &address, std::string &port,
 
   struct addrinfo hints;
   struct addrinfo *res;
-  hints.ai_family = AF_UNSPEC;
+  if (isV6)
+    hints.ai_family = AF_INET6;
+  else
+   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_protocol = 0;
   hints.ai_addrlen = 0;
@@ -89,22 +96,22 @@ std::pair<std::string, uint16_t> makeListen(Directive const &d) {
       port = getPort(portStr, d);
     }
     std::string portStr = utils::toString(port);
-    address = getAddress(address, portStr, d);
+    address = getAddress(address, portStr, d, true);
   }
   /* Ipv6 / hostname */
   else {
-    size_t colon_pos = arg.find(":");
+    size_t colon_pos = arg.find_last_of(":");
 
     if (colon_pos != std::string::npos) {
       address = arg.substr(0, colon_pos);
       std::string portStr = arg.substr(colon_pos + 1);
       port = getPort(portStr, d);
-      address = getAddress(address, portStr, d);
+      address = getAddress(address, portStr, d, false);
     } else if (utils::isNumber(arg))
       port = getPort(arg, d);
     else {
       std::string partStr = utils::toString(port);
-      address = getAddress(arg, partStr, d);
+      address = getAddress(arg, partStr, d, false);
     }
   }
 
@@ -113,13 +120,98 @@ std::pair<std::string, uint16_t> makeListen(Directive const &d) {
   return listen;
 }
 
-void applyDirective(Location &server_default_location, Directive const &d) {
-  (void)server_default_location;
-  (void)d;
+static void  applyLocationPath(Location &loc, Block const &b) {
+  std::string const &path = b.args.at(0);
+
+  if (path.empty() || path.at(0) != '/')
+    throw std::runtime_error(utils::errorMsg("Unexpected value '" + path + "' in 'location' directive", b.line));
+
+  std::string normalized = path;
+  if (normalized.size() > 1 && normalized.back() == '/')
+    normalized.pop_back();
+  loc.path = normalized;
 }
 
-Location buildLocation(const Block &b, Location default_location) {
-  (void)b;
+static void  applyAlias(Location &loc, Directive const &d) {
+  std::string const &alias = d.args.at(0);
+
+  if (alias.empty() || alias.at(0) != '/')
+    throw std::runtime_error(utils::errorMsg("Unexpected value '" + alias +  "' in 'alias' directive", d.line));
+
+  std::string normalized = alias;
+  if (normalized.size() > 1 && normalized.back() == '/')
+    normalized.pop_back();
+  loc.alias = normalized;
+}
+
+static void applyAutoindex(Location &loc, Directive const &d) {
+  std::string const &autoindex = d.args.at(0);
+
+  if (autoindex == "on")
+    loc.autoindex = true;
+  else if (autoindex == "off")
+    loc.autoindex = false;
+  else
+    throw std::runtime_error(utils::errorMsg("Unexpected value '" + autoindex + "' in 'autoindex' directive", d.line));
+}
+
+static void applyIndex(Location &loc, Directive const &d) {
+  std::string const &index = d.args.at(0);
+
+  if (index.empty())
+    throw std::runtime_error(utils::errorMsg("Unexpected value '" + index +  "' in 'index' directive", d.line));
+  loc.index = index;
+}
+
+static void applyClientMaxBodySize(Location &loc, Directive const &d) {
+  std::string const &clientMaxBodySize = d.args.at(0);
+
+  if (clientMaxBodySize.empty())
+    throw std::runtime_error(utils::errorMsg("Unexpected value '" + clientMaxBodySize + "' in 'client_max_body_size' directive", d.line));
+  
+  char unit = clientMaxBodySize.back();
+  size_t max = std::numeric_limits<size_t>::max();
+  size_t scale = 1;
+  std::string value = clientMaxBodySize;
+  if (unit == 'k' || unit == 'K') {
+    scale = 1024;
+    max = std::numeric_limits<size_t>::max() / 1024;
+    value = clientMaxBodySize.substr(0, clientMaxBodySize.size() - 1);
+  } else if (unit == 'm' || unit == 'M') {
+    max = std::numeric_limits<size_t>::max() / (1024 * 1024);
+    scale = 1024 * 1024;
+    value = clientMaxBodySize.substr(0, clientMaxBodySize.size() - 1);
+  }
+
+  if (!utils::isNumber(value) || value.empty()) 
+    throw std::runtime_error(utils::errorMsg("Unexpected value '" + clientMaxBodySize + "' in 'client_max_body_size' directive", d.line));
+    
+  errno = 0;
+  unsigned long s = std::strtoul(value.c_str(), NULL, 10);
+  if (errno == ERANGE || s > max)
+    throw std::runtime_error(utils::errorMsg("Unexpected value '" + clientMaxBodySize + "' in 'client_max_body_size' directive", d.line));
+  
+  loc.client_max_body_size = s * scale;
+}
+
+void applyDirective(Location &loc, Directive const &d) {
+  if (d.name == "alias")
+    applyAlias(loc, d);
+  if (d.name == "autoindex")
+    applyAutoindex(loc, d);
+  if (d.name == "index")
+    applyIndex(loc, d);
+  if (d.name == "client_max_body_size")
+    applyClientMaxBodySize(loc, d);
+}
+
+Location buildLocation(const Block &location, Location server_default_location) {
+  Location default_location = server_default_location;
+  applyLocationPath(default_location, location);
+  for (size_t i = 0; i < location.directives.size(); ++i) {
+    const Directive &d = location.directives[i];
+    applyDirective(default_location, d);
+  }
   return default_location;
 }
 
@@ -285,6 +377,8 @@ Listeners buildConfig(const std::string &path) {
   http_default_location.upload = "";
   http_default_location.limit_except = limit_except;
 
+  for (size_t i = 0; i < http.directives.size(); ++i)
+    applyDirective(http_default_location, http.directives[i]);
   for (size_t i = 0; i < http.blocks.size(); ++i)
     buildServers(listeners, http.blocks[i], http_default_location);
 

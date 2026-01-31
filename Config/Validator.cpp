@@ -245,6 +245,9 @@ static void validateLocation(const Block &b) {
     validateDirective(b.directives[i], CTX_LOCATION, vs);
   }
 
+  if (b.args.size() != 1)
+    throw std::runtime_error(utils::errorMsg("Expected exactly 1 argument for '" + b.name + "'", b.line));
+
   if (b.blocks.size() != 0)
     throw std::runtime_error(utils::errorMsg(
         "'" + b.blocks[0].name + "' is not allowed here", b.line));
