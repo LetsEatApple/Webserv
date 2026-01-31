@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:06:56 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/31 16:45:22 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/31 21:10:24 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,7 +14,7 @@
 
 #include "lib.h"
 
-typedef std::pair<int, config::ListenerData> ListenerSocket;
+typedef std::pair< int, std::vector<config::Server> > ListenerSocket;
 typedef std::vector<ListenerSocket> serverListeners;
 typedef std::vector<struct server> server_list;
 
