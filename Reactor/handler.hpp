@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:20:30 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/31 16:52:07 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/31 17:08:27 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,6 +17,8 @@
 #include "../Http/request/Request.hpp"
 #include "../Http/response/Response.hpp"
 #include "../Http/router/RequestHandler.hpp"
+
+typedef std::pair<int, config::ListenerData> ListenerSocket;
 
 class Reactor;
 
@@ -37,20 +39,18 @@ private:
 	std::string				_readBuffer;
 	RequestHandler*			_requestHandler;
 	Data					_data;
-	int						_lfd;
+	ListenerSocket			_ls;
 	config::ListenerData	_httpServer;
 	//adding struct containing data from config depending on fd / listening fd? or through reactor _server?
 public:
 	//Connection(int fd, RequestHandler* requestHandler);
-	Connection(int fd, int lfd);
+	Connection(int fd, const ListenerSocket &ls);
 	int handleRead();
 	int handleWrite();
 	~Connection();
 };
 
 // handling listening sockets
-typedef std::pair<int, config::ListenerData> ListenerSocket;
-
 class Acceptor : public EventHandler{
 private:
 	ListenerSocket	_ls;

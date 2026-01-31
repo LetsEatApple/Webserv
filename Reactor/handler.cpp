@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:21:43 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/31 16:57:27 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/01/31 17:07:45 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,7 +16,7 @@
 #include "../Http/routes/routes.hpp"
 
 //	CONNECTION HANDLER
-Connection::Connection(int fd, int lfd) : EventHandler(fd), _lfd(lfd) {
+Connection::Connection(int fd, const ListenerSocket &ls) : EventHandler(fd), _ls(ls) {
 	//_httpServer = _reactor->getServerDetails(_lfd);
     Router* router = new Router(); //leaking when exiting with signal
     _requestHandler = router;
@@ -148,7 +148,7 @@ int Acceptor::handleRead() {
 		int ret = fcntl(cfd, F_SETFL, flags | O_NONBLOCK);
 		if (ret == -1 || flags == -1)
 			return false;
-		if (!_reactor->registerHandler(new Connection(cfd, this->get_fd()), EPOLLIN)) // close program?
+		if (!_reactor->registerHandler(new Connection(cfd, this->_ls), EPOLLIN)) // close program?
 			return false;
 	}
 	return true;
