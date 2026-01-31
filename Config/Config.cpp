@@ -127,8 +127,8 @@ static void  applyLocationPath(Location &loc, Block const &b) {
     throw std::runtime_error(utils::errorMsg("Unexpected value '" + path + "' in 'location' directive", b.line));
 
   std::string normalized = path;
-  if (normalized.size() > 1 && normalized.back() == '/')
-    normalized.pop_back();
+  if (normalized.size() > 1 && normalized[normalized.size() - 1] == '/')
+    normalized = normalized.substr(0, normalized.size() - 1);
   loc.path = normalized;
 }
 
@@ -139,8 +139,8 @@ static void  applyAlias(Location &loc, Directive const &d) {
     throw std::runtime_error(utils::errorMsg("Unexpected value '" + alias +  "' in 'alias' directive", d.line));
 
   std::string normalized = alias;
-  if (normalized.size() > 1 && normalized.back() == '/')
-    normalized.pop_back();
+  if (normalized.size() > 1 && normalized[normalized.size() - 1] == '/')
+    normalized = normalized.substr(0, normalized.size() - 1);
   loc.alias = normalized;
 }
 
@@ -169,7 +169,7 @@ static void applyClientMaxBodySize(Location &loc, Directive const &d) {
   if (clientMaxBodySize.empty())
     throw std::runtime_error(utils::errorMsg("Unexpected value '" + clientMaxBodySize + "' in 'client_max_body_size' directive", d.line));
   
-  char unit = clientMaxBodySize.back();
+  char unit = clientMaxBodySize[clientMaxBodySize.size() - 1];
   size_t max = std::numeric_limits<size_t>::max();
   size_t scale = 1;
   std::string value = clientMaxBodySize;
