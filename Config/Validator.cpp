@@ -18,8 +18,8 @@ static DirectiveType directiveType(const std::string &name) {
     return DIR_LISTEN;
   else if (name == "server_name")
     return DIR_SERVER_NAME;
-  else if (name == "limit_exept")
-    return DIR_LIMIT_EXEPT;
+  else if (name == "limit_except")
+    return DIR_LIMIT_EXCEPT;
   else if (name == "alias")
     return DIR_ALIAS;
   else if (name == "autoindex")
@@ -183,7 +183,7 @@ static void validateDirective(const Directive &d, ContextType ctx,
   case DIR_ALIAS:
     validateAlias(d, ctx, vs);
     break;
-  case DIR_LIMIT_EXEPT:
+  case DIR_LIMIT_EXCEPT:
     validateLimitExept(d, ctx, vs);
     break;
   case DIR_AUTOINDEX:

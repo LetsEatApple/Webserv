@@ -235,22 +235,29 @@ std::ostream &operator<<(std::ostream &out, Location const &l) {
   }
   out << std::endl;
 
-  out << "      " << dbg::CYAN << "error_pages" << dbg::RESET << " {"
-      << std::endl;
+  out << "      " << dbg::CYAN << "error_pages" << dbg::RESET << " {";
+  if (l.error_pages.size() > 0)
+    out << std::endl;
   for (std::map<int, std::string>::const_iterator it = l.error_pages.begin();
        it != l.error_pages.end(); ++it) {
     out << "          " << dbg::YELLOW << it->first << dbg::RESET << " "
         << it->second << std::endl;
   }
-  out << "      }" << std::endl;
+  if (l.error_pages.size() > 0)
+    out << "    ";
+  out << "  }" << std::endl;
 
-  out << "      " << dbg::CYAN << "returns" << dbg::RESET << " {" << std::endl;
+  out << "      " << dbg::CYAN << "returns" << dbg::RESET << " {";
+  if (l.returns.size() > 0)
+    out << std::endl;
   for (std::map<int, std::string>::const_iterator it = l.returns.begin();
        it != l.returns.end(); ++it) {
     out << "          " << dbg::YELLOW << it->first << dbg::RESET << " "
         << it->second << std::endl;
   }
-  out << "      }" << std::endl;
+  if (l.returns.size() > 0)
+    out << "    ";
+  out << "  }" << std::endl;
 
   out << dbg::BOLD << dbg::BLUE << "    }" << dbg::RESET << std::endl;
 
