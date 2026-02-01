@@ -3,10 +3,11 @@ set(TESTS_SOURCES
         headers_test.cpp
         request_test.cpp
         response_test.cpp
+        config_lexer_test.cpp
 )
 
 add_executable(${TEST_MAIN} ${TESTS_SOURCES})
-target_link_libraries(${TEST_MAIN} PUBLIC ${HTTP_LIBRARY} Catch2::Catch2WithMain)
+target_link_libraries(${TEST_MAIN} PUBLIC ${HTTP_LIBRARY} ${CONFIG_LIBRARY} Catch2::Catch2WithMain)
 
 include(Catch)
 catch_discover_tests(${TEST_MAIN})

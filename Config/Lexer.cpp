@@ -26,7 +26,7 @@ void Lexer::skipWhitespaceAndComments() {
     c = get();
     if (c == EOF)
       return;
-    if (std::isspace(c) || c == '\n')
+    if (std::isspace(c))
       continue;
     if (c == '#') {
       while ((c = get()) != EOF && c != '\n') {
