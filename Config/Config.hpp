@@ -18,9 +18,9 @@ struct Location {
   std::string alias;
   std::string index;
   std::string upload;
-  std::map<int, std::string> returns;
+  std::map<int, std::string> redirect;
   std::set<std::string> limit_except;
-  std::map<int, std::string> error_pages;
+  std::map<int, std::string> error_page;
 };
 
 struct Server {

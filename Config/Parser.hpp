@@ -13,7 +13,7 @@ public:
 
 private:
   Lexer &_lexer;
-  Token _current;
+  token::Token _current;
 
   void advance();
   Block parseBlock(const std::string &name,
