@@ -13,6 +13,7 @@
 #pragma once
 
 #include "lib.h"
+#include "Config.hpp"
 
 typedef std::pair< int, std::vector<config::Server> > ListenerSocket;
 typedef std::vector<ListenerSocket> serverListeners;
