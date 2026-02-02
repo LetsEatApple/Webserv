@@ -15,7 +15,6 @@ void Parser::advance() { _current = _lexer.next(); }
 
 // Parse everything inside a block: directives and nested blocks
 void Parser::parseBlockBody(Block &block) {
-  std::stringstream err;
   while (_current.type != token::TOK_RBRACE) {
     if (_current.type != token::TOK_WORD)
       throw std::runtime_error(
@@ -52,8 +51,6 @@ void Parser::parseBlockBody(Block &block) {
 // Create a block with name + args, then parse its body
 Block Parser::parseBlock(const std::string &name,
                          const std::vector<std::string> &args) {
-  std::stringstream err;
-
   Block block = {name, args, std::vector<Directive>(), std::vector<Block>(),
                  _current.line};
 
@@ -71,7 +68,6 @@ Block Parser::parseBlock(const std::string &name,
 
 // Create root 'http' block and parse derictives inside it
 Block Parser::parse() {
-
   if (_current.type == token::TOK_EOF)
     throw std::runtime_error(
         utils::errorMsg("Unexpected token 'EOF' at top level", _current.line));

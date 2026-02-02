@@ -1,8 +1,8 @@
 #ifndef ROUTES_HPP
 #define ROUTES_HPP
 
-#include "../response/Response.hpp"
-#include "../request/Request.hpp"
+#include "Response.hpp"
+#include "Request.hpp"
 
 // Middleware
 bool logRequest(Response::Writer& w, const Request& req);

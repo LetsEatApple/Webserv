@@ -325,6 +325,20 @@ void buildServers(Listeners &listeners, const Block &server,
     if (!hasRootLocation(s.locations))
       s.locations.push_back(server_default_location);
     std::sort(s.locations.begin(), s.locations.end(), sortLocation);
+
+    std::set<std::string> existing_names;
+    for (size_t j = 0; j < listeners[listens[i]].size(); ++j) {
+        const Server &existing_server = listeners[listens[i]][j];
+        for (size_t l = 0; l < existing_server.server_names.size(); ++l) {
+            existing_names.insert(existing_server.server_names[l]);
+        }
+    }
+    for (size_t k = 0; k < s.server_names.size(); ++k) {
+        if (existing_names.find(s.server_names[k]) != existing_names.end()) {
+            throw std::runtime_error("conflicting server name '" + s.server_names[k] + "' on " + listens[i].first + ":" + utils::toString(listens[i].second));
+        }
+    }
+
     listeners[listens[i]].push_back(s);
   }
 }

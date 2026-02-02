@@ -14,9 +14,10 @@
 
 #include "lib.h"
 #include "AEventHandler.hpp"
-#include "../Http/request/Request.hpp"
-#include "../Http/response/Response.hpp"
-#include "../Http/router/RequestHandler.hpp"
+#include "Config.hpp"
+#include "Request.hpp"
+#include "Response.hpp"
+#include "RequestHandler.hpp"
 
 typedef std::pair< int, std::vector<config::Server> > ListenerSocket;
 
