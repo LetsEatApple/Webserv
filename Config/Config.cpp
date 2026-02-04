@@ -231,14 +231,13 @@ void applyErrorPages(Location &loc, Directive const &d) {
   loc.error_page = error_page;
 }
 
-void applyRedirect(Location &loc, Directive const &d) {
+void applyReturn(Location &loc, Directive const &d) {
   
-  validatePath(d.args[d.args.size() - 1], d.name, d.line);
   int status = std::atoi(d.args.at(0).c_str());
-  if (d.args.at(0).length() != 3 || !(status == 301 || status == 302 || status == 303 || status == 307 || status == 308))
+  if (d.args.at(0).length() != 3 || status < 100 || status > 599)
       throw std::runtime_error(
       utils::errorMsg("Unexpected value '" + d.args[0] + "' in 'return' directive", d.line));
-    loc.redirect.insert(std::pair<int, std::string>(status, d.args[d.args.size() - 1]));
+    loc.ret.insert(std::pair<int, std::string>(status, d.args[d.args.size() - 1]));
 }
 
 void applyDirective(Location &loc, Directive const &d) {
@@ -257,7 +256,7 @@ void applyDirective(Location &loc, Directive const &d) {
   if (d.name == "error_page")
     applyErrorPages(loc, d);
   if (d.name == "return")
-    applyRedirect(loc, d);
+    applyReturn(loc, d);
 }
 
 Location buildLocation(const Block &location, Location server_default_location) {
@@ -358,7 +357,7 @@ std::ostream &operator<<(std::ostream &out, Listeners const &l) {
 
 std::ostream &operator<<(std::ostream &out, Server const &s) {
   out << dbg::BOLD << dbg::MAGENTA << "    server {" << dbg::RESET << std::endl;
-  out << dbg::BOLD << dbg::BLUE << "      server_names:" << dbg::RESET;
+  out << dbg::BOLD << dbg::BLUE << "      server_name:" << dbg::RESET;
   for (size_t i = 0; i < s.server_names.size(); ++i) {
     out << " " << s.server_names[i];
   }
@@ -407,7 +406,7 @@ std::ostream &operator<<(std::ostream &out, Location const &l) {
   }
   out << std::endl;
 
-  out << "        " << dbg::CYAN << "error_pages" << dbg::RESET << " {";
+  out << "        " << dbg::CYAN << "error_page" << dbg::RESET << " {";
   if (l.error_page.size() > 0)
     out << std::endl;
   for (std::map<int, std::string>::const_iterator it = l.error_page.begin();
@@ -419,15 +418,15 @@ std::ostream &operator<<(std::ostream &out, Location const &l) {
     out << "      ";
   out << "    }" << std::endl;
 
-  out << "        " << dbg::CYAN << "returns" << dbg::RESET << " {";
-  if (l.redirect.size() > 0)
+  out << "        " << dbg::CYAN << "return" << dbg::RESET << " {";
+  if (l.ret.size() > 0)
     out << std::endl;
-  for (std::map<int, std::string>::const_iterator it = l.redirect.begin();
-       it != l.redirect.end(); ++it) {
+  for (std::map<int, std::string>::const_iterator it = l.ret.begin();
+       it != l.ret.end(); ++it) {
     out << "            " << dbg::YELLOW << it->first << dbg::RESET << " "
         << it->second << std::endl;
   }
-  if (l.redirect.size() > 0)
+  if (l.ret.size() > 0)
     out << "      ";
   out << "    }" << std::endl;
 
@@ -444,7 +443,7 @@ Listeners buildConfig(const std::string &path) {
   validator::validate(http);
 
   Location http_default_location;
-  std::map<int, std::string> redirect;
+  std::map<int, std::string> ret;
   std::set<std::string> limit_except;
   limit_except.insert("GET");
   limit_except.insert("POST");
@@ -453,7 +452,7 @@ Listeners buildConfig(const std::string &path) {
   http_default_location.path = "/";
   http_default_location.alias = "/var/www";
   http_default_location.index = "index.html";
-  http_default_location.redirect = redirect;
+  http_default_location.ret = ret;
   http_default_location.client_max_body_size = 1024 * 1024;
   http_default_location.error_page = error_page;
   http_default_location.autoindex = false;
