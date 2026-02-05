@@ -3,7 +3,6 @@
 #include "Utils.hpp"
 #include <cstdlib>
 #include <iostream>
-#include <sstream>
 #include <stddef.h>
 #include <stdexcept>
 
@@ -222,6 +221,7 @@ static void validateHTTP(const Block &b) {
     throw std::runtime_error(
         utils::errorMsg("Expected 'server' directive at top level", b.line));
 }
+
 static void validateServer(const Block &b) {
   ValidationState vs = makeValidationState();
 
@@ -272,10 +272,7 @@ static void validateBlock(const Block &b, ContextType ctx) {
 
 void validate(const Block &http) {
   if (http.name != "http") {
-    std::stringstream err;
-    err << "Unexpected root context name '" << http.name << "' line ("
-        << http.line << ")";
-    throw std::runtime_error(err.str());
+    throw std::runtime_error(utils::errorMsg("Unexpected root context name '" + http.name + "'", http.line));
   }
   validateBlock(http, CTX_HTTP);
 }

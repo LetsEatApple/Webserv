@@ -300,6 +300,9 @@ void buildServers(Listeners &listeners, const Block &server,
       applyDirective(server_default_location, d);
   }
 
+  if (server_names.size() == 0)
+    server_names.push_back("");
+
   if (listens.empty()) {
     Server s;
     s.server_names = server_names;
@@ -310,6 +313,20 @@ void buildServers(Listeners &listeners, const Block &server,
     }
     if (!hasRootLocation(s.locations))
       s.locations.push_back(server_default_location);
+    
+    std::set<std::string> existing_names;
+    for (size_t j = 0; j < listeners[defaultKey].size(); ++j) {
+        const Server &existing_server = listeners[defaultKey][j];
+        for (size_t l = 0; l < existing_server.server_names.size(); ++l) {
+            existing_names.insert(existing_server.server_names[l]);
+        }
+    }
+    for (size_t k = 0; k < s.server_names.size(); ++k) {
+        if (existing_names.find(s.server_names[k]) != existing_names.end()) {
+            throw std::runtime_error(
+                "conflicting server name '" + s.server_names[k] + "' on 127.0.0.1:8000");
+        }
+    }
     listeners[defaultKey].push_back(s);
   }
 
