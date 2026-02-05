@@ -170,7 +170,6 @@ static void applyUpload(Location &loc, Directive const &d) {
     return;
   }
   loc.upload = validatePath(upload, d.name, d.line);
-  loc.upload = upload;
 }
 
 static void applyLimitExcept(Location &loc, Directive const &d) {
@@ -220,24 +219,26 @@ static void applyClientMaxBodySize(Location &loc, Directive const &d) {
 void applyErrorPages(Location &loc, Directive const &d) {
   std::map<int, std::string> error_page;
   
-  validatePath(d.args[d.args.size() - 1], d.name, d.line);
+  std::string normalized = validatePath(d.args[d.args.size() - 1], d.name, d.line);
   for (size_t i = 0; i < d.args.size() - 1; ++i) {
     int status = std::atoi(d.args[i].c_str());
     if (d.args[i].length() != 3 || status < 300 || status > 599)
       throw std::runtime_error(
       utils::errorMsg("Unexpected value '" + d.args[i] + "' in 'error_page' directive", d.line));
-    error_page.insert(std::pair<int, std::string>(status, d.args[d.args.size() - 1]));
+    error_page.insert(std::pair<int, std::string>(status, normalized));
   }
   loc.error_page = error_page;
 }
 
-void applyReturn(Location &loc, Directive const &d) {
-  
+void applyReturn(Location &loc, Directive const &d) { 
   int status = std::atoi(d.args.at(0).c_str());
+  std::string normalized = d.args[d.args.size() - 1];
+  if (normalized.at(0) == '/')
+    normalized = validatePath(d.args[d.args.size() - 1], d.name, d.line);
   if (d.args.at(0).length() != 3 || status < 100 || status > 599)
       throw std::runtime_error(
       utils::errorMsg("Unexpected value '" + d.args[0] + "' in 'return' directive", d.line));
-    loc.ret.insert(std::pair<int, std::string>(status, d.args[d.args.size() - 1]));
+    loc.ret.insert(std::pair<int, std::string>(status, normalized));
 }
 
 void applyDirective(Location &loc, Directive const &d) {
