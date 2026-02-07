@@ -5,6 +5,7 @@ set(TESTS_SOURCES
         response_test.cpp
         config_lexer_test.cpp
         config_parser_test.cpp
+        config_validator_test.cpp
 )
 
 add_executable(${TEST_MAIN} ${TESTS_SOURCES})
