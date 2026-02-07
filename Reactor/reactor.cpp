@@ -122,8 +122,7 @@ int Reactor::handleEvents(){
 		}
 		if (_evlist[i].events & EPOLLIN){
 			_handlers[_evlist[i].data.fd]->handleRead();
-		}
-		if (_evlist[i].events & EPOLLOUT)
+		} else if (_evlist[i].events & EPOLLOUT)
 			_handlers[_evlist[i].data.fd]->handleWrite();
 	}
 	return true;
