@@ -3,8 +3,9 @@ set(HTTP_SOURCES
         request/Request.cpp
         response/Response.cpp
         router/Router.cpp
-        routes/routes.cpp
+        router/ReturnDirective.cpp
 )
 
 add_library(${HTTP_LIBRARY} STATIC ${HTTP_SOURCES})
-target_include_directories(${HTTP_LIBRARY} PUBLIC request response router routes)
+target_include_directories(${HTTP_LIBRARY} PUBLIC request response router)
+target_link_libraries(${HTTP_LIBRARY} PUBLIC ${CONFIG_LIBRARY})

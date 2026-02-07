@@ -14,8 +14,6 @@
 #include "Reactor/reactor.hpp"
 #include "Reactor/AEventHandler.hpp"
 #include "Reactor/handler.hpp"
-#include "Http/router/Router.hpp"
-#include "Http/routes/routes.hpp"
 
 int	error(int err){
 

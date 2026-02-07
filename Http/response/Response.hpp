@@ -7,8 +7,13 @@ namespace Response {
 
     enum StatusCode {
         StatusOk = 200,
+        StatusMovedPermanently = 301,
+        StatusFound = 302,
         StatusBadRequest = 400,
-        StatusInternalServerError = 500
+        StatusNotFound = 404,
+        StatusMethodNotAllowed = 405,
+        StatusInternalServerError = 500,
+        StatusNotImplemented = 501
     };
 
     Headers getDefaultHeaders(int contentLen);

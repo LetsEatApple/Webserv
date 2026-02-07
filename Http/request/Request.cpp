@@ -2,6 +2,7 @@
 #include <sys/socket.h>
 #include <cstring>
 #include <cstdlib>
+#include <cerrno>
 
 const char* const Request::ERROR_MALFORMED_REQUEST_LINE = "malformed request-line";
 const char* const Request::ERROR_REQUEST_IN_ERROR_STATE = "request in error state";
@@ -29,12 +30,27 @@ const std::string& Request::getBody() const {
     return body;
 }
 
+bool Request::parseContentLength(const std::string& value, unsigned long& out) {
+    if (value.empty())
+        return false;
+    for (size_t i = 0; i < value.size(); ++i) {
+        if (value[i] < '0' || value[i] > '9')
+            return false;
+    }
+    errno = 0;
+    char* end = NULL;
+    unsigned long result = std::strtoul(value.c_str(), &end, 10);
+    if (errno == ERANGE || end != value.c_str() + value.size())
+        return false;
+    out = result;
+    return true;
+}
+
 bool Request::hasBody() const {
     std::string lengthStr = headers.get("content-length");
-    if (lengthStr.empty()) {
+    unsigned long length;
+    if (!parseContentLength(lengthStr, length))
         return false;
-    }
-    int length = std::atoi(lengthStr.c_str());
     return length > 0;
 }
 
@@ -151,14 +167,19 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
             }
 
             case ParserState::Body: {
-                int length = std::atoi(headers.get("content-length").c_str());
-                int bodyLen = static_cast<int>(body.size());
-                int dataLen = static_cast<int>(currentData.size());
-                int remaining = (length - bodyLen < dataLen) ? (length - bodyLen) : dataLen;
+                unsigned long length;
+                if (!parseContentLength(headers.get("content-length"), length)) {
+                    errorMsg = "invalid content-length";
+                    state = ParserState::Error;
+                    return -1;
+                }
+                unsigned long bodyLen = body.size();
+                unsigned long dataLen = currentData.size();
+                unsigned long remaining = (length - bodyLen < dataLen) ? (length - bodyLen) : dataLen;
                 body += currentData.substr(0, remaining);
-                totalRead += remaining;
+                totalRead += static_cast<int>(remaining);
 
-                if (static_cast<int>(body.size()) == length) {
+                if (body.size() == length) {
                     state = ParserState::Done;
                 }
                 return totalRead;

@@ -12,65 +12,13 @@
 
 #include "handler.hpp"
 #include "reactor.hpp"
-#include "Router.hpp"
-#include "routes.hpp"
+#include "ReturnDirective.hpp"
 
 //	CONNECTION HANDLER
-Connection::Connection(int fd, const ListenerSocket &ls) : EventHandler(fd), _ls(ls) {
-    Router* router = new Router(); //leaking when exiting with signal
-    _requestHandler = router;
-    // Register middleware
-    router->use(logRequest);
-
-    // Register routes
-    router->get("/", handleHome);
-    router->get("/health", handleHealth);
-    router->get("/echo", handleEcho);
-
-    // Register prefix route (matches /api/*)
-    router->prefix("/api", handleApi);
-
-    // Default handler for unmatched routes
-    router->setDefault(handleNotFound);
-}
-
-int process(Data &data, int fd){
-
-	data.request.append(data.buffer, data.buflen);
-	for (;;){
-		size_t delimeter = data.request.find("\n\n"); // replace later with request header delimeter "\r\n\r\n"
-		if (delimeter == std::string::npos)
-			break;
-		std::string single_request = data.request.substr(0, delimeter +2);
-		data.request.erase(0, delimeter +2);
-		std::stringstream ss;
-		ss << "Client request recieved (\"" << single_request << "\")\n";
-		data.response.append(ss.str());
-		ssize_t sent = send(fd, data.response.c_str(), data.response.length(), MSG_DONTWAIT);
-		if (sent < 0)
-			return true; //epoll decides what to do
-		if (static_cast<size_t>(sent) < data.response.length()){ //kernel buffer full
-			data.response.erase(0, sent);
-			return false; // modify handler
-		}
-		data.response.erase(0, sent);
-	}
-	return true;
-}
+Connection::Connection(int fd, const ListenerSocket &ls, Router& requestProcessor)
+	: EventHandler(fd), _requestProcessor(requestProcessor), _ls(ls) {}
 
 int Connection::handleRead() {
-
-	//read 
-	/*
-	_data.buflen = recv(_fd, _data.buffer, MAX-1, MSG_DONTWAIT); // flag similar to O_NONBLOCK of fcntl()
-	if (_data.buflen == 0) // client disconnected
-		return (_reactor->removeHandler(this, 0));
-	if (_data.buflen < 0) // Error occured, epoll decides what to do
-		return false;
-	if (!process(_data, this->get_fd()))
-		return (_reactor->modifyHandler(this, EPOLLIN | EPOLLOUT));
-	return true;*/
-
 	char buf[MAX];
 	ssize_t n = recv(_fd, buf, MAX - 1, MSG_DONTWAIT);
 	if (n == 0) // client disconnected
@@ -91,12 +39,15 @@ int Connection::handleRead() {
 	if (consumed > 0)
 		_readBuffer.erase(0, consumed);
 	if (_request.done()) {
+#ifdef DEBUG
+		std::cout << _request.getMethod() << " " << _request.getTarget() << std::endl;
+#endif
 		Response::Writer w(_fd);
 		if (_request.error()) {
 			w.writeStatusLine(Response::StatusBadRequest);
 			w.writeHeaders(Response::getDefaultHeaders(0));
-		} else {
-			_requestHandler->handle(w, _request);
+		} else if (!serveReturn(w, _request, _ls.second)) {
+			_requestProcessor.process(w, _request);
 		}
 		return (_reactor->removeHandler(this, 0));
 	}
@@ -124,12 +75,10 @@ int Connection::handleWrite() {
 	return true;
 }
 
-Connection::~Connection() {
-	delete _requestHandler;
-}
+Connection::~Connection() {}
 
 // ACCEPT HANDLER
-Acceptor::Acceptor(const ListenerSocket &ls) : EventHandler(ls.first) {};
+Acceptor::Acceptor(const ListenerSocket &ls) : EventHandler(ls.first), _ls(ls), _requestProcessor(new Router()) {};
 
 int Acceptor::handleRead() {
 
@@ -144,9 +93,11 @@ int Acceptor::handleRead() {
 			break; // accept() may return -1 with EAGAIN if no connections are pending (not an error)
 		int flags = fcntl(cfd, F_GETFL, 0);
 		int ret = fcntl(cfd, F_SETFL, flags | O_NONBLOCK);
-		if (ret == -1 || flags == -1)
+		if (ret == -1 || flags == -1) {
+			close(cfd);
 			return false;
-		if (!_reactor->registerHandler(new Connection(cfd, this->_ls), EPOLLIN)) // close program?
+		}
+		if (!_reactor->registerHandler(new Connection(cfd, this->_ls, *_requestProcessor), EPOLLIN))
 			return false;
 	}
 	return true;
@@ -154,6 +105,10 @@ int Acceptor::handleRead() {
 
 int Acceptor::handleWrite() {
 	return true;
+}
+
+Acceptor::~Acceptor() {
+	delete _requestProcessor;
 }
 
 // SIGNAL HANDLER

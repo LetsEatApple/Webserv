@@ -17,7 +17,7 @@
 #include "Config.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
-#include "RequestHandler.hpp"
+#include "Router.hpp"
 
 typedef std::pair< int, std::vector<config::Server> > ListenerSocket;
 
@@ -38,13 +38,11 @@ class Connection : public EventHandler{
 private:
 	Request					_request;
 	std::string				_readBuffer;
-	RequestHandler*			_requestHandler;
+	Router&					_requestProcessor;
 	Data					_data;
 	ListenerSocket			_ls;
-	//adding struct containing data from config depending on fd / listening fd? or through reactor _server?
 public:
-	//Connection(int fd, RequestHandler* requestHandler);
-	Connection(int fd, const ListenerSocket &ls);
+	Connection(int fd, const ListenerSocket &ls, Router& requestProcessor);
 	int handleRead();
 	int handleWrite();
 	~Connection();
@@ -54,10 +52,12 @@ public:
 class Acceptor : public EventHandler{
 private:
 	ListenerSocket	_ls;
+	Router*			_requestProcessor;
 public:
 	Acceptor(const ListenerSocket &ls);
 	int handleRead();
 	int handleWrite();
+	~Acceptor();
 };
 
 // handling signal pipe

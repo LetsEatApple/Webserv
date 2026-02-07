@@ -69,6 +69,9 @@ private:
     // Check if Transfer-Encoding is chunked
     bool isChunkedEncoding() const;
 
+    // Parse Content-Length value. Returns true on success, false on invalid input.
+    static bool parseContentLength(const std::string& value, unsigned long& out);
+
     // Parse request line from buffer
     // Returns bytes consumed (0 if incomplete, -1 on error)
     static int parseRequestLine(const std::string& buffer,

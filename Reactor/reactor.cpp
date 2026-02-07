@@ -116,13 +116,11 @@ int Reactor::handleEvents(){
 		return false;
 
 	for (int i = 0; i < nfds; i++){
-		if (_evlist[i].events & (EPOLLHUP | EPOLLERR)){
+		if (_evlist[i].events & (EPOLLHUP | EPOLLERR))
 			removeHandler(_handlers[_evlist[i].data.fd], 0);
-			continue;
-		}
-		if (_evlist[i].events & EPOLLIN){
+		else if (_evlist[i].events & EPOLLIN)
 			_handlers[_evlist[i].data.fd]->handleRead();
-		} else if (_evlist[i].events & EPOLLOUT)
+		else if (_evlist[i].events & EPOLLOUT)
 			_handlers[_evlist[i].data.fd]->handleWrite();
 	}
 	return true;
