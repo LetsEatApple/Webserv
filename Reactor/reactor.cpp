@@ -94,15 +94,18 @@ int Reactor::modifyHandler(EventHandler *handler, uint32_t event){
 int Reactor::removeHandler (EventHandler *handler, uint32_t event){
 
 	(void) event;
+	int fd = handler->get_fd();
 
-	if (handler->get_fd() != -1)
-		close (handler->get_fd());
-
-	if (epoll_ctl(_epfd, EPOLL_CTL_DEL, handler->get_fd(), NULL) == -1)
-		return false;
-
-	delete _handlers[handler->get_fd()];
-	_handlers.erase(handler->get_fd());
+	if (epoll_ctl(_epfd, EPOLL_CTL_DEL, fd, NULL) == -1) {
+#ifdef DEBUG
+		std::cerr << "epoll_ctl(DEL, fd=" << fd << ") failed: "
+				  << std::strerror(errno) << std::endl;
+#endif
+	}
+	_handlers.erase(fd);
+	delete handler;
+	if (fd != -1)
+		close(fd);
 	return true;
 }
 
