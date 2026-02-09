@@ -12,8 +12,8 @@
 
 #include "handler.hpp"
 #include "reactor.hpp"
-#include "../Http/router/Router.hpp"
-#include "../Http/routes/routes.hpp"
+#include "Router.hpp"
+#include "routes.hpp"
 
 //	CONNECTION HANDLER
 Connection::Connection(int fd, const ListenerSocket &ls) : EventHandler(fd), _ls(ls), _routed(false){

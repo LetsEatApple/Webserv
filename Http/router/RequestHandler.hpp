@@ -1,7 +1,7 @@
 #ifndef REQUESTHANDLER_HPP
 #define REQUESTHANDLER_HPP
 
-#include "../response/Response.hpp"
+#include "Response.hpp"
 
 class Request;
 

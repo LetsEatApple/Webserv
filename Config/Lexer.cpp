@@ -26,7 +26,7 @@ void Lexer::skipWhitespaceAndComments() {
     c = get();
     if (c == EOF)
       return;
-    if (std::isspace(c) || c == '\n')
+    if (std::isspace(c))
       continue;
     if (c == '#') {
       while ((c = get()) != EOF && c != '\n') {
@@ -38,26 +38,26 @@ void Lexer::skipWhitespaceAndComments() {
   }
 }
 
-Token Lexer::next() {
+token::Token Lexer::next() {
   skipWhitespaceAndComments();
 
   int c = get();
   if (c == EOF) {
-    Token tok = {TOK_EOF, "", _line};
+    token::Token tok = {token::TOK_EOF, "", _line};
     return tok;
   }
 
   if (c == '{') {
-    Token tok = {TOK_LBRACE, "{", _line};
+    token::Token tok = {token::TOK_LBRACE, "{", _line};
     return tok;
   }
 
   if (c == '}') {
-    Token tok = {TOK_RBRACE, "}", _line};
+    token::Token tok = {token::TOK_RBRACE, "}", _line};
     return tok;
   }
   if (c == ';') {
-    Token tok = {TOK_SEMICOLON, ";", _line};
+    token::Token tok = {token::TOK_SEMICOLON, ";", _line};
     return tok;
   }
 
@@ -69,7 +69,7 @@ Token Lexer::next() {
         throw std::runtime_error(utils::errorMsg("Unterminated string", _line));
       word += c;
     }
-    Token tok = {TOK_WORD, word, _line};
+    token::Token tok = {token::TOK_WORD, word, _line};
     return tok;
   }
 
@@ -81,6 +81,6 @@ Token Lexer::next() {
   if (c == '{' || c == '}' || c == ';')
     _file.unget();
 
-  Token tok = {TOK_WORD, word, _line};
+  token::Token tok = {token::TOK_WORD, word, _line};
   return tok;
 }

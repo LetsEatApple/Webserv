@@ -1,13 +1,16 @@
 cmake_minimum_required(VERSION 3.14)
 
-set(CMAKE_C_COMPILER clang)
-set(CMAKE_CXX_COMPILER clang++)
-
 project(Webserv)
 
 set(CMAKE_CXX_STANDARD 98)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+message(STATUS "C++ compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+
+if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    message(WARNING "Please compile with Clang.")
+endif()
 
 add_compile_options(-Wall -Wextra -Werror)
 
@@ -15,9 +18,20 @@ option(ENABLE_TESTING "Enable Unit Testing Build" ON)
 option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" ON)
 
 if(ENABLE_SANITIZERS)
-    add_compile_options(-stdlib=libc++ -fsanitize=address,undefined -fno-omit-frame-pointer)
-    add_compile_definitions(_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG)
-    add_link_options(-stdlib=libc++ -fsanitize=address,undefined)
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
+
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        add_compile_options(-stdlib=libc++)
+        add_link_options(-stdlib=libc++)
+        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "18.0")
+            add_compile_definitions(_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG)
+        else()
+            message(WARNING "LLVM < 18: _LIBCPP_HARDENING_MODE_DEBUG has no effect")
+        endif()
+    else()
+        message(WARNING "Not using Clang: _LIBCPP_HARDENING_MODE_DEBUG has no effect")
+    endif()
 endif()
 
 include(FetchContent)

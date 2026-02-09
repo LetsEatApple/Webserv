@@ -29,13 +29,6 @@
 #include <cerrno>
 #include <cstring>
 #include <cstdlib>
-#include "../Config/AST.hpp"
-#include "../Config/Config.hpp"
-#include "../Config/Lexer.hpp"
-#include "../Config/Config.hpp"
-#include "../Config/Token.hpp"
-#include "../Config/Utils.hpp"
-#include "../Config/Validator.hpp"
 
 # define MAX 1024
 # define SET 1

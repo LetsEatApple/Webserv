@@ -3,6 +3,9 @@
 
 #include <cstddef>
 #include <string>
+
+namespace token {
+
 enum TokenType {
   TOK_WORD,
   TOK_LBRACE,    // {
@@ -16,5 +19,6 @@ struct Token {
   std::string value;
   size_t line;
 };
+}
 
 #endif //! TOKEN_HPP

@@ -5,6 +5,7 @@
 #include "Parser.hpp"
 #include "Utils.hpp"
 #include "Validator.hpp"
+#include <algorithm>
 #include <asm-generic/errno-base.h>
 #include <cerrno>
 #include <cstddef>
@@ -120,28 +121,26 @@ std::pair<std::string, uint16_t> makeListen(Directive const &d) {
   return listen;
 }
 
-static void  applyLocationPath(Location &loc, Block const &b) {
-  std::string const &path = b.args.at(0);
-
+static std::string validatePath(std::string const &path, std::string const name, int line) {
   if (path.empty() || path.at(0) != '/')
-    throw std::runtime_error(utils::errorMsg("Unexpected value '" + path + "' in 'location' directive", b.line));
+    throw std::runtime_error(
+        utils::errorMsg("Unexpected value '" + path + "' in '" + name + "' directive", line));
 
   std::string normalized = path;
   if (normalized.size() > 1 && normalized[normalized.size() - 1] == '/')
     normalized = normalized.substr(0, normalized.size() - 1);
-  loc.path = normalized;
+
+  return normalized;  
 }
 
-static void  applyAlias(Location &loc, Directive const &d) {
+static void applyLocationPath(Location &loc, Block const &b) {
+  std::string const &path = b.args.at(0);
+  loc.path = validatePath(path, b.name, b.line);
+}
+
+static void applyAlias(Location &loc, Directive const &d) {
   std::string const &alias = d.args.at(0);
-
-  if (alias.empty() || alias.at(0) != '/')
-    throw std::runtime_error(utils::errorMsg("Unexpected value '" + alias +  "' in 'alias' directive", d.line));
-
-  std::string normalized = alias;
-  if (normalized.size() > 1 && normalized[normalized.size() - 1] == '/')
-    normalized = normalized.substr(0, normalized.size() - 1);
-  loc.alias = normalized;
+  loc.alias = validatePath(alias, d.name, d.line);
 }
 
 static void applyAutoindex(Location &loc, Directive const &d) {
@@ -161,6 +160,29 @@ static void applyIndex(Location &loc, Directive const &d) {
   if (index.empty())
     throw std::runtime_error(utils::errorMsg("Unexpected value '" + index +  "' in 'index' directive", d.line));
   loc.index = index;
+}
+
+static void applyUpload(Location &loc, Directive const &d) {
+  std::string const &upload = d.args.at(0);
+
+  if (upload.empty()) {
+    loc.upload = "";
+    return;
+  }
+  loc.upload = validatePath(upload, d.name, d.line);
+}
+
+static void applyLimitExcept(Location &loc, Directive const &d) {
+  std::set<std::string>  methods;
+  for (size_t i = 0; i < d.args.size(); ++i) {
+    std::string const &method = d.args[i];
+
+    if (method == "GET" || method == "POST" || method == "DELETE")
+      methods.insert(method);
+    else
+      throw std::runtime_error(utils::errorMsg("Unexpected value '" + method + "' in 'limit_except' directive", d.line));
+  }
+  loc.limit_except = methods;
 }
 
 static void applyClientMaxBodySize(Location &loc, Directive const &d) {
@@ -194,6 +216,31 @@ static void applyClientMaxBodySize(Location &loc, Directive const &d) {
   loc.client_max_body_size = s * scale;
 }
 
+void applyErrorPages(Location &loc, Directive const &d) {
+  std::map<int, std::string> error_page;
+  
+  std::string normalized = validatePath(d.args[d.args.size() - 1], d.name, d.line);
+  for (size_t i = 0; i < d.args.size() - 1; ++i) {
+    int status = std::atoi(d.args[i].c_str());
+    if (d.args[i].length() != 3 || status < 300 || status > 599)
+      throw std::runtime_error(
+      utils::errorMsg("Unexpected value '" + d.args[i] + "' in 'error_page' directive", d.line));
+    error_page.insert(std::pair<int, std::string>(status, normalized));
+  }
+  loc.error_page = error_page;
+}
+
+void applyReturn(Location &loc, Directive const &d) { 
+  int status = std::atoi(d.args.at(0).c_str());
+  std::string normalized = d.args[d.args.size() - 1];
+  if (normalized.at(0) == '/')
+    normalized = validatePath(d.args[d.args.size() - 1], d.name, d.line);
+  if (d.args.at(0).length() != 3 || status < 100 || status > 599)
+      throw std::runtime_error(
+      utils::errorMsg("Unexpected value '" + d.args[0] + "' in 'return' directive", d.line));
+    loc.ret.insert(std::pair<int, std::string>(status, normalized));
+}
+
 void applyDirective(Location &loc, Directive const &d) {
   if (d.name == "alias")
     applyAlias(loc, d);
@@ -203,6 +250,14 @@ void applyDirective(Location &loc, Directive const &d) {
     applyIndex(loc, d);
   if (d.name == "client_max_body_size")
     applyClientMaxBodySize(loc, d);
+  if (d.name == "upload")
+    applyUpload(loc, d);
+  if (d.name == "limit_except")
+    applyLimitExcept(loc, d);
+  if (d.name == "error_page")
+    applyErrorPages(loc, d);
+  if (d.name == "return")
+    applyReturn(loc, d);
 }
 
 Location buildLocation(const Block &location, Location server_default_location) {
@@ -221,6 +276,10 @@ bool hasRootLocation(std::vector<Location> &locations) {
       return true;
   }
   return false;
+}
+
+static bool sortLocation(const Location &a, const Location &b) {
+    return a.path.size() > b.path.size();
 }
 
 void buildServers(Listeners &listeners, const Block &server,
@@ -242,6 +301,9 @@ void buildServers(Listeners &listeners, const Block &server,
       applyDirective(server_default_location, d);
   }
 
+  if (server_names.size() == 0)
+    server_names.push_back("");
+
   if (listens.empty()) {
     Server s;
     s.server_names = server_names;
@@ -252,6 +314,20 @@ void buildServers(Listeners &listeners, const Block &server,
     }
     if (!hasRootLocation(s.locations))
       s.locations.push_back(server_default_location);
+    
+    std::set<std::string> existing_names;
+    for (size_t j = 0; j < listeners[defaultKey].size(); ++j) {
+        const Server &existing_server = listeners[defaultKey][j];
+        for (size_t l = 0; l < existing_server.server_names.size(); ++l) {
+            existing_names.insert(existing_server.server_names[l]);
+        }
+    }
+    for (size_t k = 0; k < s.server_names.size(); ++k) {
+        if (existing_names.find(s.server_names[k]) != existing_names.end()) {
+            throw std::runtime_error(
+                "conflicting server name '" + s.server_names[k] + "' on 127.0.0.1:8000");
+        }
+    }
     listeners[defaultKey].push_back(s);
   }
 
@@ -265,25 +341,41 @@ void buildServers(Listeners &listeners, const Block &server,
     }
     if (!hasRootLocation(s.locations))
       s.locations.push_back(server_default_location);
+    std::sort(s.locations.begin(), s.locations.end(), sortLocation);
+
+    std::set<std::string> existing_names;
+    for (size_t j = 0; j < listeners[listens[i]].size(); ++j) {
+        const Server &existing_server = listeners[listens[i]][j];
+        for (size_t l = 0; l < existing_server.server_names.size(); ++l) {
+            existing_names.insert(existing_server.server_names[l]);
+        }
+    }
+    for (size_t k = 0; k < s.server_names.size(); ++k) {
+        if (existing_names.find(s.server_names[k]) != existing_names.end()) {
+            throw std::runtime_error("conflicting server name '" + s.server_names[k] + "' on " + listens[i].first + ":" + utils::toString(listens[i].second));
+        }
+    }
+
     listeners[listens[i]].push_back(s);
   }
 }
 
 std::ostream &operator<<(std::ostream &out, Listeners const &l) {
   for (Listeners::const_iterator it = l.begin(); it != l.end(); ++it) {
-    out << dbg::BOLD << dbg::BLUE << "{" << dbg::RESET << std::endl;
+    out << dbg::BOLD << dbg::BLUE << "[" << dbg::RESET << std::endl;
     out << "  " << dbg::BOLD << dbg::YELLOW << it->first.first << ":"
         << it->first.second << " {" << dbg::RESET << std::endl;
     for (size_t i = 0; i < it->second.size(); ++i)
       out << it->second[i];
-    out << dbg::BOLD << dbg::YELLOW << "}" << dbg::RESET << std::endl;
+    out << dbg::BOLD << dbg::YELLOW << "  }" << dbg::RESET << std::endl;
+    out << dbg::BOLD << dbg::BLUE << "]" << dbg::RESET << std::endl;
   }
   return out;
 }
 
 std::ostream &operator<<(std::ostream &out, Server const &s) {
-  out << dbg::BOLD << dbg::BLUE << "  server {" << dbg::RESET << std::endl;
-  out << dbg::CYAN << "    server_names:" << dbg::RESET;
+  out << dbg::BOLD << dbg::MAGENTA << "    server {" << dbg::RESET << std::endl;
+  out << dbg::BOLD << dbg::BLUE << "      server_name:" << dbg::RESET;
   for (size_t i = 0; i < s.server_names.size(); ++i) {
     out << " " << s.server_names[i];
   }
@@ -291,35 +383,40 @@ std::ostream &operator<<(std::ostream &out, Server const &s) {
   for (size_t i = 0; i < s.locations.size(); ++i) {
     out << s.locations[i];
   }
-  out << dbg::BOLD << dbg::BLUE << "  }" << dbg::RESET << std::endl;
+  out << dbg::BOLD << dbg::MAGENTA << "    }" << dbg::RESET << std::endl;
   return out;
 }
 
 std::ostream &operator<<(std::ostream &out, Location const &l) {
-  out << dbg::BOLD << dbg::BLUE << "    location {" << dbg::RESET << std::endl;
+  out << dbg::BOLD << dbg::BLUE << "      location {" << dbg::RESET << std::endl;
 
-  out << "      " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
+  out << "        " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
       << "path" << dbg::RESET << ": " << l.path << std::endl;
 
-  out << "      " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
+  out << "        " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
       << "alias" << dbg::RESET << ": " << l.alias << std::endl;
 
-  out << "      " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
+  out << "        " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
       << "autoindex" << dbg::RESET << ": "
       << (l.autoindex ? dbg::GREEN : dbg::RED) << (l.autoindex ? "on" : "off")
       << dbg::RESET << std::endl;
 
-  out << "      " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
+  out << "        " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
       << "client_max_body_size" << dbg::RESET << ": " << dbg::YELLOW
       << l.client_max_body_size << dbg::RESET << std::endl;
 
-  out << "      " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
+  out << "        " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
       << "index" << dbg::RESET << ": " << l.index << std::endl;
 
-  out << "      " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
+  if (l.upload.empty()) {
+    out << "        " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
+      << "upload" << dbg::RESET << ": " << dbg::RED << "off" << dbg::RESET << std::endl;
+  } else {
+    out << "        " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
       << "upload" << dbg::RESET << ": " << l.upload << std::endl;
+  }
 
-  out << "      " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
+  out << "        " << dbg::CYAN << std::left << std::setw(dbg::KEY_WIDTH)
       << "limit_except" << dbg::RESET << ":";
   for (std::set<std::string>::iterator it = l.limit_except.begin();
        it != l.limit_except.end(); ++it) {
@@ -327,31 +424,31 @@ std::ostream &operator<<(std::ostream &out, Location const &l) {
   }
   out << std::endl;
 
-  out << "      " << dbg::CYAN << "error_pages" << dbg::RESET << " {";
-  if (l.error_pages.size() > 0)
+  out << "        " << dbg::CYAN << "error_page" << dbg::RESET << " {";
+  if (l.error_page.size() > 0)
     out << std::endl;
-  for (std::map<int, std::string>::const_iterator it = l.error_pages.begin();
-       it != l.error_pages.end(); ++it) {
-    out << "          " << dbg::YELLOW << it->first << dbg::RESET << " "
+  for (std::map<int, std::string>::const_iterator it = l.error_page.begin();
+       it != l.error_page.end(); ++it) {
+    out << "            " << dbg::YELLOW << it->first << dbg::RESET << " "
         << it->second << std::endl;
   }
-  if (l.error_pages.size() > 0)
-    out << "    ";
-  out << "  }" << std::endl;
+  if (l.error_page.size() > 0)
+    out << "      ";
+  out << "    }" << std::endl;
 
-  out << "      " << dbg::CYAN << "returns" << dbg::RESET << " {";
-  if (l.returns.size() > 0)
+  out << "        " << dbg::CYAN << "return" << dbg::RESET << " {";
+  if (l.ret.size() > 0)
     out << std::endl;
-  for (std::map<int, std::string>::const_iterator it = l.returns.begin();
-       it != l.returns.end(); ++it) {
-    out << "          " << dbg::YELLOW << it->first << dbg::RESET << " "
+  for (std::map<int, std::string>::const_iterator it = l.ret.begin();
+       it != l.ret.end(); ++it) {
+    out << "            " << dbg::YELLOW << it->first << dbg::RESET << " "
         << it->second << std::endl;
   }
-  if (l.returns.size() > 0)
-    out << "    ";
-  out << "  }" << std::endl;
+  if (l.ret.size() > 0)
+    out << "      ";
+  out << "    }" << std::endl;
 
-  out << dbg::BOLD << dbg::BLUE << "    }" << dbg::RESET << std::endl;
+  out << dbg::BOLD << dbg::BLUE << "      }" << dbg::RESET << std::endl;
 
   return out;
 }
@@ -364,15 +461,18 @@ Listeners buildConfig(const std::string &path) {
   validator::validate(http);
 
   Location http_default_location;
-  std::map<int, std::string> returns;
+  std::map<int, std::string> ret;
   std::set<std::string> limit_except;
-  std::map<int, std::string> error_pages;
+  limit_except.insert("GET");
+  limit_except.insert("POST");
+  limit_except.insert("DELETE");
+  std::map<int, std::string> error_page;
   http_default_location.path = "/";
   http_default_location.alias = "/var/www";
   http_default_location.index = "index.html";
-  http_default_location.returns = returns;
+  http_default_location.ret = ret;
   http_default_location.client_max_body_size = 1024 * 1024;
-  http_default_location.error_pages = error_pages;
+  http_default_location.error_page = error_page;
   http_default_location.autoindex = false;
   http_default_location.upload = "";
   http_default_location.limit_except = limit_except;
@@ -382,14 +482,7 @@ Listeners buildConfig(const std::string &path) {
   for (size_t i = 0; i < http.blocks.size(); ++i)
     buildServers(listeners, http.blocks[i], http_default_location);
 
-  // std::cout << listeners;
+  std::cout << listeners;
   return listeners;
 }
 }; // namespace config
-
-// for (size_t i = 1; i < d.args.size() - 1; ++i) {
-//     int status = std::atoi(d.args[i].c_str());
-//     if (d.args[i].length() != 3 || status < 300 || status > 599)
-//       throw std::runtime_error(
-//           utils::errorMsg("Invalid value '" + d.args[i] + "'", d.line));
-//   }

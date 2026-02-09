@@ -1,5 +1,5 @@
 #include "Router.hpp"
-#include "../request/Request.hpp"
+#include "Request.hpp"
 
 Router::Router() : defaultHandler(NULL) {}
 
