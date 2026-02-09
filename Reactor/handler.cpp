@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:21:43 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/02/08 18:10:54 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/09 18:03:57 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -57,6 +57,15 @@ bool matchesLocation(std::string target, std::string location){
 	return false;
 }
 
+bool unreservedChar(char c){
+
+	if ((c >= 48 && c <= 57) ||
+		(c >= 65 && c <= 90) || (c >= 97 && c <= 122) ||
+		c == 45 || c == 46 || c == 95 || c == 126)
+		return true;
+	return false;
+}
+
 std::string	decodePath(std::string target){
 
 	std::string		hex;
@@ -71,10 +80,12 @@ std::string	decodePath(std::string target){
 		if (!std::isxdigit(hex[0]) || !std::isxdigit(hex[1]))
 			return "";
 		dec = std::strtoul(hex.c_str(), NULL, 16);
-			if (dec <= 0 || dec > 255) // should %00 (hex) = \0 (char) = 0 (dec)  be valid?
-				return "";
-		target.erase(found, 3);
-		target.insert(found, 1, static_cast<char>(dec));
+		if (dec <= 0 || dec > 255) // should %00 (hex) = \0 (char) = 0 (dec) invalid
+			return "";
+		if (unreservedChar(static_cast<char>(dec))){
+			target.erase(found, 3);
+			target.insert(found, 1, static_cast<char>(dec));
+		}
 		found = target.find("%", found +1);
 	}
 	return target;
@@ -131,7 +142,7 @@ std::string removeDotSegments(std::string input){
 
 int findTarget(config::Server server, std::string reqTarget){
 
-	// extract path, query and fragment?
+	// extract path, query and fragment
 	std::string targetPath;
 	size_t seperator = reqTarget.find("?");
 	if (seperator == std::string::npos)
@@ -141,11 +152,10 @@ int findTarget(config::Server server, std::string reqTarget){
 	else
 		targetPath = reqTarget.substr(0, seperator);
 
-	// decode URI
+	// Normalize URI: decode URI and remove dot segments
 	targetPath = decodePath(targetPath);
 	if (targetPath.empty())
 		return -1; // bad request: invalind encoding e.g. /usr/include%
-
 	targetPath = removeDotSegments(targetPath);
 	
 	// find location

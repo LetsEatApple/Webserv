@@ -6,9 +6,11 @@
 #    By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/08/25 12:32:34 by lea               #+#    #+#              #
-#    Updated: 2026/02/08 14:13:52 by lhagemos         ###   ########.fr        #
+#    Updated: 2026/02/09 16:51:46 by lhagemos         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
+
+MAKEFLAGS += --no-print-directory
 
 NAME = webserv
 
@@ -30,6 +32,14 @@ Http/routes/routes.cpp \
 
 CPP = c++
 CPPFLAGS = -std=c++98 -Wall -Werror -Wextra
+INCLUDES = \
+-I./Config \
+-I./Reactor \
+-I./Http \
+-I./Http/request \
+-I./Http/response \
+-I./Http/router \
+-I./Http/routes
 DEBUG ?= 0
 
 ifeq ($(DEBUG),1)
@@ -45,12 +55,11 @@ RESET = \033[0m
 all: $(NAME)
 
 debug:
-	$(MAKE) fclean
-	$(MAKE) DEBUG=1 all
+	@$(MAKE) DEBUG=1 all
 
 
 %.o: %.cpp
-	@$(CPP) $(CPPFLAGS) -c $< -o $@
+	@$(CPP) $(CPPFLAGS) $(INCLUDES) -c $< -o $@
 	@echo "$(YELLOW) Compiling ... $(RESET)"
 
 $(NAME): $(OBJS)
