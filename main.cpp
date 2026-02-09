@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:05:42 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/31 16:31:02 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/08 14:52:12 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -58,6 +58,10 @@ int main(int ac, char **av) {
     // PARSING
     if (ac != 2)
         return error(0);
+
+	#ifdef DEBUG
+		std::cout << "DEBUG MODE ON" << std::endl;
+	#endif
 
     config::Listeners listeners;
     try {

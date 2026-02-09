@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:20:30 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/31 21:11:19 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/02 16:21:12 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,20 +32,23 @@ struct Data{
 };
 
 // handling client sockets
+typedef std::pair<Request, config::Location>	RequestLocPair;
 class Connection : public EventHandler{
 
 private:
 	Request					_request;
 	std::string				_readBuffer;
 	RequestHandler*			_requestHandler;
-	Data					_data;
 	ListenerSocket			_ls;
+	RequestLocPair			_RequestLocPair;
+	Data					_data;
+	bool					_routed;
 	//adding struct containing data from config depending on fd / listening fd? or through reactor _server?
 public:
 	//Connection(int fd, RequestHandler* requestHandler);
 	Connection(int fd, const ListenerSocket &ls);
-	int handleRead();
-	int handleWrite();
+	int	handleRead();
+	int	handleWrite();
 	~Connection();
 };
 

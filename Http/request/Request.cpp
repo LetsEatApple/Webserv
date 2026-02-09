@@ -17,6 +17,19 @@ const std::string& Request::getTarget() const {
     return requestLine.requestTarget;
 }
 
+const std::string Request::getHost() const {
+	return headers.get("host");
+}
+
+size_t Request::getContentLen() {
+	std::string lengthStr = headers.get("content-length");
+	if (lengthStr.empty())
+		return 0;
+
+	int length = std::atoi(lengthStr.c_str());
+	return length;
+}
+
 const std::string& Request::getHttpVersion() const {
     return requestLine.httpVersion;
 }
@@ -40,6 +53,14 @@ bool Request::hasBody() const {
 
 bool Request::isChunkedEncoding() const {
     return headers.get("transfer-encoding") == "chunked";
+}
+
+bool Request::headersDone() const{
+	return (state > ParserState::Headers);
+}
+
+bool Request::checkState(ParserState::State arg) const{
+	return (state == arg);
 }
 
 bool Request::done() const {
@@ -84,6 +105,12 @@ int Request::parseRequestLine(const std::string& buffer,
     rl.requestTarget = startLine.substr(firstSpace + 1, secondSpace - firstSpace - 1);
     std::string httpVersionFull = startLine.substr(secondSpace + 1);
 
+	/*** include check origin-form for request target ***/
+    // leading slash rfind("/", 0)
+    // only path query fragment, check order of absolute path (path query fragment)
+	// include check if request target path starts with "/" or is empty, if path empy should still contain "/"
+    // split request target
+	
     // Validate HTTP version format: HTTP/1.1
     std::string::size_type slashPos = httpVersionFull.find('/');
     if (slashPos == std::string::npos) {
@@ -139,15 +166,16 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
                 }
                 totalRead += result.bytesConsumed;
                 if (result.done) { // at this point headers are complete
-                    if (isChunkedEncoding()) {
+					if (isChunkedEncoding()) {
                         state = ParserState::ChunkedSize;
                     } else if (hasBody()) {
                         state = ParserState::Body;
                     } else {
                         state = ParserState::Done;
                     }
+					return totalRead;
                 }
-                break;
+                break; // instead of break return totalRead;
             }
 
             case ParserState::Body: {

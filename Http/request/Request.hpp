@@ -21,6 +21,9 @@ namespace ParserState {
 struct RequestLine {
     std::string method;
     std::string requestTarget;
+	std::string targetPath; // should be "/" if none given
+	std::string targetQuery; // should be "" if none given
+	std::string targetFragment; // should be "" if none given
     std::string httpVersion;
 };
 
@@ -30,6 +33,8 @@ public:
 
     const std::string& getMethod() const;
     const std::string& getTarget() const;
+	const std::string getHost() const;
+	size_t				   getContentLen();
     const std::string& getHttpVersion() const;
     const ::Headers& getHeaders() const;
     const std::string& getBody() const;
@@ -44,6 +49,9 @@ public:
     // Sets errorMsg if provided and an error occurs
     int parse(const std::string& data, std::string& errorMsg);
 
+	// Check if parsing header is complete
+	bool headersDone() const;
+	bool checkState(ParserState::State) const;
     // Check if parsing is complete (either done or error)
     bool done() const;
 

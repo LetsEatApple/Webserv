@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:14:49 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/31 16:30:50 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/08 14:43:43 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -91,18 +91,61 @@ int Reactor::modifyHandler(EventHandler *handler, uint32_t event){
 	return true;
 }
 
+void logDebug(int err){
+
+	(void) err;
+	#ifdef DEBUG
+	std:: cout << "Error: ";
+	switch (err)
+	{
+	case 0:
+		std::cout << "Usage: ./webserv config.conf" << std::endl;
+		return;
+	case 1:
+		std::cout << "Creating socket failed: ";
+		break;
+	case 2:
+		std::cout << "Binding socket failed: ";
+		break;
+	case 3:
+		std::cout << "Listening to socket failed: ";
+		break;
+	case 4:
+		std::cout << "Epoll creation failed: ";
+		break;
+	case 5:
+		std::cout << "Creating signal fd failed: ";
+		break;
+	case 6:
+		std::cout << "epoll_ctl on listening socket failed: ";
+		break;
+	case 7:
+		std::cout << "epoll_wait failed: ";
+		break;
+	case 8:
+		std::cout << "epoll_ctl failed: ";
+		break;
+	default:
+		break;
+	}
+	std::cout << strerror(errno) << std::endl;
+	#endif
+	
+}
+
 int Reactor::removeHandler (EventHandler *handler, uint32_t event){
 
 	(void) event;
+	int fd = handler->get_fd();
 
-	if (handler->get_fd() != -1)
-		close (handler->get_fd());
+	if (epoll_ctl(_epfd, EPOLL_CTL_DEL, fd, NULL) == -1)
+		logDebug(8);
 
-	if (epoll_ctl(_epfd, EPOLL_CTL_DEL, handler->get_fd(), NULL) == -1)
-		return false;
+	if (fd != -1)
+		close (fd);
 
-	delete _handlers[handler->get_fd()];
-	_handlers.erase(handler->get_fd());
+	delete _handlers[fd];
+	_handlers.erase(fd);
 	return true;
 }
 
@@ -119,6 +162,7 @@ int Reactor::handleEvents(){
 		}
 		if (_evlist[i].events & EPOLLIN){
 			_handlers[_evlist[i].data.fd]->handleRead();
+			continue;
 		}
 		if (_evlist[i].events & EPOLLOUT)
 			_handlers[_evlist[i].data.fd]->handleWrite();

@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:21:43 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/31 22:33:27 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/08 18:10:54 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,60 +16,173 @@
 #include "../Http/routes/routes.hpp"
 
 //	CONNECTION HANDLER
-Connection::Connection(int fd, const ListenerSocket &ls) : EventHandler(fd), _ls(ls) {
-    Router* router = new Router(); //leaking when exiting with signal
-    _requestHandler = router;
-    // Register middleware
-    router->use(logRequest);
+Connection::Connection(int fd, const ListenerSocket &ls) : EventHandler(fd), _ls(ls), _routed(false){
+	/* Router* router = new Router(); //leaking when exiting with signal
+	_requestHandler = router;
+	// Register middleware
+	router->use(logRequest);
 
-    // Register routes
-    router->get("/", handleHome);
-    router->get("/health", handleHealth);
-    router->get("/echo", handleEcho);
+	// Register routes
+	router->get("/", handleHome);
+	router->get("/health", handleHealth);
+	router->get("/echo", handleEcho);
 
-    // Register prefix route (matches /api/*)
-    router->prefix("/api", handleApi);
+	// Register prefix route (matches /api/-*)
+	router->prefix("/api", handleApi);
 
-    // Default handler for unmatched routes
-    router->setDefault(handleNotFound);
+	// Default handler for unmatched routes
+	router->setDefault(handleNotFound); */
 }
 
-int process(Data &data, int fd){
+int	findHost(std::vector<config::Server> servers, std::string host){
 
-	data.request.append(data.buffer, data.buflen);
-	for (;;){
-		size_t delimeter = data.request.find("\n\n"); // replace later with request header delimeter "\r\n\r\n"
-		if (delimeter == std::string::npos)
-			break;
-		std::string single_request = data.request.substr(0, delimeter +2);
-		data.request.erase(0, delimeter +2);
-		std::stringstream ss;
-		ss << "Client request recieved (\"" << single_request << "\")\n";
-		data.response.append(ss.str());
-		ssize_t sent = send(fd, data.response.c_str(), data.response.length(), MSG_DONTWAIT);
-		if (sent < 0)
-			return true; //epoll decides what to do
-		if (static_cast<size_t>(sent) < data.response.length()){ //kernel buffer full
-			data.response.erase(0, sent);
-			return false; // modify handler
+	for (size_t i = 0; i < servers.size(); i++){
+		for (size_t j = 0; j < servers[i].server_names.size(); j++){
+			if (servers[i].server_names[j].compare(host) == 0){
+				return i;
+			}
 		}
-		data.response.erase(0, sent);
 	}
+	return 0;
+}
+
+bool matchesLocation(std::string target, std::string location){
+
+	if (target == location)
+		return true;
+	if (target.size() > location.size() &&
+		target.compare(0, location.size(), location) == 0 &&
+		target[location.size()] == '/')
+		return true;
+	return false;
+}
+
+std::string	decodePath(std::string target){
+
+	std::string		hex;
+	size_t			found;
+	int				dec;
+
+	found = target.find("%");
+	while (found != std::string::npos){
+		if (found +2 >= target.size())
+			return "";
+		hex = target.substr(found +1, 2);
+		if (!std::isxdigit(hex[0]) || !std::isxdigit(hex[1]))
+			return "";
+		dec = std::strtoul(hex.c_str(), NULL, 16);
+			if (dec <= 0 || dec > 255) // should %00 (hex) = \0 (char) = 0 (dec)  be valid?
+				return "";
+		target.erase(found, 3);
+		target.insert(found, 1, static_cast<char>(dec));
+		found = target.find("%", found +1);
+	}
+	return target;
+}
+
+std::string removeDotSegments(std::string input){
+
+	std::string output;
+
+	while(!input.empty()){
+
+		// A: input buffer begins with a prefix of "../" or "./" remove prefix
+		if (input.rfind("../", 0) == 0 || input.rfind("./", 0) == 0)
+			input.erase(0, input.find('/') +1);
+
+		// B: begins with "/./" or "/." replace with "/"
+		else if(input.rfind("/./", 0) == 0 || (input.rfind("/.", 0) == 0 && input.rfind("/..", 0) != 0)){
+			if (input.rfind("/./", 0) == 0)
+				input.replace(0, 3, "/");
+			else
+				input.replace(0, 2, "/");
+		}
+
+		// C: begins with "/../" or "/.." replace with "/" and remove last segment and its preceding "/" from output
+		else if (input.rfind("/../", 0) == 0 || input.rfind("/..", 0) == 0){
+			if (input.rfind("/../", 0) == 0)
+				input.replace(0, 4, "/");
+			else
+				input.replace(0, 3, "/");
+			size_t found = output.find_last_of('/');
+			if (found != std::string::npos)
+				output.erase(found);
+		}
+
+		// D: if consits only of "." or ".." remove
+		else if (input.compare("..") == 0 || input.compare(".") == 0)
+			input.clear();
+
+		// E: move first path segment to end of output buffer, including initial "/" and any subsequent chars up to, but not incl next "/" or the end of input
+		else{ 
+			size_t n = input.find('/', 1);
+			if (n != std::string::npos){
+				output.append(input, 0, n);
+				input.erase(0, n);
+			}
+			else{
+				output.append(input);
+				input.clear();
+			}
+		}
+	}
+	return output;
+}
+
+int findTarget(config::Server server, std::string reqTarget){
+
+	// extract path, query and fragment?
+	std::string targetPath;
+	size_t seperator = reqTarget.find("?");
+	if (seperator == std::string::npos)
+		seperator = reqTarget.find("#");
+	if (seperator == std::string::npos)
+		targetPath = reqTarget;
+	else
+		targetPath = reqTarget.substr(0, seperator);
+
+	// decode URI
+	targetPath = decodePath(targetPath);
+	if (targetPath.empty())
+		return -1; // bad request: invalind encoding e.g. /usr/include%
+
+	targetPath = removeDotSegments(targetPath);
+	
+	// find location
+	for (size_t i = 0; i < server.locations.size(); i++){
+		if (matchesLocation(targetPath, server.locations[i].path))
+			return i;
+	}
+	return 0;
+}
+
+bool	getLocation(std::vector<config::Server> servers, Request const request, RequestLocPair *rlp){
+
+	std::string host;
+	std::string reqTarget;
+
+	host = request.getHost();
+	reqTarget = request.getTarget(); 
+	int host_index = findHost(servers, host);
+	int target_index = findTarget(servers[host_index], reqTarget);
+	if (host_index == -1 || target_index == -1)
+		return false;
+	rlp->first = request;
+	rlp->second = servers[host_index].locations[target_index];
 	return true;
 }
 
-int Connection::handleRead() {
+void printParsingRes(RequestLocPair reqlocP){
+	Headers headers = reqlocP.first.getHeaders();
+	
+	std::cout << "\tREQUEST LINE\n" << "Method: " << reqlocP.first.getMethod()
+	<< "\nRequest Target: " << reqlocP.first.getTarget()
+	<< "\n\tHEADERS\n" << "Host: " << headers.get("host") << std::endl;
 
-	//read 
-	/*
-	_data.buflen = recv(_fd, _data.buffer, MAX-1, MSG_DONTWAIT); // flag similar to O_NONBLOCK of fcntl()
-	if (_data.buflen == 0) // client disconnected
-		return (_reactor->removeHandler(this, 0));
-	if (_data.buflen < 0) // Error occured, epoll decides what to do
-		return false;
-	if (!process(_data, this->get_fd()))
-		return (_reactor->modifyHandler(this, EPOLLIN | EPOLLOUT));
-	return true;*/
+	std::cout << "\n\tLOCATION: " << reqlocP.second.path << std::endl;
+}
+
+int Connection::handleRead(){
 
 	char buf[MAX];
 	ssize_t n = recv(_fd, buf, MAX - 1, MSG_DONTWAIT);
@@ -78,7 +191,6 @@ int Connection::handleRead() {
 	if (n < 0) // Error occured, epoll decides what to do
 		return false;
 
-	
 	_readBuffer.append(buf, n);
 	std::string errorMsg;
 	int consumed = _request.parse(_readBuffer, errorMsg);
@@ -90,18 +202,44 @@ int Connection::handleRead() {
 	}
 	if (consumed > 0)
 		_readBuffer.erase(0, consumed);
+	if (_request.headersDone() && !_routed){
+		if (!getLocation(_ls.second, _request, &_RequestLocPair)){
+			Response::Writer w(_fd);
+			w.writeStatusLine(Response::StatusBadRequest); // 413 Request Entity Too Large error
+			w.writeHeaders(Response::getDefaultHeaders(0));
+			return _reactor->removeHandler(this, 0);
+		}
+		_routed = true;
+
+		if (_request.checkState(ParserState::Body) && _request.getContentLen() > _RequestLocPair.second.client_max_body_size) {
+			Response::Writer w(_fd);
+			w.writeStatusLine(Response::StatusBadRequest); // 413 Request Entity Too Large error
+			w.writeHeaders(Response::getDefaultHeaders(0));
+			std::cout << "remove ..." << std::endl;
+			return _reactor->removeHandler(this, 0);
+		}
+		/* std::set<std::string>::iterator it = _RequestLocPair.second.limit_except.find(_request.getMethod());
+		if (it == _RequestLocPair.second.limit_except.end()) {
+			Response::Writer w(_fd);
+			w.writeStatusLine(Response::StatusBadRequest); // 405 Method Not Allowed error
+			w.writeHeaders(Response::getDefaultHeaders(0));
+			return _reactor->removeHandler(this, 0);
+		} */
+	}
 	if (_request.done()) {
 		Response::Writer w(_fd);
 		if (_request.error()) {
 			w.writeStatusLine(Response::StatusBadRequest);
 			w.writeHeaders(Response::getDefaultHeaders(0));
 		} else {
-			_requestHandler->handle(w, _request);
+			printParsingRes(_RequestLocPair);
+			//_requestHandler->handle(w, _request); //processRequest(w, _RequestLocPair);
 		}
-		return (_reactor->removeHandler(this, 0));
+			return (_reactor->removeHandler(this, 0));
 	}
 	return true;
 }
+
 
 // if send returns 0 -> dead connection remove socket, if -1 -> error but do not decide anything here just wait for epoll to tell whats wrong
 // if (n < 0) {
@@ -129,7 +267,7 @@ Connection::~Connection() {
 }
 
 // ACCEPT HANDLER
-Acceptor::Acceptor(const ListenerSocket &ls) : EventHandler(ls.first) {};
+Acceptor::Acceptor(const ListenerSocket &ls) : EventHandler(ls.first), _ls(ls) {};
 
 int Acceptor::handleRead() {
 
@@ -186,7 +324,7 @@ int Stdin::handleRead(){
 
 	size = read(STDIN_FILENO, buffer, MAX-1);
 	input.append(buffer, size);
-	if (input.compare("quit")){
+	if (input.compare("quit") == 0){
 		std::cout << "Quit called: Shutting down ..." << std::endl;
 		_reactor->stop(SET);
 	}
@@ -196,3 +334,27 @@ int Stdin::handleRead(){
 int Stdin::handleWrite(){
 	return true;
 }
+
+/* int process(Data &data, int fd){
+
+	data.request.append(data.buffer, data.buflen);
+	for (;;){
+		size_t delimeter = data.request.find("\n\n"); // replace later with request header delimeter "\r\n\r\n"
+		if (delimeter == std::string::npos)
+			break;
+		std::string single_request = data.request.substr(0, delimeter +2);
+		data.request.erase(0, delimeter +2);
+		std::stringstream ss;
+		ss << "Client request recieved (\"" << single_request << "\")\n";
+		data.response.append(ss.str());
+		ssize_t sent = send(fd, data.response.c_str(), data.response.length(), MSG_DONTWAIT);
+		if (sent < 0)
+			return true; //epoll decides what to do
+		if (static_cast<size_t>(sent) < data.response.length()){ //kernel buffer full
+			data.response.erase(0, sent);
+			return false; // modify handler
+		}
+		data.response.erase(0, sent);
+	}
+	return true;
+} */
