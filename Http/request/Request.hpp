@@ -18,12 +18,15 @@ namespace ParserState {
     };
 }
 
+struct RequestTarget{
+	std::string full;
+	std::string path; // should be "/" if none given
+	std::string query; // should be "" if none given
+};
+
 struct RequestLine {
     std::string method;
-    std::string requestTarget;
-	std::string targetPath; // should be "/" if none given
-	std::string targetQuery; // should be "" if none given
-	std::string targetFragment; // should be "" if none given
+    RequestTarget requestTarget;
     std::string httpVersion;
 };
 
@@ -31,13 +34,14 @@ class Request {
 public:
     Request();
 
-    const std::string& getMethod() const;
-    const std::string& getTarget() const;
-	const std::string getHost() const;
-	size_t				   getContentLen();
-    const std::string& getHttpVersion() const;
-    const ::Headers& getHeaders() const;
-    const std::string& getBody() const;
+    const std::string&	getMethod() const;
+    const std::string&	getTarget() const;
+	const std::string&	getTarget(std::string part) const;
+	const std::string	getHost() const;
+	size_t				getContentLen();
+    const std::string&	getHttpVersion() const;
+    const ::Headers&	getHeaders() const;
+    const std::string&	getBody() const;
     template <typename Func>
     void forEachHeader(Func func) const { headers.forEach(func); }
 

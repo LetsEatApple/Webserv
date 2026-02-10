@@ -6,13 +6,13 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:16:57 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/31 14:44:29 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/10 19:29:46 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #pragma once
 
-#include "lib.h"
+#include "lib.hpp"
 
 class Reactor;
 

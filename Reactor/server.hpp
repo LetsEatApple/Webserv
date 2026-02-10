@@ -6,13 +6,13 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:06:56 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/31 22:25:38 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/10 19:29:01 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #pragma once
 
-#include "lib.h"
+#include "lib.hpp"
 #include "Config.hpp"
 
 typedef std::pair< int, std::vector<config::Server> > ListenerSocket;

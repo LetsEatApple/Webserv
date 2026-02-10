@@ -6,13 +6,13 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:20:30 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/02/02 16:21:12 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/10 19:29:42 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #pragma once
 
-#include "lib.h"
+#include "lib.hpp"
 #include "AEventHandler.hpp"
 #include "Config.hpp"
 #include "Request.hpp"
@@ -80,3 +80,12 @@ public:
 	int handleRead();
 	int handleWrite();
 };
+
+bool	getLocation(std::vector<config::Server> servers, Request const request, RequestLocPair *rlp);
+int findTarget(config::Server server, std::string path);
+std::string removeDoubleSlash(std::string path);
+std::string removeDotSegments(std::string input);
+std::string	decodePath(std::string target);
+bool unreservedChar(char c);
+bool matchesLocation(std::string target, std::string location);
+int	findHost(std::vector<config::Server> servers, std::string host);

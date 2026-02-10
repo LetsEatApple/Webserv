@@ -6,11 +6,11 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:14:49 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/02/09 16:46:45 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/10 19:42:46 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "lib.h"
+#include "lib.hpp"
 #include "reactor.hpp"
 
 static int g_signal_fd = -1;
@@ -215,4 +215,40 @@ Reactor::~Reactor(){
 		close(g_signal_fd); // close writing end of signal pipe
 	if (_epfd != -1)
 		close(_epfd); // close epoll instance
+}
+
+int	error(int err){
+
+	std:: cout << "Error: ";
+	switch (err)
+	{
+	case 0:
+		std::cout << "Usage: ./webserv config.conf" << std::endl;
+		return false;
+	case 1:
+		std::cout << "Creating socket failed: ";
+		break;
+	case 2:
+		std::cout << "Binding socket failed: ";
+		break;
+	case 3:
+		std::cout << "Listening to socket failed: ";
+		break;
+	case 4:
+		std::cout << "Epoll creation failed: ";
+		break;
+	case 5:
+		std::cout << "Creating signal fd failed: ";
+		break;
+	case 6:
+		std::cout << "epoll_ctl on listening socket failed: ";
+		break;
+	case 7:
+		std::cout << "epoll_wait failed: ";
+		break;
+	default:
+		break;
+	}
+	std::cout << strerror(errno) << std::endl;
+	return false;
 }

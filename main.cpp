@@ -6,53 +6,16 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:05:42 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/02/08 14:52:12 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/10 19:42:31 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "Reactor/server.hpp"
-#include "Reactor/reactor.hpp"
-#include "Reactor/AEventHandler.hpp"
-#include "Reactor/handler.hpp"
-#include "Http/router/Router.hpp"
-#include "Http/routes/routes.hpp"
-
-int	error(int err){
-
-	std:: cout << "Error: ";
-	switch (err)
-	{
-	case 0:
-		std::cout << "Usage: ./webserv config.conf" << std::endl;
-		return false;
-	case 1:
-		std::cout << "Creating socket failed: ";
-		break;
-	case 2:
-		std::cout << "Binding socket failed: ";
-		break;
-	case 3:
-		std::cout << "Listening to socket failed: ";
-		break;
-	case 4:
-		std::cout << "Epoll creation failed: ";
-		break;
-	case 5:
-		std::cout << "Creating signal fd failed: ";
-		break;
-	case 6:
-		std::cout << "epoll_ctl on listening socket failed: ";
-		break;
-	case 7:
-		std::cout << "epoll_wait failed: ";
-		break;
-	default:
-		break;
-	}
-	std::cout << strerror(errno) << std::endl;
-	return false;
-}
-
+#include "server.hpp"
+#include "reactor.hpp"
+#include "AEventHandler.hpp"
+#include "handler.hpp"
+#include "Router.hpp"
+#include "routes.hpp"
 
 int main(int ac, char **av) {
     // PARSING

@@ -14,7 +14,15 @@ const std::string& Request::getMethod() const {
 }
 
 const std::string& Request::getTarget() const {
-    return requestLine.requestTarget;
+    return requestLine.requestTarget.full;
+}
+
+const std::string&	Request::getTarget(std::string part) const{
+	if (part.compare("path") == 0)
+		return requestLine.requestTarget.path;
+	if (part.compare("query") == 0)
+		return requestLine.requestTarget.query;
+	return requestLine.requestTarget.full;
 }
 
 const std::string Request::getHost() const {
@@ -71,6 +79,34 @@ bool Request::error() const {
     return state == ParserState::Error;
 }
 
+/*** include check origin-form for request target ***/
+// only path (with leading slash) & one query allowed
+// not allowed: fragments, absoluteURI, authority forms, multiple queries
+bool originForm(RequestTarget *rt){
+
+	rt->query.clear();
+	rt->path.clear();
+
+	if (rt->full.rfind("/", 0) != 0)
+		return false;
+	if (rt->full.find("://", 0) != std::string::npos)
+		return false;
+
+	if (rt->full.find("#") != std::string::npos)
+		return false;
+		
+	size_t q = rt->full.find("?");
+	if (q == std::string::npos)
+		rt->path = rt->full;
+	else {
+		if (rt->full.find('?', q+1) != std::string::npos)
+			return false;
+		rt->path = rt->full.substr(0, q);
+		rt->query = rt->full.substr(q+1);
+	}
+	return true;
+}
+
 int Request::parseRequestLine(const std::string& buffer,
                               RequestLine& rl,
                               std::string& errorMsg) {
@@ -102,14 +138,13 @@ int Request::parseRequestLine(const std::string& buffer,
     }
 
     rl.method = startLine.substr(0, firstSpace);
-    rl.requestTarget = startLine.substr(firstSpace + 1, secondSpace - firstSpace - 1);
+    rl.requestTarget.full = startLine.substr(firstSpace + 1, secondSpace - firstSpace - 1);
     std::string httpVersionFull = startLine.substr(secondSpace + 1);
 
-	/*** include check origin-form for request target ***/
-    // leading slash rfind("/", 0)
-    // only path query fragment, check order of absolute path (path query fragment)
-	// include check if request target path starts with "/" or is empty, if path empy should still contain "/"
-    // split request target
+    if (!originForm(&rl.requestTarget)){
+        errorMsg = ERROR_MALFORMED_REQUEST_LINE;
+        return -1;
+    }
 	
     // Validate HTTP version format: HTTP/1.1
     std::string::size_type slashPos = httpVersionFull.find('/');

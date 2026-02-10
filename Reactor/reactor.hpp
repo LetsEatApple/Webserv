@@ -6,13 +6,13 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:14:10 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/31 16:42:59 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/10 19:29:05 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #pragma once
 
-#include "lib.h"
+#include "lib.hpp"
 #include "server.hpp"
 #include "handler.hpp"
 

@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:21:43 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/02/09 18:03:57 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/10 20:35:41 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -140,30 +140,32 @@ std::string removeDotSegments(std::string input){
 	return output;
 }
 
-int findTarget(config::Server server, std::string reqTarget){
+std::string removeDoubleSlash(std::string path){
 
-	// extract path, query and fragment
-	std::string targetPath;
-	size_t seperator = reqTarget.find("?");
-	if (seperator == std::string::npos)
-		seperator = reqTarget.find("#");
-	if (seperator == std::string::npos)
-		targetPath = reqTarget;
-	else
-		targetPath = reqTarget.substr(0, seperator);
-
-	// Normalize URI: decode URI and remove dot segments
-	targetPath = decodePath(targetPath);
-	if (targetPath.empty())
-		return -1; // bad request: invalind encoding e.g. /usr/include%
-	targetPath = removeDotSegments(targetPath);
-	
-	// find location
-	for (size_t i = 0; i < server.locations.size(); i++){
-		if (matchesLocation(targetPath, server.locations[i].path))
-			return i;
+	size_t find = path.find("//");
+	while (find != std::string::npos){
+		path.erase(find, 2);
+		path.insert(find, "/");
+		find = path.find("//");
 	}
-	return 0;
+	return path;
+}
+
+int findTarget(config::Server server, std::string path){
+
+	// Normalize URI
+	path = decodePath(path);
+	if (path.empty())
+		return -1; // bad request: invalind encoding e.g. /usr/include%
+	path = removeDotSegments(path);
+	path = removeDoubleSlash(path);
+	// Find location
+	for (size_t i = 0; i < server.locations.size(); i++){
+		if (matchesLocation(path, server.locations[i].path)){
+			return i;
+		}
+	}
+	return server.locations.size() -1;
 }
 
 bool	getLocation(std::vector<config::Server> servers, Request const request, RequestLocPair *rlp){
@@ -172,7 +174,7 @@ bool	getLocation(std::vector<config::Server> servers, Request const request, Req
 	std::string reqTarget;
 
 	host = request.getHost();
-	reqTarget = request.getTarget(); 
+	reqTarget = request.getTarget("path");
 	int host_index = findHost(servers, host);
 	int target_index = findTarget(servers[host_index], reqTarget);
 	if (host_index == -1 || target_index == -1)
@@ -185,11 +187,12 @@ bool	getLocation(std::vector<config::Server> servers, Request const request, Req
 void printParsingRes(RequestLocPair reqlocP){
 	Headers headers = reqlocP.first.getHeaders();
 	
-	std::cout << "\tREQUEST LINE\n" << "Method: " << reqlocP.first.getMethod()
-	<< "\nRequest Target: " << reqlocP.first.getTarget()
-	<< "\n\tHEADERS\n" << "Host: " << headers.get("host") << std::endl;
-
-	std::cout << "\n\tLOCATION: " << reqlocP.second.path << std::endl;
+	std::cout << "Method: " << reqlocP.first.getMethod()
+	<< "\nRequest target: " << reqlocP.first.getTarget()
+	<< "\nTarget path: " << reqlocP.first.getTarget("path")
+	<< "\nTarget query: " << reqlocP.first.getTarget("query")
+	<< "\nHost: " << headers.get("host")
+	<< "\nLocated path: " << reqlocP.second.path << std::endl;
 }
 
 int Connection::handleRead(){
