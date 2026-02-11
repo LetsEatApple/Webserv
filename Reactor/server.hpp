@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:06:56 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/02/10 19:29:01 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/11 15:47:52 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -41,7 +41,7 @@ public:
 
 	const serverListeners	&get_listeners();
 	int						createServer();
-	int						error_close(int err, int index);
+	int						error_close(std::string err, int index);
 
 	class InvalidAddrException : public std::exception{
 	public:

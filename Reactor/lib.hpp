@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:38:09 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/02/10 19:29:33 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/11 16:07:36 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,11 +29,12 @@
 #include <cerrno>
 #include <cstring>
 #include <cstdlib>
+#include "Logger.hpp"
 
 # define MAX 1024
 # define SET 1
 # define GET 0
 
-int	error(int err);
+int	error(std::string err, int errno_on);
 
 #endif

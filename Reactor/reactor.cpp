@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:14:49 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/02/10 19:42:46 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/11 17:10:53 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,13 +43,16 @@ int Reactor::init(const serverListeners &listeners){
 	// epoll_create
 	_epfd = epoll_create(42);
 	if (_epfd < 0)
-		return error(4);
+		return error("epoll_create failed", 1);
 	_ev.events = EPOLLIN;
+	std::stringstream ss;
+	ss << "epoll; fd=" << _epfd;
+	logInfo("Reactor initialized: ", ss.str());
 
 	// set fd for signals and register handler
 	int sfd = set_signalfd();
 	if (sfd == -1)
-		return error(5);
+		return error("creatig signal fd failed", 1);
 	if (!registerHandler(new Signal(sfd), EPOLLIN))
 		return false;
 
@@ -60,8 +63,9 @@ int Reactor::init(const serverListeners &listeners){
 	// register listening sockets and their handlers
 	for (size_t i = 0; i < listeners.size(); i++){
 		if (!registerHandler(new Acceptor(listeners[i]), EPOLLIN))
-			return error(6);
+			return error("epoll_ctl on listening socket failed", 1);
 	}
+	logInfo("Server ready to accept connections", " ...");
 	return true;
 }
 
@@ -73,9 +77,9 @@ int Reactor::registerHandler(EventHandler *handler, uint32_t event){
 	handler->reactor(this);
 	ev.events = event;
 	
-	if (epoll_ctl(_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev) < 0){
-		return false; //error handling? differs between listening/signal and client sockets
-	}
+	if (epoll_ctl(_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev) < 0)
+		return false;
+
 	_handlers[ev.data.fd] = handler;
 	return true;
 }
@@ -86,51 +90,12 @@ int Reactor::modifyHandler(EventHandler *handler, uint32_t event){
 	std::memset(&ev, 0, sizeof(ev));
 	ev.data.fd = handler->get_fd();
 	ev.events = event;
-	if (epoll_ctl(_epfd, EPOLL_CTL_MOD, ev.data.fd, &ev) < 0)
-		return false; //error handling
-	return true;
-}
-
-void logDebug(int err){
-
-	(void) err;
-	#ifdef DEBUG
-	std:: cout << "Error: ";
-	switch (err)
-	{
-	case 0:
-		std::cout << "Usage: ./webserv config.conf" << std::endl;
-		return;
-	case 1:
-		std::cout << "Creating socket failed: ";
-		break;
-	case 2:
-		std::cout << "Binding socket failed: ";
-		break;
-	case 3:
-		std::cout << "Listening to socket failed: ";
-		break;
-	case 4:
-		std::cout << "Epoll creation failed: ";
-		break;
-	case 5:
-		std::cout << "Creating signal fd failed: ";
-		break;
-	case 6:
-		std::cout << "epoll_ctl on listening socket failed: ";
-		break;
-	case 7:
-		std::cout << "epoll_wait failed: ";
-		break;
-	case 8:
-		std::cout << "epoll_ctl failed: ";
-		break;
-	default:
-		break;
+	if (epoll_ctl(_epfd, EPOLL_CTL_MOD, ev.data.fd, &ev) < 0){
+		logDebug("modifying handler (epoll_ctl) failed", 1);
+		removeHandler(handler, event);
+		return false;
 	}
-	std::cout << strerror(errno) << std::endl;
-	#endif
-	
+	return true;
 }
 
 int Reactor::removeHandler (EventHandler *handler, uint32_t event){
@@ -139,7 +104,7 @@ int Reactor::removeHandler (EventHandler *handler, uint32_t event){
 	int fd = handler->get_fd();
 
 	if (epoll_ctl(_epfd, EPOLL_CTL_DEL, fd, NULL) == -1)
-		logDebug(8);
+		logDebug("Epoll_ctl failed", 1);
 
 	if (fd != -1)
 		close (fd);
@@ -178,32 +143,9 @@ bool Reactor::stop(int mode){
 	return _sig;
 }
 
-/* config::ListenerData Reactor::getServerDetails(int lfd){
-
-	int i;
-	for (i = 0; i < _server.nports; i++){
-		if (_server.s_list[i].sock == lfd)
-			break;
-	}
-
-	config::ListenerKey key;
-	key.first = _server.s_list[i].host;
-	key.second = _server.s_list[i].port;
-	config::Listeners::iterator it = _server.listeners.find(key);
-	if (it == _server.listeners.end())
-		std::cout << "key not found" << std::endl;
-	config::ListenerData httpServer = it->second;
-	return httpServer;
-} */
-
 Reactor::~Reactor(){
 
 	std::map<int, EventHandler *>::iterator it;
-
-	/* if (!_handlers.empty()){
-		for (int i = 0; i < _server.nports; i++)
-		_server.s_list[i].sock = -1;
-	} */
 
 	for (it = _handlers.begin(); it != _handlers.end(); ++it){
 		close (it->first); // close fd
@@ -217,38 +159,3 @@ Reactor::~Reactor(){
 		close(_epfd); // close epoll instance
 }
 
-int	error(int err){
-
-	std:: cout << "Error: ";
-	switch (err)
-	{
-	case 0:
-		std::cout << "Usage: ./webserv config.conf" << std::endl;
-		return false;
-	case 1:
-		std::cout << "Creating socket failed: ";
-		break;
-	case 2:
-		std::cout << "Binding socket failed: ";
-		break;
-	case 3:
-		std::cout << "Listening to socket failed: ";
-		break;
-	case 4:
-		std::cout << "Epoll creation failed: ";
-		break;
-	case 5:
-		std::cout << "Creating signal fd failed: ";
-		break;
-	case 6:
-		std::cout << "epoll_ctl on listening socket failed: ";
-		break;
-	case 7:
-		std::cout << "epoll_wait failed: ";
-		break;
-	default:
-		break;
-	}
-	std::cout << strerror(errno) << std::endl;
-	return false;
-}

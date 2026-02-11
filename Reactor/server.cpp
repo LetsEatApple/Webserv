@@ -6,45 +6,11 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:07:37 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/31 22:32:47 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/11 17:00:43 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "server.hpp"
-
-/* Server::Server(int nports, char** ports) : nports(nports){
-
-	_slist.resize(nports);
-	for (int i = 0; i < nports; i++){
-		_slist[i].port = atoi(ports[i+1]);
-		std::memset(&_slist[i].s_addr, 0, sizeof(_slist[i].s_addr));
-		_slist[i].s_addr.sin_port = htons(_slist[i].port); 
-		//_slist[i].s_addr.sin_port = htons(80); //for error testing (bind)
-		_slist[i].s_addr.sin_family = AF_INET;
-		_slist[i].s_addr.sin_addr.s_addr = INADDR_ANY;
-		_slist[i].sock = -1;
-	}
-} */
-
-/* Server::Server(config::Listeners &listeners) : listeners(listeners){
-
-	nports = listeners.size();
-	_slist.resize(nports);
-	config::Listeners::iterator it;
-	int i = 0;
-
-	for (it = listeners.begin(); it != listeners.end(); ++it){
-
-		_slist[i].port = it->first.second;
-		std::memset(&_slist[i].s_addr, 0, sizeof(_slist[i].s_addr));
-		_slist[i].s_addr.sin_port = htons(_slist[i].port);
-		_slist[i].s_addr.sin_family = AF_INET;
-		_slist[i].s_addr.sin_addr.s_addr = INADDR_ANY;
-		_slist[i].sock = -1;
-		i++;
-	}
-
-} */
 
 std::string str(uint16_t port){
 
@@ -87,10 +53,10 @@ Server::Server(config::Listeners &listeners) /*: listeners(listeners)*/{
 
 }
 
-int	Server::error_close(int err, int index){
+int	Server::error_close(std::string err, int index){
 	for (int i = 0; i < index; i++)
 		close(_slist[i].sock);
-	return error(err);
+	return error(err, 1);
 }
 
 int Server::createServer(){
@@ -100,7 +66,7 @@ int Server::createServer(){
 		// socket and pair
 		_slist[i].sock = socket(_slist[i].n_server->ai_family, SOCK_STREAM | SOCK_NONBLOCK, 0);
 		if (_slist[i].sock < 0) // close all sockets and return? set sock -1 before starting loop? or in main on error check
-			return error_close(1, i); //close fd
+			return error_close("creaing socket failed", i);
 		_slist[i].ls.first = _slist[i].sock;
 		_listeners.push_back(_slist[i].ls);
 		int opt = 1; // allow immediate restart
@@ -108,13 +74,16 @@ int Server::createServer(){
 
 		// bind
 		int bind_val = bind(_slist[i].sock, (struct sockaddr *)_slist[i].n_server->ai_addr, _slist[i].n_server->ai_addrlen);
-		if(bind_val < 0) // open fds
-			return error_close(2, i); //close fd
+		if(bind_val < 0)
+			return error_close("binding socket failed", i);
 
 		// listen
 		int listen_val = listen(_slist[i].sock, 1);
 		if(listen_val < 0)
-			return error_close(3, i); //close fd
+			return error_close("listening to socket failed", i);
+		std::stringstream ss;
+		ss << _slist[i].host << ":" << _slist[i].portStr;
+		logInfo("Listening on ", ss.str());
 	}
 
 	return true;
@@ -130,5 +99,5 @@ Server::~Server() {
 }
 
 const char* Server::InvalidAddrException::what() const throw(){
-	return "Error: getaddrinfo: Invalid address";
+	return "getaddrinfo: Invalid address";
 }

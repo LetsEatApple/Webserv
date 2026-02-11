@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:21:43 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/02/10 20:35:41 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/11 17:21:51 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -231,13 +231,6 @@ int Connection::handleRead(){
 			std::cout << "remove ..." << std::endl;
 			return _reactor->removeHandler(this, 0);
 		}
-		/* std::set<std::string>::iterator it = _RequestLocPair.second.limit_except.find(_request.getMethod());
-		if (it == _RequestLocPair.second.limit_except.end()) {
-			Response::Writer w(_fd);
-			w.writeStatusLine(Response::StatusBadRequest); // 405 Method Not Allowed error
-			w.writeHeaders(Response::getDefaultHeaders(0));
-			return _reactor->removeHandler(this, 0);
-		} */
 	}
 	if (_request.done()) {
 		Response::Writer w(_fd);
@@ -293,12 +286,19 @@ int Acceptor::handleRead() {
 		int cfd = accept(_fd, (struct sockaddr *)&c_addr, &c_addrlen);
 		if (cfd < 0)
 			break; // accept() may return -1 with EAGAIN if no connections are pending (not an error)
+		std::stringstream ss;
+		ss << _fd;
+		logInfo("Accepted incoming client on ", ss.str());
 		int flags = fcntl(cfd, F_GETFL, 0);
 		int ret = fcntl(cfd, F_SETFL, flags | O_NONBLOCK);
 		if (ret == -1 || flags == -1)
 			return false;
 		if (!_reactor->registerHandler(new Connection(cfd, this->_ls), EPOLLIN)) // close program?
 			return false;
+		std::stringstream ss2;
+		ss2 << cfd;
+		logInfo("New client on ", ss2.str());
+		
 	}
 	return true;
 }

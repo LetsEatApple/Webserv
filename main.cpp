@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:05:42 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/02/10 19:42:31 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/11 16:52:25 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,51 +18,52 @@
 #include "routes.hpp"
 
 int main(int ac, char **av) {
-    // PARSING
-    if (ac != 2)
-        return error(0);
 
+	std::string status = "OFF";
 	#ifdef DEBUG
-		std::cout << "DEBUG MODE ON" << std::endl;
+		status = "ON";
 	#endif
+	std::cout << "\n\033[1;35mWEBSERV\033[0;37m\t"
+	<< "\033[90m[DEBUG MODE " << status << "]\033[0m\n"
+	<< std::endl;
+	logInfo("Webserv starting", " ...");
 
-    config::Listeners listeners;
-    try {
-        listeners = config::buildConfig(av[1]);
-    }
-    catch (const std::exception &e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-        return 1;
-    }
+	// PARSING
+	if (ac != 2)
+		return error("Usage: ./webserv config.conf", 0);
+	
+	config::Listeners listeners;
+	try {
+		listeners = config::buildConfig(av[1]);
+	}
+	catch (const std::exception &e) {
+		return error(e.what(), 0);
+	}
+	logInfo("Loaded cofiguration file: ", av[1]);
+	// LOW-LEVEL NETWORKING
+	try {
+		Server server(listeners);
+		if (!server.createServer())
+			return 1;
 
-    // LOW-LEVEL NETWORKING
-    try {
-        Server server(listeners);
-        if (!server.createServer())
-            return 1;
-        // // change later
-        // Router router;
-        //
+	// Reactor reactor(server, &router);
+		Reactor reactor;
+		if (!reactor.init(server.get_listeners()))
+			return 1;
 
-
-        // Reactor reactor(server, &router);
-        Reactor reactor;
-        if (!reactor.init(server.get_listeners()))
-            return 1;
-
-        // Event loop
-        for(;;) {
-            if (!reactor.handleEvents()){
-                if (errno == EINTR)
-                    continue ;
-                return error(7);
-            }
-            if (reactor.stop(GET))
-                break ;
-        }
-    }
-    catch(const std::exception& e)
-    {
-        std::cerr << e.what() << '\n';
-    }
+		// Event loop
+		for(;;) {
+			if (!reactor.handleEvents()){
+				if (errno == EINTR)
+					continue ;
+				return error("epoll_wait failed", 1);
+			}
+			if (reactor.stop(GET))
+				break ;
+		}
+	}
+	catch(const std::exception& e)
+	{
+		return error(e.what(), 0);
+	}
 }
