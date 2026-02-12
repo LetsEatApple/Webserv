@@ -237,8 +237,18 @@ void applyReturn(Location &loc, Directive const &d) {
     normalized = validatePath(d.args[d.args.size() - 1], d.name, d.line);
   if (d.args.at(0).length() != 3 || status < 100 || status > 599)
       throw std::runtime_error(
-      utils::errorMsg("Unexpected value '" + d.args[0] + "' in 'return' directive", d.line));
+      utils::errorMsg("Unexpected value '" + d.args[0] + "' in '" + d.name + "' directive", d.line));
     loc.ret.insert(std::pair<int, std::string>(status, normalized));
+}
+
+void applyCGI(Location &loc, Directive const &d) {
+  std::string extension = d.args.at(0);
+  if (extension.at(0) != '.')
+    throw std::runtime_error(utils::errorMsg("Unexpected value '" + d.args[0] + "' in '" + d.name + "' directive", d.line));
+  std::string normalized = d.args.at(1);
+  if (normalized.at(0) == '/')
+    normalized = validatePath(d.args.at(1), d.name, d.line);
+  loc.cgi.insert(std::pair<std::string, std::string>(extension, normalized));
 }
 
 void applyDirective(Location &loc, Directive const &d) {
@@ -258,6 +268,8 @@ void applyDirective(Location &loc, Directive const &d) {
     applyErrorPages(loc, d);
   if (d.name == "return")
     applyReturn(loc, d);
+  if (d.name == "cgi")
+    applyCGI(loc, d);
 }
 
 Location buildLocation(const Block &location, Location server_default_location) {
@@ -447,8 +459,20 @@ std::ostream &operator<<(std::ostream &out, Location const &l) {
   if (l.ret.size() > 0)
     out << "      ";
   out << "    }" << std::endl;
+  
+  out << "        " << dbg::GRAY << "cgi" << " {";
+  if (l.cgi.size() > 0)
+    out << std::endl;
+  for (std::map<std::string, std::string>::const_iterator it = l.cgi.begin();
+       it != l.cgi.end(); ++it) {
+    out << "            " << it->first << " "
+        << it->second << std::endl;
+  }
+  if (l.cgi.size() > 0)
+    out << "      ";
+  out << "    }" << std::endl;
 
-  out << dbg::BOLD << dbg::BLUE << "      }" << dbg::RESET << std::endl;
+  out << "      }" << dbg::RESET << std::endl;
 
   return out;
 }
@@ -462,6 +486,7 @@ Listeners buildConfig(const std::string &path) {
 
   Location http_default_location;
   std::map<int, std::string> ret;
+  std::map<std::string, std::string> cgi;
   std::set<std::string> limit_except;
   limit_except.insert("GET");
   limit_except.insert("POST");
@@ -476,6 +501,7 @@ Listeners buildConfig(const std::string &path) {
   http_default_location.autoindex = false;
   http_default_location.upload = "";
   http_default_location.limit_except = limit_except;
+  http_default_location.cgi = cgi;
 
   for (size_t i = 0; i < http.directives.size(); ++i)
     applyDirective(http_default_location, http.directives[i]);

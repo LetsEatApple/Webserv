@@ -16,7 +16,8 @@ enum DirectiveType {
   DIR_INDEX,
   DIR_RETURN,
   DIR_UPLOAD,
-  DIR_UNKNOWN
+  DIR_CGI,
+  DIR_UNKNOWN,
 };
 
 struct ValidationState {
@@ -32,6 +33,7 @@ struct ValidationState {
   bool has_index;
   bool has_return;
   bool has_upload;
+  bool has_cgi;
 };
 
 void validate(const Block &http);

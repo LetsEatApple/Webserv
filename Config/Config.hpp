@@ -21,6 +21,7 @@ struct Location {
   std::map<int, std::string> ret;
   std::set<std::string> limit_except;
   std::map<int, std::string> error_page;
+  std::map<std::string, std::string> cgi;
 };
 
 struct Server {

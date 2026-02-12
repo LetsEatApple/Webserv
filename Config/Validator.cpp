@@ -29,6 +29,8 @@ static DirectiveType directiveType(const std::string &name) {
     return DIR_UPLOAD;
   else if (name == "return")
     return DIR_RETURN;
+  else if (name == "cgi")
+    return DIR_CGI;
   else
     return DIR_UNKNOWN;
 }
@@ -47,6 +49,7 @@ static ValidationState makeValidationState(void) {
   vs.has_return = false;
   vs.has_error_page = false;
   vs.has_upload = false;
+  vs.has_cgi = false;
   return vs;
 }
 
@@ -114,6 +117,17 @@ static void validateReturn(const Directive &d, ContextType ctx,
     throw std::runtime_error(utils::errorMsg(
         "Expected exactly 2 arguments for '" + d.name + "' directive", d.line));
   vs.has_return = true;
+}
+
+static void validateCGI(const Directive &d, ContextType ctx,
+                           ValidationState &vs) {
+  if (ctx != CTX_SERVER && ctx != CTX_LOCATION)
+    throw std::runtime_error(utils::errorMsg(
+        "'" + d.name + "' directive is not allowed here", d.line));
+  if (d.args.size() != 2)
+    throw std::runtime_error(utils::errorMsg(
+        "Expected exactly 2 arguments for '" + d.name + "' directive", d.line));
+  vs.has_cgi = true;
 }
 
 static void validateAlias(const Directive &d, ContextType ctx,
@@ -193,6 +207,9 @@ static void validateDirective(const Directive &d, ContextType ctx,
     break;
   case DIR_UPLOAD:
     validateUpload(d, vs);
+    break;
+  case DIR_CGI:
+    validateCGI(d, ctx, vs);
     break;
   case DIR_UNKNOWN:
     throw std::runtime_error(
