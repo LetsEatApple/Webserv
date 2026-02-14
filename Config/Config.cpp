@@ -6,7 +6,6 @@
 #include "Utils.hpp"
 #include "Validator.hpp"
 #include <algorithm>
-#include <asm-generic/errno-base.h>
 #include <cerrno>
 #include <cstddef>
 #include <cstdlib>
@@ -25,15 +24,6 @@
 
 namespace config {
 
-static bool isBracketedIPv6(const std::string &s) {
-  bool onlyAddress = s.size() >= 2 && s[0] == '[' && s[s.size() - 1] == ']';
-  size_t last_close_pos = s.find_last_of("]");
-  bool addressAndPort = s.size() >= 2 && s[0] == '[' &&
-                        last_close_pos != std::string::npos &&
-                        last_close_pos != s.size() + 1 && s[last_close_pos + 1] == ':';
-  return onlyAddress || addressAndPort;
-}
-
 static std::string getAddress(std::string &address, std::string &port,
                               Directive const &d, bool isV6) {
   if (address == "*")
@@ -42,22 +32,19 @@ static std::string getAddress(std::string &address, std::string &port,
     address = "127.0.0.1";
 
   struct addrinfo hints;
-  struct addrinfo *res;
-  if (isV6)
-    hints.ai_family = AF_INET6;
-  else
-   hints.ai_family = AF_INET;
+  struct addrinfo *res = NULL;
+  
+  std::memset(&hints, 0, sizeof(hints));
+  
+  hints.ai_family = isV6 ? AF_INET6 : AF_INET;
   hints.ai_socktype = SOCK_STREAM;
-  hints.ai_protocol = 0;
-  hints.ai_addrlen = 0;
-  hints.ai_canonname = NULL;
-  hints.ai_addr = NULL;
-  hints.ai_next = NULL;
-  hints.ai_flags = 0;
+  
   if (getaddrinfo(address.c_str(), port.c_str(), &hints, &res) != 0)
     throw std::runtime_error(utils::errorMsg(
         "Invalid address '" + address + "' of the 'listen' directive", d.line));
+  
   freeaddrinfo(res);
+  
   return address;
 }
 
@@ -74,19 +61,30 @@ static uint16_t getPort(std::string const &portStr, Directive const &d) {
   return static_cast<uint16_t>(p);
 }
 
-std::pair<std::string, uint16_t> makeListen(Directive const &d) {
+static std::pair<std::string, uint16_t> makeListen(Directive const &d) {
   std::string arg = d.args[0];
-  std::pair<std::string, uint16_t> listen;
-
   std::string address = "0.0.0.0";
   uint16_t port = 8000;
 
-  /* IPv6 [addr]:port */
-  if (isBracketedIPv6(arg)) {
+  if (!arg.empty() && arg[0] == '[') {
     size_t close = arg.find(']');
-    address = arg.substr(1, close - 1);
+    if (close == std::string::npos || close == 1)
+      throw std::runtime_error(
+          utils::errorMsg("Invalid IPv6 address format in '" + arg +
+                              "' of the 'listen' directive",
+                          d.line));
 
-    if (close + 1 < arg.size()) {
+    address = arg.substr(1, close - 1);
+    if (address == "*")
+      throw std::runtime_error(
+          utils::errorMsg("Invalid IPv6 address format in '" + arg +
+                              "' of the 'listen' directive",
+                          d.line));
+
+    if (close + 1 == arg.size()) {
+      std::string portStr = utils::toString(port);
+      address = getAddress(address, portStr, d, true);
+    } else {
       if (arg[close + 1] != ':')
         throw std::runtime_error(
             utils::errorMsg("Invalid IPv6 address format in '" + arg +
@@ -95,34 +93,35 @@ std::pair<std::string, uint16_t> makeListen(Directive const &d) {
 
       std::string portStr = arg.substr(close + 2);
       port = getPort(portStr, d);
+      address = getAddress(address, portStr, d, true);
     }
-    std::string portStr = utils::toString(port);
-    address = getAddress(address, portStr, d, true);
+  } else if (arg.find(':') != std::string::npos) {
+    size_t colon = arg.find(':');
+
+    if (arg.find(':', colon + 1) != std::string::npos)
+      throw std::runtime_error(
+          utils::errorMsg("IPv6 address must be enclosed in [] in '" + arg +
+                              "' of the 'listen' directive",
+                          d.line));
+
+    address = arg.substr(0, colon);
+    std::string portStr = arg.substr(colon + 1);
+    port = getPort(portStr, d);
+    address = getAddress(address, portStr, d, false);
   }
-  /* Ipv6 / hostname */
+
+  else if (utils::isNumber(arg))
+    port = getPort(arg, d);
   else {
-    size_t colon_pos = arg.find_last_of(":");
-
-    if (colon_pos != std::string::npos) {
-      address = arg.substr(0, colon_pos);
-      std::string portStr = arg.substr(colon_pos + 1);
-      port = getPort(portStr, d);
-      address = getAddress(address, portStr, d, false);
-    } else if (utils::isNumber(arg))
-      port = getPort(arg, d);
-    else {
-      std::string partStr = utils::toString(port);
-      address = getAddress(arg, partStr, d, false);
-    }
+    std::string partStr = utils::toString(port);
+    address = getAddress(arg, partStr, d, false);
   }
 
-  listen.first = address;
-  listen.second = port;
-  return listen;
+  return std::make_pair(address, port);
 }
 
 static std::string validatePath(std::string const &path, std::string const name, int line) {
-  if (path.empty() || path.at(0) != '/')
+  if (path.empty() || path[0] != '/')
     throw std::runtime_error(
         utils::errorMsg("Unexpected value '" + path + "' in '" + name + "' directive", line));
 
@@ -237,8 +236,18 @@ void applyReturn(Location &loc, Directive const &d) {
     normalized = validatePath(d.args[d.args.size() - 1], d.name, d.line);
   if (d.args.at(0).length() != 3 || status < 100 || status > 599)
       throw std::runtime_error(
-      utils::errorMsg("Unexpected value '" + d.args[0] + "' in 'return' directive", d.line));
+      utils::errorMsg("Unexpected value '" + d.args[0] + "' in '" + d.name + "' directive", d.line));
     loc.ret.insert(std::pair<int, std::string>(status, normalized));
+}
+
+void applyCGI(Location &loc, Directive const &d) {
+  std::string extension = d.args.at(0);
+  if (extension.at(0) != '.')
+    throw std::runtime_error(utils::errorMsg("Unexpected value '" + d.args[0] + "' in '" + d.name + "' directive", d.line));
+  std::string normalized = d.args.at(1);
+  if (normalized.at(0) == '/')
+    normalized = validatePath(d.args.at(1), d.name, d.line);
+  loc.cgi.insert(std::pair<std::string, std::string>(extension, normalized));
 }
 
 void applyDirective(Location &loc, Directive const &d) {
@@ -258,6 +267,8 @@ void applyDirective(Location &loc, Directive const &d) {
     applyErrorPages(loc, d);
   if (d.name == "return")
     applyReturn(loc, d);
+  if (d.name == "cgi")
+    applyCGI(loc, d);
 }
 
 Location buildLocation(const Block &location, Location server_default_location) {
@@ -447,8 +458,20 @@ std::ostream &operator<<(std::ostream &out, Location const &l) {
   if (l.ret.size() > 0)
     out << "      ";
   out << "    }" << std::endl;
+  
+  out << "        " << dbg::GRAY << "cgi" << " {";
+  if (l.cgi.size() > 0)
+    out << std::endl;
+  for (std::map<std::string, std::string>::const_iterator it = l.cgi.begin();
+       it != l.cgi.end(); ++it) {
+    out << "            " << it->first << " "
+        << it->second << std::endl;
+  }
+  if (l.cgi.size() > 0)
+    out << "      ";
+  out << "    }" << std::endl;
 
-  out << dbg::BOLD << dbg::BLUE << "      }" << dbg::RESET << std::endl;
+  out << "      }" << dbg::RESET << std::endl;
 
   return out;
 }
@@ -462,6 +485,7 @@ Listeners buildConfig(const std::string &path) {
 
   Location http_default_location;
   std::map<int, std::string> ret;
+  std::map<std::string, std::string> cgi;
   std::set<std::string> limit_except;
   limit_except.insert("GET");
   limit_except.insert("POST");
@@ -476,6 +500,7 @@ Listeners buildConfig(const std::string &path) {
   http_default_location.autoindex = false;
   http_default_location.upload = "";
   http_default_location.limit_except = limit_except;
+  http_default_location.cgi = cgi;
 
   for (size_t i = 0; i < http.directives.size(); ++i)
     applyDirective(http_default_location, http.directives[i]);

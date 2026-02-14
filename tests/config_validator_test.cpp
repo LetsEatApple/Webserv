@@ -121,6 +121,7 @@ static Block makeValidConfig() {
   server2.directives.push_back(makeDirective("client_max_body_size", {"10K"}));
   server2.directives.push_back(makeDirective("server_name", {"google.com", "www.google.com"}));
   server2.directives.push_back(makeDirective("return", {"200", "OK"}));
+  server2.directives.push_back(makeDirective("cgi", {".py", "/usr/bin/python3"}));
   http.blocks.push_back(server2);
 
   return http;
@@ -160,6 +161,7 @@ TEST_CASE("error: return in HTTP") {
   config.directives.push_back(makeDirective("return", {"200", "OK"}));
   REQUIRE_THROWS_AS(validator::validate(config), std::runtime_error);
 }
+
 TEST_CASE("error: limit_except in HTTP") {
   Block config = makeValidConfig();
   config.directives.push_back(makeDirective("limit_except", {"GET"}));
@@ -169,6 +171,12 @@ TEST_CASE("error: limit_except in HTTP") {
 TEST_CASE("error: alias in HTTP") {
   Block config = makeValidConfig();
   config.directives.push_back(makeDirective("alias", {"GET"}));
+  REQUIRE_THROWS_AS(validator::validate(config), std::runtime_error);
+}
+
+TEST_CASE("error: cgi in HTTP") {
+  Block config = makeValidConfig();
+  config.directives.push_back(makeDirective("cgi", {".py", "/usr/bin/python3"}));
   REQUIRE_THROWS_AS(validator::validate(config), std::runtime_error);
 }
 
@@ -319,6 +327,18 @@ TEST_CASE("error: return too few arguments") {
 TEST_CASE("error: return too many arguments") {
   Block config = makeValidConfig();
   config.blocks[1].blocks[0].directives.push_back(makeDirective("return", {"one", "two", "four"}));
+  REQUIRE_THROWS_AS(validator::validate(config), std::runtime_error);
+}
+
+TEST_CASE("error: cgi too few arguments") {
+  Block config = makeValidConfig();
+  config.blocks[1].blocks[0].directives.push_back(makeDirective("cgi", {".py"}));
+  REQUIRE_THROWS_AS(validator::validate(config), std::runtime_error);
+}
+
+TEST_CASE("error: cgi too many arguments") {
+  Block config = makeValidConfig();
+  config.blocks[1].blocks[0].directives.push_back(makeDirective("cgi", {".php", "/usr/bin/php8.2", "four"}));
   REQUIRE_THROWS_AS(validator::validate(config), std::runtime_error);
 }
 

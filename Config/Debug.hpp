@@ -11,7 +11,7 @@ static const char *YELLOW = "\033[33m";
 static const char *BLUE = "\033[34m";
 static const char *MAGENTA = "\033[35m";
 static const char *CYAN = "\033[36m";
-//static const char *GRAY = "\033[90m";
+static const char *GRAY = "\033[90m";
 
 static const int KEY_WIDTH = 20;
 } // namespace dbg
