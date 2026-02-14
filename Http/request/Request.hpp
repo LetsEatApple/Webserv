@@ -3,6 +3,7 @@
 
 #include <string>
 #include "Headers.hpp"
+#include "Config.hpp"
 
 namespace ParserState {
     enum State {
@@ -66,12 +67,17 @@ public:
     // Returns NULL on error, sets errorMsg if provided
     static Request* requestFromSocket(int socketFd, std::string& errorMsg);
 
+	// set matchedLocation (routing)
+	void	setLocation(config::Location match);
+	config::Location	getLocation() const;
+
 private:
     RequestLine requestLine;
     ::Headers headers;
     std::string body;
     ParserState::State state;
     int chunkedRemaining;
+	config::Location matchedLocation;
 
     static const char* const SEPARATOR;
 

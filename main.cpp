@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:05:42 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/02/11 16:52:25 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/14 18:01:11 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -48,7 +48,7 @@ int main(int ac, char **av) {
 
 	// Reactor reactor(server, &router);
 		Reactor reactor;
-		if (!reactor.init(server.get_listeners()))
+		if (!reactor.init(server.get_sessions()))
 			return 1;
 
 		// Event loop

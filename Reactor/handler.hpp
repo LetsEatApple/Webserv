@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:20:30 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/02/10 19:29:42 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/14 19:08:40 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,8 +18,9 @@
 #include "Request.hpp"
 #include "Response.hpp"
 #include "RequestHandler.hpp"
+#include "server.hpp"
+#include "routing.hpp"
 
-typedef std::pair< int, std::vector<config::Server> > ListenerSocket;
 
 class Reactor;
 
@@ -33,32 +34,30 @@ struct Data{
 };
 
 // handling client sockets
-typedef std::pair<Request, config::Location>	RequestLocPair;
 class Connection : public EventHandler{
 
 private:
 	Request					_request;
 	std::string				_readBuffer;
 	RequestHandler*			_requestHandler;
-	ListenerSocket			_ls;
-	RequestLocPair			_RequestLocPair;
+	SessionInfo				_session;
+
 	Data					_data;
 	bool					_routed;
 	//adding struct containing data from config depending on fd / listening fd? or through reactor _server?
 public:
 	//Connection(int fd, RequestHandler* requestHandler);
-	Connection(int fd, const ListenerSocket &ls);
+	Connection(const SessionInfo &session);
 	int	handleRead();
 	int	handleWrite();
-	~Connection();
 };
 
 // handling listening sockets
 class Acceptor : public EventHandler{
 private:
-	ListenerSocket	_ls;
+	SessionInfo	_session;
 public:
-	Acceptor(const ListenerSocket &ls);
+	Acceptor(const SessionInfo &session);
 	int handleRead();
 	int handleWrite();
 };
@@ -80,12 +79,3 @@ public:
 	int handleRead();
 	int handleWrite();
 };
-
-bool	getLocation(std::vector<config::Server> servers, Request const request, RequestLocPair *rlp);
-int findTarget(config::Server server, std::string path);
-std::string removeDoubleSlash(std::string path);
-std::string removeDotSegments(std::string input);
-std::string	decodePath(std::string target);
-bool unreservedChar(char c);
-bool matchesLocation(std::string target, std::string location);
-int	findHost(std::vector<config::Server> servers, std::string host);

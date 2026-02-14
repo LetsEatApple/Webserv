@@ -208,9 +208,9 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
                     } else {
                         state = ParserState::Done;
                     }
-					return totalRead;
+					return totalRead; // instead of break return with totalRead for routing and to check content-length
                 }
-                break; // instead of break return totalRead;
+                break;
             }
 
             case ParserState::Body: {
@@ -243,7 +243,13 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
                 totalRead += static_cast<int>(idx) + 2; // consume size line + \r\n
                 if (chunkSize == 0) {
                     state = ParserState::ChunkedDone;
-                } else {
+                }
+				if (body.size() + chunkSize > matchedLocation.client_max_body_size) {
+					errorMsg = "Payload Too Large";
+					state = ParserState::Error;
+					return -1;
+				}
+				else {
                     chunkedRemaining = static_cast<int>(chunkSize);
                     state = ParserState::ChunkedData;
                 }
@@ -323,4 +329,12 @@ Request* Request::requestFromSocket(int socketFd, std::string& errorMsg) {
     }
 
     return request;
+}
+
+void	Request::setLocation(config::Location match){
+	this->matchedLocation = match;
+}
+
+config::Location	Request::getLocation() const{
+	return this->matchedLocation;
 }

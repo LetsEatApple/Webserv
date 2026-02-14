@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:14:49 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/02/11 17:10:53 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/14 18:35:17 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -38,16 +38,14 @@ int set_signalfd(){
 
 Reactor::Reactor() : _epfd(-1), _sig(false) {}
 
-int Reactor::init(const serverListeners &listeners){
+int Reactor::init(const activeSessions &sessions){
 
 	// epoll_create
 	_epfd = epoll_create(42);
 	if (_epfd < 0)
 		return error("epoll_create failed", 1);
 	_ev.events = EPOLLIN;
-	std::stringstream ss;
-	ss << "epoll; fd=" << _epfd;
-	logInfo("Reactor initialized: ", ss.str());
+	logInfo("Reactor initialized: \033[0;36mepoll (fd=", str(_epfd).append(")"));
 
 	// set fd for signals and register handler
 	int sfd = set_signalfd();
@@ -61,8 +59,8 @@ int Reactor::init(const serverListeners &listeners){
 		return false;
 
 	// register listening sockets and their handlers
-	for (size_t i = 0; i < listeners.size(); i++){
-		if (!registerHandler(new Acceptor(listeners[i]), EPOLLIN))
+	for (size_t i = 0; i < sessions.size(); i++){
+		if (!registerHandler(new Acceptor(sessions[i]), EPOLLIN))
 			return error("epoll_ctl on listening socket failed", 1);
 	}
 	logInfo("Server ready to accept connections", " ...");
@@ -109,7 +107,7 @@ int Reactor::removeHandler (EventHandler *handler, uint32_t event){
 	if (fd != -1)
 		close (fd);
 
-	delete _handlers[fd];
+	delete handler;
 	_handlers.erase(fd);
 	return true;
 }

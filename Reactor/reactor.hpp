@@ -6,7 +6,7 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:14:10 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/02/10 19:29:05 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/14 18:32:19 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,7 +25,7 @@ private:
 	bool							_sig;
 public:
 	Reactor();
-	int		init(const serverListeners &listeners);
+	int		init(const activeSessions &sessions);
 	int		registerHandler (EventHandler *handler, uint32_t event);
 	int		removeHandler (EventHandler *handler, uint32_t event);
 	int		modifyHandler (EventHandler *handler, uint32_t event);

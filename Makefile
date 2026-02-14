@@ -6,7 +6,7 @@
 #    By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/08/25 12:32:34 by lea               #+#    #+#              #
-#    Updated: 2026/02/11 16:13:08 by lhagemos         ###   ########.fr        #
+#    Updated: 2026/02/14 19:38:03 by lhagemos         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -20,6 +20,7 @@ Reactor/handler.cpp \
 Reactor/reactor.cpp \
 Reactor/server.cpp \
 Reactor/Logger.cpp \
+Reactor/routing.cpp \
 Config/Config.cpp \
 Config/Lexer.cpp \
 Config/Parser.cpp \
