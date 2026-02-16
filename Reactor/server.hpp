@@ -50,9 +50,9 @@ private:
 public:
 	Server(config::Listeners &configlisteners);
 
-	const activeSessions	&get_sessions();
+	const activeSessions	&get_sessions() const;
 	int						createServer();
-	int						error_close(std::string err, int index);
+	int						error_close(const std::string& err, int index);
 
 	class InvalidAddrException : public std::exception{
 	public:

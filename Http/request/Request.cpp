@@ -17,19 +17,19 @@ const std::string& Request::getTarget() const {
     return requestLine.requestTarget.full;
 }
 
-const std::string&	Request::getTarget(std::string part) const{
-	if (part.compare("path") == 0)
-		return requestLine.requestTarget.path;
-	if (part.compare("query") == 0)
-		return requestLine.requestTarget.query;
-	return requestLine.requestTarget.full;
+const std::string&	Request::getPath() const{
+	return requestLine.requestTarget.path;
+}
+
+const std::string&	Request::getQuery() const{
+	return requestLine.requestTarget.query;
 }
 
 const std::string Request::getHost() const {
 	return headers.get("host");
 }
 
-size_t Request::getContentLen() {
+size_t Request::getContentLen() const {
 	std::string lengthStr = headers.get("content-length");
 	if (lengthStr.empty())
 		return 0;
@@ -331,10 +331,10 @@ Request* Request::requestFromSocket(int socketFd, std::string& errorMsg) {
     return request;
 }
 
-void	Request::setLocation(config::Location match){
+void	Request::setLocation(const config::Location& match){
 	this->matchedLocation = match;
 }
 
-config::Location	Request::getLocation() const{
+const config::Location&	Request::getLocation() const{
 	return this->matchedLocation;
 }

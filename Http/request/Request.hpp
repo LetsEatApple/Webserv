@@ -37,9 +37,10 @@ public:
 
     const std::string&	getMethod() const;
     const std::string&	getTarget() const;
-	const std::string&	getTarget(std::string part) const;
+	const std::string&	getPath() const;
+	const std::string&	getQuery() const;
 	const std::string	getHost() const;
-	size_t				getContentLen();
+	size_t				getContentLen() const;
     const std::string&	getHttpVersion() const;
     const ::Headers&	getHeaders() const;
     const std::string&	getBody() const;
@@ -68,8 +69,8 @@ public:
     static Request* requestFromSocket(int socketFd, std::string& errorMsg);
 
 	// set matchedLocation (routing)
-	void	setLocation(config::Location match);
-	config::Location	getLocation() const;
+	void	setLocation(const config::Location& match);
+	const config::Location&	getLocation() const;
 
 private:
     RequestLine requestLine;

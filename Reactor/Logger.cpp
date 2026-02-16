@@ -1,6 +1,6 @@
 #include "Logger.hpp"
 
-int	error(std::string err, int errno_on){
+int	error(const std::string& err, int errno_on){
 
 	std::cout << "\033[0;31mError: ";
 	std::cout << err;
@@ -21,7 +21,7 @@ std::string str(uint16_t port){
 	return s_port;
 }
 
-void logDebug(std::string err, int errno_on){
+void logDebug(const std::string& err, int errno_on){
 
 	(void) err;
 	(void) errno_on;
@@ -35,7 +35,7 @@ void logDebug(std::string err, int errno_on){
 	
 }
 
-void logInfo(std::string info, std::string arg){
+void logInfo(const std::string& info, const std::string& arg){
 
 	(void) info;
 	(void) arg;
@@ -68,7 +68,7 @@ std::string IP_port(sockaddr_in &c_addr){
 	return oss.str();
 }
 
-void logConnection(Endpoint listener, Endpoint client){
+void logConnection(const Endpoint& listener, const Endpoint& client){
 	(void) listener;
 	(void) client;
 	#ifdef DEBUG
@@ -81,7 +81,7 @@ void logConnection(Endpoint listener, Endpoint client){
 	#endif
 }
 
-void logDisconnect(Endpoint listener, Endpoint client){
+void logDisconnect(const Endpoint& listener, const Endpoint& client){
 
 	(void) listener;
 	(void) client;
@@ -94,7 +94,7 @@ void logDisconnect(Endpoint listener, Endpoint client){
 	#endif
 }
 
-void logRequest(Endpoint listener, Endpoint client, Request req){
+void logRequest(const Endpoint& listener, const Endpoint& client, const Request& req){
 	
 	(void) listener;
 	(void) client;
@@ -111,8 +111,8 @@ void logRequest(Endpoint listener, Endpoint client, Request req){
 	
 	std::cout << "\n\t\033[95mMethod: \033[0;36m" << req.getMethod()
 	<< "\n\t\033[95mRequest target: \033[0;36m" << req.getTarget()
-	<< "\n\t\033[95mTarget path: \033[0;36m" << req.getTarget("path")
-	<< "\n\t\033[95mTarget query: \033[0;36m" << req.getTarget("query")
+	<< "\n\t\033[95mTarget path: \033[0;36m" << req.getPath()
+	<< "\n\t\033[95mTarget query: \033[0;36m" << req.getQuery()
 	<< "\n\t\033[95mHost: \033[0;36m" << headers.get("host")
 	<< "\n\t\033[95mmatched Location (path): \033[0;36m" << req.getLocation().path << "\033[0;37m\n"
 	<< std::endl;

@@ -6,12 +6,12 @@
 typedef std::pair<Request, config::Location>	RequestLocPair;
 
 
-bool			findLocation(std::vector<config::Server> servers, Request &request);
-int				findTarget(config::Server server, std::string path);
+bool			findLocation(const std::vector<config::Server>& servers, Request &request);
+int				findTarget(const config::Server& server, std::string path);
 std::string		removeDoubleSlash(std::string path);
 std::string		removeDotSegments(std::string input);
 std::string		decodePath(std::string target);
 bool			unreservedChar(char c);
-bool			matchesLocation(std::string target, std::string location);
-int				findHost(std::vector<config::Server> servers, std::string host);
-void			printParsingRes(Request req);
+bool			matchesLocation(const std::string& target, const std::string& location);
+int				findHost(const std::vector<config::Server>& servers, const std::string& host);
+void			printParsingRes(const Request& req);

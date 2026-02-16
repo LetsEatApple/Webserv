@@ -1,6 +1,6 @@
 #include "routing.hpp"
 
-int	findHost(std::vector<config::Server> servers, std::string host){
+int	findHost(const std::vector<config::Server>& servers, const std::string& host){
 
 	for (size_t i = 0; i < servers.size(); i++){
 		for (size_t j = 0; j < servers[i].server_names.size(); j++){
@@ -12,7 +12,7 @@ int	findHost(std::vector<config::Server> servers, std::string host){
 	return 0;
 }
 
-bool matchesLocation(std::string target, std::string location){
+bool matchesLocation(const std::string& target, const std::string& location){
 
 	if (target == location)
 		return true;
@@ -117,7 +117,7 @@ std::string removeDoubleSlash(std::string path){
 	return path;
 }
 
-int findTarget(config::Server server, std::string path){
+int findTarget(const config::Server& server, std::string path){
 
 	// Normalize URI
 	path = decodePath(path);
@@ -134,13 +134,13 @@ int findTarget(config::Server server, std::string path){
 	return server.locations.size() -1;
 }
 
-bool	findLocation(std::vector<config::Server> servers, Request &request){
+bool	findLocation(const std::vector<config::Server>& servers, Request &request){
 
 	std::string host;
 	std::string reqTarget;
 
 	host = request.getHost();
-	reqTarget = request.getTarget("path");
+	reqTarget = request.getPath();
 	int host_index = findHost(servers, host);
 	int target_index = findTarget(servers[host_index], reqTarget);
 	if (host_index == -1 || target_index == -1)

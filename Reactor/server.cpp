@@ -48,7 +48,7 @@ Server::Server(config::Listeners &listeners) /*: listeners(listeners)*/{
 
 }
 
-int	Server::error_close(std::string err, int index){
+int	Server::error_close(const std::string& err, int index){
 	for (int i = 0; i < index; i++)
 		close(_servers[i].sock);
 	return error(err, 1);
@@ -84,7 +84,7 @@ int Server::createServer(){
 	return true;
 }
 
-const activeSessions	&Server::get_sessions(){
+const activeSessions	&Server::get_sessions() const{
 	return _sessions;
 }
 

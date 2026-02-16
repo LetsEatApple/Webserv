@@ -35,6 +35,6 @@
 # define SET 1
 # define GET 0
 
-int	error(std::string err, int errno_on);
+int	error(const std::string& err, int errno_on);
 
 #endif
