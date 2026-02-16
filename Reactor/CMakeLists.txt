@@ -1,6 +1,7 @@
 set(REACTOR_SOURCES
         AEventHandler.cpp
         handler.cpp
+        Logger.cpp
         reactor.cpp
         routing.cpp
         server.cpp
