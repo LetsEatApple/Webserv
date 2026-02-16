@@ -3,6 +3,7 @@ set(TESTS_SOURCES
         headers_test.cpp
         request_test.cpp
         response_test.cpp
+        return_directive_test.cpp
         config_lexer_test.cpp
         config_parser_test.cpp
         config_validator_test.cpp

@@ -7,9 +7,20 @@ namespace Response {
 
     enum StatusCode {
         StatusOk = 200,
+        StatusMovedPermanently = 301,
+        StatusFound = 302,
+        StatusTemporaryRedirect = 307,
+        StatusPermanentRedirect = 308,
         StatusBadRequest = 400,
-        StatusInternalServerError = 500
+        StatusForbidden = 403,
+        StatusNotFound = 404,
+        StatusMethodNotAllowed = 405,
+        StatusInternalServerError = 500,
+        StatusNotImplemented = 501
     };
+
+    StatusCode intToStatusCode(int code);
+    const char* statusCodeToLine(StatusCode code);
 
     Headers getDefaultHeaders(int contentLen);
 

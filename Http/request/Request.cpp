@@ -244,7 +244,7 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
                 if (chunkSize == 0) {
                     state = ParserState::ChunkedDone;
                 }
-				if (body.size() + chunkSize > matchedLocation.client_max_body_size) {
+				else if (body.size() + chunkSize > matchedLocation.client_max_body_size) {
 					errorMsg = "Payload Too Large";
 					state = ParserState::Error;
 					return -1;

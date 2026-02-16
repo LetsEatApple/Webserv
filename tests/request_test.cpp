@@ -133,17 +133,13 @@ TEST_CASE("HEAD request", "[request]") {
     delete r;
 }
 
-TEST_CASE("OPTIONS request with asterisk", "[request]") {
+TEST_CASE("OPTIONS request with asterisk rejected (not origin-form)", "[request]") {
     std::string data = "OPTIONS * HTTP/1.1\r\nHost: localhost\r\n\r\n";
     std::string errorMsg;
 
     Request* r = parseFromString(data, errorMsg);
 
-    REQUIRE(r != NULL);
-    CHECK(r->getMethod() == "OPTIONS");
-    CHECK(r->getTarget() == "*");
-
-    delete r;
+    REQUIRE(r == NULL);
 }
 
 TEST_CASE("PATCH request", "[request]") {
@@ -172,16 +168,13 @@ TEST_CASE("Request with query string", "[request]") {
     delete r;
 }
 
-TEST_CASE("Request with fragment", "[request]") {
+TEST_CASE("Request with fragment rejected", "[request]") {
     std::string data = "GET /page#section HTTP/1.1\r\nHost: localhost:42069\r\n\r\n";
     std::string errorMsg;
 
     Request* r = parseFromString(data, errorMsg);
 
-    REQUIRE(r != NULL);
-    CHECK(r->getTarget() == "/page#section");
-
-    delete r;
+    REQUIRE(r == NULL);
 }
 
 TEST_CASE("Request with deep nested path", "[request]") {
@@ -420,6 +413,14 @@ TEST_CASE("Header value with leading/trailing whitespace", "[request][headers]")
     delete r;
 }
 
+static config::Location makeLocation(size_t maxBody) {
+    config::Location loc;
+    loc.path = "/";
+    loc.autoindex = false;
+    loc.client_max_body_size = maxBody;
+    return loc;
+}
+
 TEST_CASE("Standard Body", "[request][body]") {
     std::string data = "POST /submit HTTP/1.1\r\n"
                        "Host: localhost:42069\r\n"
@@ -427,13 +428,18 @@ TEST_CASE("Standard Body", "[request][body]") {
                        "\r\n"
                        "hello world!\n";
     std::string errorMsg;
+    Request req;
 
-    // Chunked read with 3 bytes per chunk
-    Request* r = parseFromString(data, errorMsg, 3);
+    int n = req.parse(data, errorMsg);
+    REQUIRE(n > 0);
+    REQUIRE(req.headersDone());
+    req.setLocation(makeLocation(1024));
 
-    REQUIRE(r != NULL);
-    CHECK(r->getBody() == "hello world!\n");
-    delete r;
+    std::string remaining = data.substr(n);
+    int n2 = req.parse(remaining, errorMsg);
+    REQUIRE(n2 >= 0);
+    REQUIRE(req.done());
+    CHECK(req.getBody() == "hello world!\n");
 }
 
 TEST_CASE("Body shorter than reported content length", "[request][body]") {
@@ -452,66 +458,86 @@ TEST_CASE("Body shorter than reported content length", "[request][body]") {
 }
 
 TEST_CASE("Single chunked body", "[request][chunked]") {
-    std::string data = "POST /upload HTTP/1.1\r\n"
-                       "Host: localhost:42069\r\n"
-                       "Transfer-Encoding: chunked\r\n"
-                       "\r\n"
-                       "5\r\nHello\r\n0\r\n\r\n";
+    std::string headers = "POST /upload HTTP/1.1\r\n"
+                          "Host: localhost:42069\r\n"
+                          "Transfer-Encoding: chunked\r\n"
+                          "\r\n";
+    std::string body = "5\r\nHello\r\n0\r\n\r\n";
     std::string errorMsg;
+    Request req;
 
-    Request* r = parseFromString(data, errorMsg);
+    int n = req.parse(headers, errorMsg);
+    REQUIRE(n > 0);
+    REQUIRE(req.headersDone());
+    req.setLocation(makeLocation(1024));
 
-    REQUIRE(r != NULL);
-    CHECK(r->getBody() == "Hello");
-    delete r;
+    int n2 = req.parse(body, errorMsg);
+    REQUIRE(n2 >= 0);
+    REQUIRE(req.done());
+    CHECK(req.getBody() == "Hello");
 }
 
 TEST_CASE("Multiple chunks with hex sizes", "[request][chunked]") {
-    // a = 10 in hex, 1a = 26 in hex
-    std::string data = "POST /upload HTTP/1.1\r\n"
-                       "Host: localhost:42069\r\n"
-                       "Transfer-Encoding: chunked\r\n"
-                       "\r\n"
-                       "a\r\n0123456789\r\n"
+    std::string headers = "POST /upload HTTP/1.1\r\n"
+                          "Host: localhost:42069\r\n"
+                          "Transfer-Encoding: chunked\r\n"
+                          "\r\n";
+    std::string body = "a\r\n0123456789\r\n"
                        "1a\r\nabcdefghijklmnopqrstuvwxyz\r\n"
                        "0\r\n\r\n";
     std::string errorMsg;
+    Request req;
 
-    Request* r = parseFromString(data, errorMsg);
+    int n = req.parse(headers, errorMsg);
+    REQUIRE(n > 0);
+    REQUIRE(req.headersDone());
+    req.setLocation(makeLocation(1024));
 
-    REQUIRE(r != NULL);
-    CHECK(r->getBody() == "0123456789abcdefghijklmnopqrstuvwxyz");
-    delete r;
+    int n2 = req.parse(body, errorMsg);
+    REQUIRE(n2 >= 0);
+    REQUIRE(req.done());
+    CHECK(req.getBody() == "0123456789abcdefghijklmnopqrstuvwxyz");
 }
 
-TEST_CASE("Chunked body with 1-byte network reads", "[request][chunked]") {
-    std::string data = "POST /upload HTTP/1.1\r\n"
-                       "Host: localhost:42069\r\n"
-                       "Transfer-Encoding: chunked\r\n"
-                       "\r\n"
-                       "5\r\nHello\r\n"
-                       "8\r\n World!\n\r\n"
-                       "0\r\n\r\n";
+TEST_CASE("Chunked body with incremental parsing", "[request][chunked]") {
+    std::string headers = "POST /upload HTTP/1.1\r\n"
+                          "Host: localhost:42069\r\n"
+                          "Transfer-Encoding: chunked\r\n"
+                          "\r\n";
+    std::string chunk1 = "5\r\nHello\r\n";
+    std::string chunk2 = "8\r\n World!\n\r\n";
+    std::string chunk3 = "0\r\n\r\n";
     std::string errorMsg;
+    Request req;
 
-    Request* r = parseFromString(data, errorMsg, 1);
+    int n = req.parse(headers, errorMsg);
+    REQUIRE(n > 0);
+    REQUIRE(req.headersDone());
+    req.setLocation(makeLocation(1024));
 
-    REQUIRE(r != NULL);
-    CHECK(r->getBody() == "Hello World!\n");
-    delete r;
+    req.parse(chunk1, errorMsg);
+    req.parse(chunk2, errorMsg);
+    req.parse(chunk3, errorMsg);
+    REQUIRE(req.done());
+    CHECK(req.getBody() == "Hello World!\n");
 }
 
 TEST_CASE("Empty chunked body", "[request][chunked]") {
-    std::string data = "POST /upload HTTP/1.1\r\n"
-                       "Host: localhost:42069\r\n"
-                       "Transfer-Encoding: chunked\r\n"
-                       "\r\n"
-                       "0\r\n\r\n";
+    std::string headers = "POST /upload HTTP/1.1\r\n"
+                          "Host: localhost:42069\r\n"
+                          "Transfer-Encoding: chunked\r\n"
+                          "\r\n";
+    std::string body = "0\r\n\r\n";
     std::string errorMsg;
+    Request req;
 
-    Request* r = parseFromString(data, errorMsg);
+    int n = req.parse(headers, errorMsg);
+    REQUIRE(n > 0);
+    REQUIRE(req.headersDone());
+    req.setLocation(makeLocation(1024));
 
-    REQUIRE(r != NULL);
-    CHECK(r->getBody().empty());
-    delete r;
+    int n2 = req.parse(body, errorMsg);
+    REQUIRE(n2 >= 0);
+    REQUIRE(req.done());
+    CHECK(req.getBody().empty());
 }

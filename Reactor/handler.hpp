@@ -39,7 +39,6 @@ class Connection : public EventHandler{
 private:
 	Request					_request;
 	std::string				_readBuffer;
-	RequestHandler*			_requestHandler;
 	SessionInfo				_session;
 
 	Data					_data;

@@ -24,21 +24,43 @@ Headers Response::getDefaultHeaders(int contentLen) {
 
 Response::Writer::Writer(int fd) : fd(fd) {}
 
-bool Response::Writer::writeStatusLine(StatusCode statusCode) const {
-    const char* statusLine = NULL;
-    switch (statusCode) {
-        case StatusOk:
-            statusLine = "HTTP/1.1 200 OK\r\n";
-            break;
-        case StatusBadRequest:
-            statusLine = "HTTP/1.1 400 Bad Request\r\n";
-            break;
-        case StatusInternalServerError:
-            statusLine = "HTTP/1.1 500 Internal Server Error\r\n";
-            break;
-        default:
-            return false;
+const char* Response::statusCodeToLine(StatusCode code) {
+    switch (code) {
+        case StatusOk:                return "HTTP/1.1 200 OK\r\n";
+        case StatusMovedPermanently:  return "HTTP/1.1 301 Moved Permanently\r\n";
+        case StatusFound:             return "HTTP/1.1 302 Found\r\n";
+        case StatusTemporaryRedirect: return "HTTP/1.1 307 Temporary Redirect\r\n";
+        case StatusPermanentRedirect: return "HTTP/1.1 308 Permanent Redirect\r\n";
+        case StatusBadRequest:        return "HTTP/1.1 400 Bad Request\r\n";
+        case StatusForbidden:         return "HTTP/1.1 403 Forbidden\r\n";
+        case StatusNotFound:          return "HTTP/1.1 404 Not Found\r\n";
+        case StatusMethodNotAllowed:  return "HTTP/1.1 405 Method Not Allowed\r\n";
+        case StatusInternalServerError: return "HTTP/1.1 500 Internal Server Error\r\n";
+        case StatusNotImplemented:    return "HTTP/1.1 501 Not Implemented\r\n";
+        default:                      return NULL;
     }
+}
+
+Response::StatusCode Response::intToStatusCode(int code) {
+    switch (code) {
+        case 200: return StatusOk;
+        case 301: return StatusMovedPermanently;
+        case 302: return StatusFound;
+        case 307: return StatusTemporaryRedirect;
+        case 308: return StatusPermanentRedirect;
+        case 400: return StatusBadRequest;
+        case 403: return StatusForbidden;
+        case 404: return StatusNotFound;
+        case 405: return StatusMethodNotAllowed;
+        case 500: return StatusInternalServerError;
+        default:  return StatusNotImplemented;
+    }
+}
+
+bool Response::Writer::writeStatusLine(StatusCode statusCode) const {
+    const char* statusLine = statusCodeToLine(statusCode);
+    if (!statusLine)
+        return false;
     size_t len = std::strlen(statusLine);
     ssize_t n = ::write(fd, statusLine, len);
     return n == static_cast<ssize_t>(len);
