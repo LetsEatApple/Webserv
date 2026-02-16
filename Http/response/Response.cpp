@@ -30,26 +30,11 @@ bool Response::Writer::writeStatusLine(StatusCode statusCode) const {
         case StatusOk:
             statusLine = "HTTP/1.1 200 OK\r\n";
             break;
-        case StatusMovedPermanently:
-            statusLine = "HTTP/1.1 301 Moved Permanently\r\n";
-            break;
-        case StatusFound:
-            statusLine = "HTTP/1.1 302 Found\r\n";
-            break;
         case StatusBadRequest:
             statusLine = "HTTP/1.1 400 Bad Request\r\n";
             break;
-        case StatusNotFound:
-            statusLine = "HTTP/1.1 404 Not Found\r\n";
-            break;
-        case StatusMethodNotAllowed:
-            statusLine = "HTTP/1.1 405 Method Not Allowed\r\n";
-            break;
         case StatusInternalServerError:
             statusLine = "HTTP/1.1 500 Internal Server Error\r\n";
-            break;
-        case StatusNotImplemented:
-            statusLine = "HTTP/1.1 501 Not Implemented\r\n";
             break;
         default:
             return false;

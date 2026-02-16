@@ -3,6 +3,7 @@
 
 #include <string>
 #include "Headers.hpp"
+#include "Config.hpp"
 
 namespace ParserState {
     enum State {
@@ -18,9 +19,15 @@ namespace ParserState {
     };
 }
 
+struct RequestTarget{
+	std::string full;
+	std::string path; // should be "/" if none given
+	std::string query; // should be "" if none given
+};
+
 struct RequestLine {
     std::string method;
-    std::string requestTarget;
+    RequestTarget requestTarget;
     std::string httpVersion;
 };
 
@@ -28,11 +35,14 @@ class Request {
 public:
     Request();
 
-    const std::string& getMethod() const;
-    const std::string& getTarget() const;
-    const std::string& getHttpVersion() const;
-    const ::Headers& getHeaders() const;
-    const std::string& getBody() const;
+    const std::string&	getMethod() const;
+    const std::string&	getTarget() const;
+	const std::string&	getTarget(std::string part) const;
+	const std::string	getHost() const;
+	size_t				getContentLen();
+    const std::string&	getHttpVersion() const;
+    const ::Headers&	getHeaders() const;
+    const std::string&	getBody() const;
     template <typename Func>
     void forEachHeader(Func func) const { headers.forEach(func); }
 
@@ -44,6 +54,9 @@ public:
     // Sets errorMsg if provided and an error occurs
     int parse(const std::string& data, std::string& errorMsg);
 
+	// Check if parsing header is complete
+	bool headersDone() const;
+	bool checkState(ParserState::State) const;
     // Check if parsing is complete (either done or error)
     bool done() const;
 
@@ -54,12 +67,17 @@ public:
     // Returns NULL on error, sets errorMsg if provided
     static Request* requestFromSocket(int socketFd, std::string& errorMsg);
 
+	// set matchedLocation (routing)
+	void	setLocation(config::Location match);
+	config::Location	getLocation() const;
+
 private:
     RequestLine requestLine;
     ::Headers headers;
     std::string body;
     ParserState::State state;
     int chunkedRemaining;
+	config::Location matchedLocation;
 
     static const char* const SEPARATOR;
 
@@ -68,9 +86,6 @@ private:
 
     // Check if Transfer-Encoding is chunked
     bool isChunkedEncoding() const;
-
-    // Parse Content-Length value. Returns true on success, false on invalid input.
-    static bool parseContentLength(const std::string& value, unsigned long& out);
 
     // Parse request line from buffer
     // Returns bytes consumed (0 if incomplete, -1 on error)

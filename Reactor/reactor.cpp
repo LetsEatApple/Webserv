@@ -6,11 +6,11 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:14:49 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/31 16:30:50 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/14 18:35:17 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "lib.h"
+#include "lib.hpp"
 #include "reactor.hpp"
 
 static int g_signal_fd = -1;
@@ -38,18 +38,19 @@ int set_signalfd(){
 
 Reactor::Reactor() : _epfd(-1), _sig(false) {}
 
-int Reactor::init(const serverListeners &listeners){
+int Reactor::init(const activeSessions &sessions){
 
 	// epoll_create
 	_epfd = epoll_create(42);
 	if (_epfd < 0)
-		return error(4);
+		return error("epoll_create failed", 1);
 	_ev.events = EPOLLIN;
+	logInfo("Reactor initialized: \033[0;36mepoll (fd=", str(_epfd).append(")"));
 
 	// set fd for signals and register handler
 	int sfd = set_signalfd();
 	if (sfd == -1)
-		return error(5);
+		return error("creatig signal fd failed", 1);
 	if (!registerHandler(new Signal(sfd), EPOLLIN))
 		return false;
 
@@ -58,10 +59,11 @@ int Reactor::init(const serverListeners &listeners){
 		return false;
 
 	// register listening sockets and their handlers
-	for (size_t i = 0; i < listeners.size(); i++){
-		if (!registerHandler(new Acceptor(listeners[i]), EPOLLIN))
-			return error(6);
+	for (size_t i = 0; i < sessions.size(); i++){
+		if (!registerHandler(new Acceptor(sessions[i]), EPOLLIN))
+			return error("epoll_ctl on listening socket failed", 1);
 	}
+	logInfo("Server ready to accept connections", " ...");
 	return true;
 }
 
@@ -73,9 +75,9 @@ int Reactor::registerHandler(EventHandler *handler, uint32_t event){
 	handler->reactor(this);
 	ev.events = event;
 	
-	if (epoll_ctl(_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev) < 0){
-		return false; //error handling? differs between listening/signal and client sockets
-	}
+	if (epoll_ctl(_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev) < 0)
+		return false;
+
 	_handlers[ev.data.fd] = handler;
 	return true;
 }
@@ -86,8 +88,11 @@ int Reactor::modifyHandler(EventHandler *handler, uint32_t event){
 	std::memset(&ev, 0, sizeof(ev));
 	ev.data.fd = handler->get_fd();
 	ev.events = event;
-	if (epoll_ctl(_epfd, EPOLL_CTL_MOD, ev.data.fd, &ev) < 0)
-		return false; //error handling
+	if (epoll_ctl(_epfd, EPOLL_CTL_MOD, ev.data.fd, &ev) < 0){
+		logDebug("modifying handler (epoll_ctl) failed", 1);
+		removeHandler(handler, event);
+		return false;
+	}
 	return true;
 }
 
@@ -96,16 +101,14 @@ int Reactor::removeHandler (EventHandler *handler, uint32_t event){
 	(void) event;
 	int fd = handler->get_fd();
 
-	if (epoll_ctl(_epfd, EPOLL_CTL_DEL, fd, NULL) == -1) {
-#ifdef DEBUG
-		std::cerr << "epoll_ctl(DEL, fd=" << fd << ") failed: "
-				  << std::strerror(errno) << std::endl;
-#endif
-	}
-	_handlers.erase(fd);
-	delete handler;
+	if (epoll_ctl(_epfd, EPOLL_CTL_DEL, fd, NULL) == -1)
+		logDebug("Epoll_ctl failed", 1);
+
 	if (fd != -1)
-		close(fd);
+		close (fd);
+
+	delete handler;
+	_handlers.erase(fd);
 	return true;
 }
 
@@ -116,11 +119,15 @@ int Reactor::handleEvents(){
 		return false;
 
 	for (int i = 0; i < nfds; i++){
-		if (_evlist[i].events & (EPOLLHUP | EPOLLERR))
+		if (_evlist[i].events & (EPOLLHUP | EPOLLERR)){
 			removeHandler(_handlers[_evlist[i].data.fd], 0);
-		else if (_evlist[i].events & EPOLLIN)
+			continue;
+		}
+		if (_evlist[i].events & EPOLLIN){
 			_handlers[_evlist[i].data.fd]->handleRead();
-		else if (_evlist[i].events & EPOLLOUT)
+			continue;
+		}
+		if (_evlist[i].events & EPOLLOUT)
 			_handlers[_evlist[i].data.fd]->handleWrite();
 	}
 	return true;
@@ -134,32 +141,9 @@ bool Reactor::stop(int mode){
 	return _sig;
 }
 
-/* config::ListenerData Reactor::getServerDetails(int lfd){
-
-	int i;
-	for (i = 0; i < _server.nports; i++){
-		if (_server.s_list[i].sock == lfd)
-			break;
-	}
-
-	config::ListenerKey key;
-	key.first = _server.s_list[i].host;
-	key.second = _server.s_list[i].port;
-	config::Listeners::iterator it = _server.listeners.find(key);
-	if (it == _server.listeners.end())
-		std::cout << "key not found" << std::endl;
-	config::ListenerData httpServer = it->second;
-	return httpServer;
-} */
-
 Reactor::~Reactor(){
 
 	std::map<int, EventHandler *>::iterator it;
-
-	/* if (!_handlers.empty()){
-		for (int i = 0; i < _server.nports; i++)
-		_server.s_list[i].sock = -1;
-	} */
 
 	for (it = _handlers.begin(); it != _handlers.end(); ++it){
 		close (it->first); // close fd
@@ -172,3 +156,4 @@ Reactor::~Reactor(){
 	if (_epfd != -1)
 		close(_epfd); // close epoll instance
 }
+

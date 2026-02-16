@@ -2,7 +2,6 @@
 #include <sys/socket.h>
 #include <cstring>
 #include <cstdlib>
-#include <cerrno>
 
 const char* const Request::ERROR_MALFORMED_REQUEST_LINE = "malformed request-line";
 const char* const Request::ERROR_REQUEST_IN_ERROR_STATE = "request in error state";
@@ -15,7 +14,28 @@ const std::string& Request::getMethod() const {
 }
 
 const std::string& Request::getTarget() const {
-    return requestLine.requestTarget;
+    return requestLine.requestTarget.full;
+}
+
+const std::string&	Request::getTarget(std::string part) const{
+	if (part.compare("path") == 0)
+		return requestLine.requestTarget.path;
+	if (part.compare("query") == 0)
+		return requestLine.requestTarget.query;
+	return requestLine.requestTarget.full;
+}
+
+const std::string Request::getHost() const {
+	return headers.get("host");
+}
+
+size_t Request::getContentLen() {
+	std::string lengthStr = headers.get("content-length");
+	if (lengthStr.empty())
+		return 0;
+
+	int length = std::atoi(lengthStr.c_str());
+	return length;
 }
 
 const std::string& Request::getHttpVersion() const {
@@ -30,32 +50,25 @@ const std::string& Request::getBody() const {
     return body;
 }
 
-bool Request::parseContentLength(const std::string& value, unsigned long& out) {
-    if (value.empty())
-        return false;
-    for (size_t i = 0; i < value.size(); ++i) {
-        if (value[i] < '0' || value[i] > '9')
-            return false;
-    }
-    errno = 0;
-    char* end = NULL;
-    unsigned long result = std::strtoul(value.c_str(), &end, 10);
-    if (errno == ERANGE || end != value.c_str() + value.size())
-        return false;
-    out = result;
-    return true;
-}
-
 bool Request::hasBody() const {
     std::string lengthStr = headers.get("content-length");
-    unsigned long length;
-    if (!parseContentLength(lengthStr, length))
+    if (lengthStr.empty()) {
         return false;
+    }
+    int length = std::atoi(lengthStr.c_str());
     return length > 0;
 }
 
 bool Request::isChunkedEncoding() const {
     return headers.get("transfer-encoding") == "chunked";
+}
+
+bool Request::headersDone() const{
+	return (state > ParserState::Headers);
+}
+
+bool Request::checkState(ParserState::State arg) const{
+	return (state == arg);
 }
 
 bool Request::done() const {
@@ -64,6 +77,34 @@ bool Request::done() const {
 
 bool Request::error() const {
     return state == ParserState::Error;
+}
+
+/*** include check origin-form for request target ***/
+// only path (with leading slash) & one query allowed
+// not allowed: fragments, absoluteURI, authority forms, multiple queries
+bool originForm(RequestTarget *rt){
+
+	rt->query.clear();
+	rt->path.clear();
+
+	if (rt->full.rfind("/", 0) != 0)
+		return false;
+	if (rt->full.find("://", 0) != std::string::npos)
+		return false;
+
+	if (rt->full.find("#") != std::string::npos)
+		return false;
+		
+	size_t q = rt->full.find("?");
+	if (q == std::string::npos)
+		rt->path = rt->full;
+	else {
+		if (rt->full.find('?', q+1) != std::string::npos)
+			return false;
+		rt->path = rt->full.substr(0, q);
+		rt->query = rt->full.substr(q+1);
+	}
+	return true;
 }
 
 int Request::parseRequestLine(const std::string& buffer,
@@ -97,9 +138,14 @@ int Request::parseRequestLine(const std::string& buffer,
     }
 
     rl.method = startLine.substr(0, firstSpace);
-    rl.requestTarget = startLine.substr(firstSpace + 1, secondSpace - firstSpace - 1);
+    rl.requestTarget.full = startLine.substr(firstSpace + 1, secondSpace - firstSpace - 1);
     std::string httpVersionFull = startLine.substr(secondSpace + 1);
 
+    if (!originForm(&rl.requestTarget)){
+        errorMsg = ERROR_MALFORMED_REQUEST_LINE;
+        return -1;
+    }
+	
     // Validate HTTP version format: HTTP/1.1
     std::string::size_type slashPos = httpVersionFull.find('/');
     if (slashPos == std::string::npos) {
@@ -155,31 +201,27 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
                 }
                 totalRead += result.bytesConsumed;
                 if (result.done) { // at this point headers are complete
-                    if (isChunkedEncoding()) {
+					if (isChunkedEncoding()) {
                         state = ParserState::ChunkedSize;
                     } else if (hasBody()) {
                         state = ParserState::Body;
                     } else {
                         state = ParserState::Done;
                     }
+					return totalRead; // instead of break return with totalRead for routing and to check content-length
                 }
                 break;
             }
 
             case ParserState::Body: {
-                unsigned long length;
-                if (!parseContentLength(headers.get("content-length"), length)) {
-                    errorMsg = "invalid content-length";
-                    state = ParserState::Error;
-                    return -1;
-                }
-                unsigned long bodyLen = body.size();
-                unsigned long dataLen = currentData.size();
-                unsigned long remaining = (length - bodyLen < dataLen) ? (length - bodyLen) : dataLen;
+                int length = std::atoi(headers.get("content-length").c_str());
+                int bodyLen = static_cast<int>(body.size());
+                int dataLen = static_cast<int>(currentData.size());
+                int remaining = (length - bodyLen < dataLen) ? (length - bodyLen) : dataLen;
                 body += currentData.substr(0, remaining);
-                totalRead += static_cast<int>(remaining);
+                totalRead += remaining;
 
-                if (body.size() == length) {
+                if (static_cast<int>(body.size()) == length) {
                     state = ParserState::Done;
                 }
                 return totalRead;
@@ -201,7 +243,13 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
                 totalRead += static_cast<int>(idx) + 2; // consume size line + \r\n
                 if (chunkSize == 0) {
                     state = ParserState::ChunkedDone;
-                } else {
+                }
+				if (body.size() + chunkSize > matchedLocation.client_max_body_size) {
+					errorMsg = "Payload Too Large";
+					state = ParserState::Error;
+					return -1;
+				}
+				else {
                     chunkedRemaining = static_cast<int>(chunkSize);
                     state = ParserState::ChunkedData;
                 }
@@ -281,4 +329,12 @@ Request* Request::requestFromSocket(int socketFd, std::string& errorMsg) {
     }
 
     return request;
+}
+
+void	Request::setLocation(config::Location match){
+	this->matchedLocation = match;
+}
+
+config::Location	Request::getLocation() const{
+	return this->matchedLocation;
 }

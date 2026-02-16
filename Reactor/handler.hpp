@@ -6,20 +6,21 @@
 /*   By: lhagemos <lhagemos@student.42berlin.de>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 15:20:30 by lhagemos          #+#    #+#             */
-/*   Updated: 2026/01/31 21:11:19 by lhagemos         ###   ########.fr       */
+/*   Updated: 2026/02/14 19:08:40 by lhagemos         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #pragma once
 
-#include "lib.h"
+#include "lib.hpp"
 #include "AEventHandler.hpp"
 #include "Config.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
-#include "Router.hpp"
+#include "RequestHandler.hpp"
+#include "server.hpp"
+#include "routing.hpp"
 
-typedef std::pair< int, std::vector<config::Server> > ListenerSocket;
 
 class Reactor;
 
@@ -38,26 +39,27 @@ class Connection : public EventHandler{
 private:
 	Request					_request;
 	std::string				_readBuffer;
-	Router&					_requestProcessor;
+	RequestHandler*			_requestHandler;
+	SessionInfo				_session;
+
 	Data					_data;
-	ListenerSocket			_ls;
+	bool					_routed;
+	//adding struct containing data from config depending on fd / listening fd? or through reactor _server?
 public:
-	Connection(int fd, const ListenerSocket &ls, Router& requestProcessor);
-	int handleRead();
-	int handleWrite();
-	~Connection();
+	//Connection(int fd, RequestHandler* requestHandler);
+	Connection(const SessionInfo &session);
+	int	handleRead();
+	int	handleWrite();
 };
 
 // handling listening sockets
 class Acceptor : public EventHandler{
 private:
-	ListenerSocket	_ls;
-	Router*			_requestProcessor;
+	SessionInfo	_session;
 public:
-	Acceptor(const ListenerSocket &ls);
+	Acceptor(const SessionInfo &session);
 	int handleRead();
 	int handleWrite();
-	~Acceptor();
 };
 
 // handling signal pipe

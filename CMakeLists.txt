@@ -14,10 +14,6 @@ endif()
 
 add_compile_options(-Wall -Wextra -Werror)
 
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    add_compile_definitions(DEBUG)
-endif()
-
 option(ENABLE_TESTING "Enable Unit Testing Build" ON)
 option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" ON)
 
