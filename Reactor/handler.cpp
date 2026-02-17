@@ -133,8 +133,10 @@ int Acceptor::handleRead() {
 		_session.client.socket = cfd;
 		int flags = fcntl(cfd, F_GETFL, 0);
 		int ret = fcntl(cfd, F_SETFL, flags | O_NONBLOCK);
-		if (ret == -1 || flags == -1)
+		if (ret == -1 || flags == -1){
+			close(cfd);
 			return false;
+		}
 		if (!_reactor->registerHandler(new Connection(this->_session), EPOLLIN)) // close program?
 			return false;
 		logConnection(_session.listener, _session.client);
