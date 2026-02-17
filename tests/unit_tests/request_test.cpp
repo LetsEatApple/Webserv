@@ -597,3 +597,55 @@ TEST_CASE("Empty chunked body", "[request][chunked]") {
     REQUIRE(req.done());
     CHECK(req.getBody().empty());
 }
+
+TEST_CASE("POST body within max body size", "[request][body]") {
+    std::string body(50, 'A');
+    std::string data = "POST /post_body HTTP/1.1\r\n"
+                       "Host: localhost\r\n"
+                       "Content-Length: 50\r\n"
+                       "\r\n" + body;
+
+    std::vector<config::Server> servers;
+    config::Server srv;
+    config::Location loc;
+    loc.path = "/";
+    loc.autoindex = false;
+    loc.client_max_body_size = 100;
+    srv.locations.push_back(loc);
+    servers.push_back(srv);
+
+    Request req;
+    std::string readBuffer = data;
+    bool routed = false;
+
+    ProcessResult result = processRequest(readBuffer, req, servers, routed);
+
+    CHECK(result == RequestDone);
+    CHECK(req.done());
+    CHECK(req.getBody() == body);
+}
+
+TEST_CASE("POST body exceeding max body size returns PayloadTooLarge", "[request][body]") {
+    std::string body(200, 'A');
+    std::string data = "POST /post_body HTTP/1.1\r\n"
+                       "Host: localhost\r\n"
+                       "Content-Length: 200\r\n"
+                       "\r\n" + body;
+
+    std::vector<config::Server> servers;
+    config::Server srv;
+    config::Location loc;
+    loc.path = "/";
+    loc.autoindex = false;
+    loc.client_max_body_size = 100;
+    srv.locations.push_back(loc);
+    servers.push_back(srv);
+
+    Request req;
+    std::string readBuffer = data;
+    bool routed = false;
+
+    ProcessResult result = processRequest(readBuffer, req, servers, routed);
+
+    CHECK(result == PayloadTooLarge);
+}
