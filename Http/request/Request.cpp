@@ -201,6 +201,12 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
                 }
                 totalRead += result.bytesConsumed;
                 if (result.done) { // at this point headers are complete
+					std::string clStr = headers.get("content-length");
+					if (!clStr.empty() && std::atoi(clStr.c_str()) < 0) {
+						errorMsg = "invalid content-length";
+						state = ParserState::Error;
+						return -1;
+					}
 					if (isChunkedEncoding()) {
                         state = ParserState::ChunkedSize;
                     } else if (hasBody()) {

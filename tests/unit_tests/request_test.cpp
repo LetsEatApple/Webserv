@@ -473,6 +473,31 @@ TEST_CASE("POST body parsed when headers and body arrive together", "[request][b
     CHECK(req.getBody() == "hello world");
 }
 
+TEST_CASE("Negative Content-Length rejected", "[request][body]") {
+    std::string data = "POST /submit HTTP/1.1\r\n"
+                       "Host: localhost\r\n"
+                       "Content-Length: -1\r\n"
+                       "\r\n"
+                       "hello";
+
+    std::vector<config::Server> servers;
+    config::Server srv;
+    config::Location loc;
+    loc.path = "/";
+    loc.autoindex = false;
+    loc.client_max_body_size = 1024;
+    srv.locations.push_back(loc);
+    servers.push_back(srv);
+
+    Request req;
+    std::string readBuffer = data;
+    bool routed = false;
+
+    ProcessResult result = processRequest(readBuffer, req, servers, routed);
+
+    CHECK(result == RequestError);
+}
+
 TEST_CASE("Body shorter than reported content length", "[request][body]") {
     std::string data = "POST /submit HTTP/1.1\r\n"
                        "Host: localhost:42069\r\n"
