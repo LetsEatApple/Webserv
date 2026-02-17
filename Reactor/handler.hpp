@@ -17,7 +17,6 @@
 #include "Config.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
-#include "RequestHandler.hpp"
 #include "server.hpp"
 #include "routing.hpp"
 
@@ -45,7 +44,6 @@ private:
 	bool					_routed;
 	//adding struct containing data from config depending on fd / listening fd? or through reactor _server?
 public:
-	//Connection(int fd, RequestHandler* requestHandler);
 	Connection(const SessionInfo &session);
 	int	handleRead();
 	int	handleWrite();

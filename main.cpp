@@ -14,8 +14,6 @@
 #include "reactor.hpp"
 #include "AEventHandler.hpp"
 #include "handler.hpp"
-#include "Router.hpp"
-#include "routes.hpp"
 
 int main(int ac, char **av) {
 

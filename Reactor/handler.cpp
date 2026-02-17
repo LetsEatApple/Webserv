@@ -13,27 +13,10 @@
 #include "handler.hpp"
 #include "routing.hpp"
 #include "reactor.hpp"
-#include "Router.hpp"
-#include "routes.hpp"
+#include "ReturnDirective.hpp"
 
 //	CONNECTION HANDLER
-Connection::Connection(const SessionInfo &session) : EventHandler(session.client.socket), _session(session), _routed(false){
-	/* Router* router = new Router(); //leaking when exiting with signal
-	_requestHandler = router;
-	// Register middleware
-	router->use(logRequest);
-
-	// Register routes
-	router->get("/", handleHome);
-	router->get("/health", handleHealth);
-	router->get("/echo", handleEcho);
-
-	// Register prefix route (matches /api/-*)
-	router->prefix("/api", handleApi);
-
-	// Default handler for unmatched routes
-	router->setDefault(handleNotFound); */
-}
+Connection::Connection(const SessionInfo &session) : EventHandler(session.client.socket), _session(session), _routed(false){}
 
 int Connection::handleRead(){
 
@@ -62,7 +45,7 @@ int Connection::handleRead(){
 	if (_request.headersDone() && !_routed){
 		if (!findLocation(_session.vhosts, _request)){
 			Response::Writer w(_fd);
-			w.writeStatusLine(Response::StatusBadRequest); // 413 Request Entity Too Large error
+			w.writeStatusLine(Response::StatusBadRequest); // invalid percent-encoding
 			w.writeHeaders(Response::getDefaultHeaders(0));
 			logDisconnect(_session.listener, _session.client);
 			return _reactor->removeHandler(this, 0);
@@ -71,9 +54,8 @@ int Connection::handleRead(){
 
 		if (_request.checkState(ParserState::Body) && _request.getContentLen() > _request.getLocation().client_max_body_size) {
 			Response::Writer w(_fd);
-			w.writeStatusLine(Response::StatusBadRequest); // 413 Request Entity Too Large error
+			w.writeStatusLine(Response::StatusPayloadTooLarge);
 			w.writeHeaders(Response::getDefaultHeaders(0));
-			std::cout << "remove ..." << std::endl;
 			logDisconnect(_session.listener, _session.client);
 			return _reactor->removeHandler(this, 0);
 		}
@@ -85,6 +67,7 @@ int Connection::handleRead(){
 			w.writeHeaders(Response::getDefaultHeaders(0));
 		} else {
 			logRequest(_session.listener, _session.client, _request);
+			serveReturn(w, _request);
 			//_requestHandler->handle(w, _request); // optional: replace with processRequest(w, _request);
 		}
 		logDisconnect(_session.listener, _session.client);

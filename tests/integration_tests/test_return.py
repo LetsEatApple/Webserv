@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Integration test for the return directive using return_redirect.conf"""
 
+import argparse
 import subprocess
 import time
 import signal
@@ -8,8 +9,8 @@ import sys
 import os
 import http.client
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BUILD_DIR = os.path.join(PROJECT_ROOT, "cmake-build-debug")
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BUILD_DIR = None
 TARGET = "webserv"
 
 
@@ -52,7 +53,7 @@ def get(port, path):
     return resp.status, resp.reason, headers, body
 
 def test_return200():
-    proc = start_server(os.path.join(PROJECT_ROOT, "tests_python/conf/return_200.conf"))
+    proc = start_server(os.path.join(SCRIPT_DIR, "conf/return_200.conf"))
     try:
         status, reason, headers, body = get(8081, "/")
         assert status == 200, f"Expected 200, got {status}"
@@ -68,7 +69,7 @@ def test_return200():
         stop_server(proc)
 
 def test_redirect():
-    proc = start_server(os.path.join(PROJECT_ROOT, "tests_python/conf/return_redirect.conf"))
+    proc = start_server(os.path.join(SCRIPT_DIR, "conf/return_redirect.conf"))
     try:
         # GET /old -> 301 redirect to /new
         status, reason, headers, body = get(8090, "/old")
@@ -94,9 +95,13 @@ def test_redirect():
         stop_server(proc)
 
 
-
-
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--build-dir", required=True, help="Path to CMake build directory")
+    args = parser.parse_args()
+
+    BUILD_DIR = args.build_dir
+
     build()
     failed = False
     for test in [test_return200, test_redirect]:
