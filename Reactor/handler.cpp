@@ -59,6 +59,13 @@ int Connection::handleRead(){
 			logDisconnect(_session.listener, _session.client);
 			return (_reactor->removeHandler(this, 0));
 		}
+		case MethodNotAllowed: {
+			Response::Writer w(_fd);
+			w.writeStatusLine(Response::StatusMethodNotAllowed);
+			w.writeHeaders(Response::getDefaultHeaders(0));
+			logDisconnect(_session.listener, _session.client);
+			return (_reactor->removeHandler(this, 0));
+		}
 		case NeedMoreData:
 			return true;
 	}

@@ -161,6 +161,12 @@ ProcessResult	processRequest(std::string& readBuffer, Request& request,
 		if (!findLocation(vhosts, request))
 			return RequestError;
 		routed = true;
+		const std::set<std::string>& allowed = request.getLocation().limit_except;
+		std::string method = request.getMethod();
+		if (method == "HEAD")
+			method = "GET";
+		if (!allowed.empty() && allowed.find(method) == allowed.end())
+			return MethodNotAllowed;
 		if (request.checkState(ParserState::Body)
 			&& request.getContentLen() > request.getLocation().client_max_body_size)
 			return PayloadTooLarge;

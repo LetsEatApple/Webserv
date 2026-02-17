@@ -9,7 +9,8 @@ enum ProcessResult {
 	NeedMoreData,
 	RequestDone,
 	RequestError,
-	PayloadTooLarge
+	PayloadTooLarge,
+	MethodNotAllowed
 };
 
 ProcessResult	processRequest(std::string& readBuffer, Request& request,
