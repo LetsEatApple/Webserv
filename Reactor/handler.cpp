@@ -173,12 +173,13 @@ Stdin::Stdin(int fd) : EventHandler(fd){}
 int Stdin::handleRead(){
 
 	char buffer[MAX];
-	int	size;
-	std::string input;
-
-	size = read(STDIN_FILENO, buffer, MAX-1);
-	input.append(buffer, size);
-	if (input.compare("quit") == 0){
+	ssize_t size = read(STDIN_FILENO, buffer, MAX - 1);
+	if (size <= 0)
+		return true;
+	std::string input(buffer, size);
+	if (!input.empty() && input[input.size() - 1] == '\n')
+		input.erase(input.size() - 1);
+	if (input == "quit"){
 		std::cout << "\033[95mQuit called: Shutting down ..." << std::endl;
 		_reactor->stop(SET);
 	}

@@ -313,7 +313,7 @@ void buildServers(Listeners &listeners, const Block &server,
       applyDirective(server_default_location, d);
   }
 
-  if (server_names.size() == 0)
+  if (server_names.empty())
     server_names.push_back("");
 
   if (listens.empty()) {
