@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include "Request.hpp"
+#include "routing.hpp"
 
 // Helper to create a socket pair and parse request from string
 // chunkSize: if > 0, writes data in chunks of this size to simulate chunked network reads
@@ -440,6 +441,36 @@ TEST_CASE("Standard Body", "[request][body]") {
     REQUIRE(n2 >= 0);
     REQUIRE(req.done());
     CHECK(req.getBody() == "hello world!\n");
+}
+
+TEST_CASE("POST body parsed when headers and body arrive together", "[request][body]") {
+    // When the entire request (headers + body) arrives in a single recv(),
+    // processRequest must parse headers, route, and then parse the body
+    // in one call — not leave the body sitting in readBuffer.
+    std::string data = "POST /submit HTTP/1.1\r\n"
+                       "Host: localhost\r\n"
+                       "Content-Length: 11\r\n"
+                       "\r\n"
+                       "hello world";
+
+    std::vector<config::Server> servers;
+    config::Server srv;
+    config::Location loc;
+    loc.path = "/";
+    loc.autoindex = false;
+    loc.client_max_body_size = 1024;
+    srv.locations.push_back(loc);
+    servers.push_back(srv);
+
+    Request req;
+    std::string readBuffer = data;
+    bool routed = false;
+
+    ProcessResult result = processRequest(readBuffer, req, servers, routed);
+
+    CHECK(result == RequestDone);
+    CHECK(req.done());
+    CHECK(req.getBody() == "hello world");
 }
 
 TEST_CASE("Body shorter than reported content length", "[request][body]") {

@@ -5,7 +5,15 @@
 
 typedef std::pair<Request, config::Location>	RequestLocPair;
 
+enum ProcessResult {
+	NeedMoreData,
+	RequestDone,
+	RequestError,
+	PayloadTooLarge
+};
 
+ProcessResult	processRequest(std::string& readBuffer, Request& request,
+					const std::vector<config::Server>& vhosts, bool& routed);
 bool			findLocation(const std::vector<config::Server>& servers, Request &request);
 size_t			findTarget(const config::Server& server, std::string path);
 std::string		removeDoubleSlash(std::string path);

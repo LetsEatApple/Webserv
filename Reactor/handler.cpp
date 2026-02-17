@@ -26,52 +26,41 @@ int Connection::handleRead(){
 		logDisconnect(_session.listener, _session.client);
 		return (_reactor->removeHandler(this, 0));
 	}
-	
 	if (n < 0) // Error occured, epoll decides what to do
 		return false;
 
 	_readBuffer.append(buf, n);
-	std::string errorMsg;
-	int consumed = _request.parse(_readBuffer, errorMsg);
-	if (consumed < 0) {
-		Response::Writer w(_fd);
-		w.writeStatusLine(Response::StatusBadRequest);
-		w.writeHeaders(Response::getDefaultHeaders(0));
-		logDisconnect(_session.listener, _session.client);
-		return (_reactor->removeHandler(this, 0));
-	}
-	if (consumed > 0)
-		_readBuffer.erase(0, consumed);
-	if (_request.headersDone() && !_routed){
-		if (!findLocation(_session.vhosts, _request)){
+	ProcessResult result = processRequest(_readBuffer, _request, _session.vhosts, _routed);
+
+	switch (result){
+		case RequestError: {
 			Response::Writer w(_fd);
-			w.writeStatusLine(Response::StatusBadRequest); // invalid percent-encoding
+			w.writeStatusLine(Response::StatusBadRequest);
 			w.writeHeaders(Response::getDefaultHeaders(0));
 			logDisconnect(_session.listener, _session.client);
-			return _reactor->removeHandler(this, 0);
+			return (_reactor->removeHandler(this, 0));
 		}
-		_routed = true;
-
-		if (_request.checkState(ParserState::Body) && _request.getContentLen() > _request.getLocation().client_max_body_size) {
+		case PayloadTooLarge: {
 			Response::Writer w(_fd);
 			w.writeStatusLine(Response::StatusPayloadTooLarge);
 			w.writeHeaders(Response::getDefaultHeaders(0));
 			logDisconnect(_session.listener, _session.client);
 			return _reactor->removeHandler(this, 0);
 		}
-	}
-	if (_request.done()) {
-		Response::Writer w(_fd);
-		if (_request.error()) {
-			w.writeStatusLine(Response::StatusBadRequest);
-			w.writeHeaders(Response::getDefaultHeaders(0));
-		} else {
-			logRequest(_session.listener, _session.client, _request);
-			serveReturn(w, _request);
-			//_requestHandler->handle(w, _request); // optional: replace with processRequest(w, _request);
+		case RequestDone: {
+			Response::Writer w(_fd);
+			if (_request.error()) {
+				w.writeStatusLine(Response::StatusBadRequest);
+				w.writeHeaders(Response::getDefaultHeaders(0));
+			} else {
+				logRequest(_session.listener, _session.client, _request);
+				serveReturn(w, _request);
+			}
+			logDisconnect(_session.listener, _session.client);
+			return (_reactor->removeHandler(this, 0));
 		}
-		logDisconnect(_session.listener, _session.client);
-		return (_reactor->removeHandler(this, 0));
+		case NeedMoreData:
+			return true;
 	}
 	return true;
 }

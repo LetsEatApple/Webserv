@@ -148,3 +148,31 @@ bool	findLocation(const std::vector<config::Server>& servers, Request &request){
 	request.setLocation(servers[host_index].locations[target_index]);
 	return true;
 }
+
+ProcessResult	processRequest(std::string& readBuffer, Request& request,
+					const std::vector<config::Server>& vhosts, bool& routed){
+	std::string errorMsg;
+	int consumed = request.parse(readBuffer, errorMsg);
+	if (consumed < 0)
+		return RequestError;
+	if (consumed > 0)
+		readBuffer.erase(0, consumed);
+	if (request.headersDone() && !routed){
+		if (!findLocation(vhosts, request))
+			return RequestError;
+		routed = true;
+		if (request.checkState(ParserState::Body)
+			&& request.getContentLen() > request.getLocation().client_max_body_size)
+			return PayloadTooLarge;
+		if (!readBuffer.empty() && !request.done()){
+			consumed = request.parse(readBuffer, errorMsg);
+			if (consumed < 0)
+				return RequestError;
+			if (consumed > 0)
+				readBuffer.erase(0, consumed);
+		}
+	}
+	if (request.done())
+		return RequestDone;
+	return NeedMoreData;
+}
