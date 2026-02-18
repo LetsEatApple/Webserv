@@ -59,10 +59,11 @@ int ResponseDispatcher::serveFile() {
 		_w.writeHeaders(Response::getDefaultHeaders(0));
 		return 404;
 	}
-	// 3. extension matches _loc.cgi -> hand off to CGI
+	// TODO: 3. directory -> redirect 301 if missing trailing /, else try index, else autoindex, else 403
+	// 4. extension matches _loc.cgi -> hand off to CGI
 	if (isCGI(fsPath, _loc.cgi))
 		return serveCGI(fsPath);
-	// 4. regular file -> read, write status 200 + Content-Type from getMimeType()
+	// 5. regular file -> read, write status 200 + Content-Type from getMimeType()
 	std::ifstream file(fsPath.c_str(), std::ios::binary);
 	if (!file)
 		return 500;
@@ -78,6 +79,13 @@ int ResponseDispatcher::serveFile() {
 		_w.writeBody(body.c_str(), body.size());
 	// 6. return the status code sent
 	return 200;
+}
+
+int ResponseDispatcher::serveDelete() {
+	// TODO: implement DELETE
+	_w.writeStatusLine(Response::StatusNotImplemented);
+	_w.writeHeaders(Response::getDefaultHeaders(0));
+	return 501;
 }
 
 int ResponseDispatcher::serveCGI(const std::string& fsPath) {

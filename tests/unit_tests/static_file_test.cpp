@@ -129,6 +129,44 @@ TEST_CASE("HEAD static file has empty body", "[static]") {
 	CHECK(extractBody(out).empty());
 }
 
+TEST_CASE("DELETE existing file returns 200", "[delete]") {
+	TempDir dir;
+	TempFile file(dir.path + "/trash.txt", "delete me");
+
+	Request req = makeRequest("DELETE", "/trash.txt");
+	config::Location loc = makeFileLocation(dir.path);
+
+	int fds[2];
+	REQUIRE(pipe(fds) == 0);
+	Response::Writer w(fds[1]);
+	CHECK(ResponseDispatcher(w, req, loc).serveDelete() == 200);
+	close(fds[1]);
+
+	std::string out = readAll(fds[0]);
+	close(fds[0]);
+	CHECK(extractStatusLine(out).find("200 OK") != std::string::npos);
+
+	struct stat st;
+	CHECK(stat((dir.path + "/trash.txt").c_str(), &st) < 0);
+}
+
+TEST_CASE("DELETE nonexistent file returns 404", "[delete]") {
+	TempDir dir;
+
+	Request req = makeRequest("DELETE", "/nope.txt");
+	config::Location loc = makeFileLocation(dir.path);
+
+	int fds[2];
+	REQUIRE(pipe(fds) == 0);
+	Response::Writer w(fds[1]);
+	CHECK(ResponseDispatcher(w, req, loc).serveDelete() == 404);
+	close(fds[1]);
+
+	std::string out = readAll(fds[0]);
+	close(fds[0]);
+	CHECK(extractStatusLine(out).find("404 Not Found") != std::string::npos);
+}
+
 TEST_CASE("serve nonexistent file returns 404", "[static]") {
 	TempDir dir;
 
