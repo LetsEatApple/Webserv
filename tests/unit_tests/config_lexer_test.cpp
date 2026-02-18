@@ -1,26 +1,9 @@
 #include "catch2/catch_test_macros.hpp"
-#include <cstdio>
-#include <fstream>
 #include <stdexcept>
 #include <string>
 #include "Lexer.hpp"
 #include "Token.hpp"
-
-/* ========= FILE HELPERS ========= */
-
-struct TempFile {
-  std::string path;
-
-  TempFile(const std::string &p, const std::string &content) : path(p) {
-    std::ofstream f(path.c_str());
-    f << content;
-    f.close();
-  }
-
-  ~TempFile() {
-    std::remove(path.c_str());
-  }
-};
+#include "test_helpers.hpp"
 
 TEST_CASE("Empty file produces only EOF token") {
   TempFile f("empty.conf", "");

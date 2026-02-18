@@ -1,21 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <string>
 #include <cstring>
-#include <unistd.h>
 #include "Response.hpp"
-
-static std::string readAll(int fd) {
-    std::string result;
-    char buf[256];
-    for (;;) {
-        ssize_t n = read(fd, buf, sizeof(buf));
-        if (n <= 0) {
-            break;
-        }
-        result.append(buf, n);
-    }
-    return result;
-}
+#include "test_helpers.hpp"
 
 TEST_CASE("writeChunkedBody writes correct wire format", "[response][chunked]") {
     int fds[2];

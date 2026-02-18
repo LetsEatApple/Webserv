@@ -2,25 +2,9 @@
 #include "Config.hpp"
 #include <cstddef>
 #include <cstdint>
-#include <fstream>
 #include <utility>
 #include <vector>
-
-/* ========= FILE HELPERS ========= */
-
-struct TempFile {
-  std::string path;
-
-  TempFile(const std::string &p, const std::string &content) : path(p) {
-    std::ofstream f(path.c_str());
-    f << content;
-    f.close();
-  }
-
-  ~TempFile() {
-    std::remove(path.c_str());
-  }
-};
+#include "test_helpers.hpp"
 
  struct TestCase {
     std::string name;

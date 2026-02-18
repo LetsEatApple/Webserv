@@ -4,28 +4,13 @@
 #include "catch2/catch_test_macros.hpp"
 #include <stdexcept>
 #include <string>
+#include "test_helpers.hpp"
 
 static Block parseFile(std::string const &path) {
   Lexer lexer(path);
   Parser parser(lexer);
   return parser.parse();
 }
-
-/* ========= FILE HELPERS ========= */
-
-struct TempFile {
-  std::string path;
-
-  TempFile(const std::string &p, const std::string &content) : path(p) {
-    std::ofstream f(path.c_str());
-    f << content;
-    f.close();
-  }
-
-  ~TempFile() {
-    std::remove(path.c_str());
-  }
-};
 
 TEST_CASE("Parser rejects empty file") {
   TempFile f("empty.conf", "");

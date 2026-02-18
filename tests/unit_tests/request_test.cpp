@@ -6,6 +6,7 @@
 
 #include "Request.hpp"
 #include "routing.hpp"
+#include "test_helpers.hpp"
 
 // Helper to create a socket pair and parse request from string
 // chunkSize: if > 0, writes data in chunks of this size to simulate chunked network reads
@@ -414,13 +415,6 @@ TEST_CASE("Header value with leading/trailing whitespace", "[request][headers]")
     delete r;
 }
 
-static config::Location makeLocation(size_t maxBody) {
-    config::Location loc;
-    loc.path = "/";
-    loc.autoindex = false;
-    loc.client_max_body_size = maxBody;
-    return loc;
-}
 
 TEST_CASE("Standard Body", "[request][body]") {
     std::string data = "POST /submit HTTP/1.1\r\n"
