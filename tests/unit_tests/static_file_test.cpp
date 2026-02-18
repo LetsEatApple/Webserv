@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <sys/stat.h>
 #include "MimeTypes.hpp"
 #include "ResponseDispatcher.hpp"
 #include "test_helpers.hpp"
@@ -48,6 +49,84 @@ TEST_CASE("serve regular file", "[static]") {
 	CHECK(extractStatusLine(out).find("200 OK") != std::string::npos);
 	CHECK(out.find("text/plain") != std::string::npos);
 	CHECK(extractBody(out) == "hello world");
+}
+
+TEST_CASE("serve HTML file has correct content-type", "[static]") {
+	TempDir dir;
+	TempFile file(dir.path + "/page.html", "<html>hi</html>");
+
+	Request req = makeRequest("GET", "/page.html");
+	config::Location loc = makeFileLocation(dir.path);
+
+	int fds[2];
+	REQUIRE(pipe(fds) == 0);
+	Response::Writer w(fds[1]);
+	CHECK(ResponseDispatcher(w, req, loc).serveFile() == 200);
+	close(fds[1]);
+
+	std::string out = readAll(fds[0]);
+	close(fds[0]);
+	CHECK(out.find("text/html") != std::string::npos);
+	CHECK(extractBody(out) == "<html>hi</html>");
+}
+
+TEST_CASE("serve nested path", "[static]") {
+	TempDir dir;
+	std::string subdir = dir.path + "/sub";
+	mkdir(subdir.c_str(), 0755);
+	TempFile file(subdir + "/deep.txt", "deep content");
+
+	Request req = makeRequest("GET", "/sub/deep.txt");
+	config::Location loc = makeFileLocation(dir.path);
+
+	int fds[2];
+	REQUIRE(pipe(fds) == 0);
+	Response::Writer w(fds[1]);
+	CHECK(ResponseDispatcher(w, req, loc).serveFile() == 200);
+	close(fds[1]);
+
+	std::string out = readAll(fds[0]);
+	close(fds[0]);
+	CHECK(extractBody(out) == "deep content");
+	rmdir(subdir.c_str());
+}
+
+TEST_CASE("non-root location strips prefix", "[static]") {
+	TempDir dir;
+	TempFile file(dir.path + "/hello.txt", "hello world");
+
+	Request req = makeRequest("GET", "/files/hello.txt");
+	config::Location loc = makeFileLocation(dir.path, "/files");
+
+	int fds[2];
+	REQUIRE(pipe(fds) == 0);
+	Response::Writer w(fds[1]);
+	CHECK(ResponseDispatcher(w, req, loc).serveFile() == 200);
+	close(fds[1]);
+
+	std::string out = readAll(fds[0]);
+	close(fds[0]);
+	CHECK(extractBody(out) == "hello world");
+}
+
+TEST_CASE("HEAD static file has empty body", "[static]") {
+	TempDir dir;
+	TempFile file(dir.path + "/hello.txt", "hello world");
+
+	Request req = makeRequest("HEAD", "/hello.txt");
+	config::Location loc = makeFileLocation(dir.path);
+
+	int fds[2];
+	REQUIRE(pipe(fds) == 0);
+	Response::Writer w(fds[1]);
+	CHECK(ResponseDispatcher(w, req, loc).serveFile() == 200);
+	close(fds[1]);
+
+	std::string out = readAll(fds[0]);
+	close(fds[0]);
+	CHECK(extractStatusLine(out).find("200 OK") != std::string::npos);
+	CHECK(out.find("content-length: 11") != std::string::npos);
+	CHECK(extractBody(out).empty());
 }
 
 TEST_CASE("serve nonexistent file returns 404", "[static]") {

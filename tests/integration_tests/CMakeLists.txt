@@ -9,3 +9,21 @@ add_test(NAME integration_static_file
         --build-dir ${CMAKE_BINARY_DIR}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
+
+add_test(NAME integration_method
+    COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/test_method.py
+        --build-dir ${CMAKE_BINARY_DIR}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+add_test(NAME integration_head
+    COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/test_head.py
+        --build-dir ${CMAKE_BINARY_DIR}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+add_test(NAME integration_concurrency
+    COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/test_concurrency.py
+        --build-dir ${CMAKE_BINARY_DIR}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)

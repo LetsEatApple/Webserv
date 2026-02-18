@@ -42,14 +42,14 @@ def stop_server(proc):
     proc.wait(timeout=5)
 
 
-def request(port, path, method="GET"):
+def request(port, path, method="GET", body=None, headers=None):
     conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-    conn.request(method, path)
+    conn.request(method, path, body=body, headers=headers or {})
     resp = conn.getresponse()
-    body = resp.read().decode()
-    headers = dict(resp.getheaders())
+    resp_body = resp.read().decode()
+    resp_headers = dict(resp.getheaders())
     conn.close()
-    return resp.status, headers, body
+    return resp.status, resp_headers, resp_body
 
 
 def conf_path(name):

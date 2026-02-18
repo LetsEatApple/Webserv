@@ -1,9 +1,17 @@
 #include "ResponseDispatcher.hpp"
 #include "MimeTypes.hpp"
 #include <sys/stat.h>
+#include <fstream>
 
 static std::string resolvePath(const config::Location& loc, const std::string& reqPath) {
-	return loc.alias + reqPath.substr(loc.path.size());
+	return loc.alias + "/" + reqPath.substr(loc.path.size());
+}
+
+static bool isCGI(const std::string& path, const std::map<std::string, std::string>& cgi) {
+	size_t dot = path.rfind('.');
+	if (dot == std::string::npos)
+		return false;
+	return cgi.find(path.substr(dot)) != cgi.end();
 }
 
 static bool isRedirect(int code) {
@@ -45,17 +53,37 @@ int ResponseDispatcher::serveFile() {
 	// 1. resolve filesystem path from alias + request path
     std::string fsPath = resolvePath(_loc, _req.getPath());
 	struct stat st;
-    // 2. stat() the path
-    // 3. not found -> 404
+    // 2. stat() the path (not found -> 404)
 	if (stat(fsPath.c_str(), &st) < 0) {
 		_w.writeStatusLine(Response::StatusNotFound);
 		_w.writeHeaders(Response::getDefaultHeaders(0));
 		return 404;
 	}
-	// 4. extension matches _loc.cgi -> hand off to CGI
-	// 5. regular file -> read, write status 200 + Content-Type from getMimeType()
-	// 6. HEAD -> same headers, skip body
-	// 7. return the status code sent
+	// 3. extension matches _loc.cgi -> hand off to CGI
+	if (isCGI(fsPath, _loc.cgi))
+		return serveCGI(fsPath);
+	// 4. regular file -> read, write status 200 + Content-Type from getMimeType()
+	std::ifstream file(fsPath.c_str(), std::ios::binary);
+	if (!file)
+		return 500;
+	std::string body((std::istreambuf_iterator<char>(file)),
+					  std::istreambuf_iterator<char>());
 
-	return 0;
+	_w.writeStatusLine(Response::StatusOk);
+	Headers h = Response::getDefaultHeaders(body.size());
+	h.set("Content-Type", getMimeType(fsPath));
+	_w.writeHeaders(h);
+	// 5. HEAD -> same headers, skip body
+	if (_req.getMethod() != "HEAD")
+		_w.writeBody(body.c_str(), body.size());
+	// 6. return the status code sent
+	return 200;
+}
+
+int ResponseDispatcher::serveCGI(const std::string& fsPath) {
+	// TODO: implement CGI
+	(void)fsPath;
+	_w.writeStatusLine(Response::StatusNotImplemented);
+	_w.writeHeaders(Response::getDefaultHeaders(0));
+	return 501;
 }
