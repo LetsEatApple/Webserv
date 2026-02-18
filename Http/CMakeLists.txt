@@ -3,6 +3,7 @@ set(HTTP_SOURCES
         request/Request.cpp
         response/Response.cpp
         router/ReturnDirective.cpp
+        router/MimeTypes.cpp
 )
 
 add_library(${HTTP_LIBRARY} STATIC ${HTTP_SOURCES})

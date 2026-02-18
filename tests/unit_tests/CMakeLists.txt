@@ -9,6 +9,7 @@ set(TESTS_SOURCES
         config_validator_test.cpp
         config_builder_test.cpp
         parsing_request_target.cpp
+        static_file_test.cpp
 )
 
 add_executable(${TEST_MAIN} ${TESTS_SOURCES})
