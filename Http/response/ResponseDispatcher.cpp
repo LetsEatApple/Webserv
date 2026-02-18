@@ -1,6 +1,7 @@
 #include "ResponseDispatcher.hpp"
 #include "MimeTypes.hpp"
 #include <sys/stat.h>
+#include <cstdio>
 #include <fstream>
 
 static std::string resolvePath(const config::Location& loc, const std::string& reqPath) {
@@ -17,6 +18,8 @@ ResponseDispatcher::ResponseDispatcher(Response::Writer& w, const Request& req, 
 int ResponseDispatcher::serve() {
 	if (!_loc.ret.empty())
 		return serveReturn();
+	if (_req.getMethod() == "DELETE")
+		return serveDelete();
 	return serveFile();
 }
 
@@ -72,9 +75,20 @@ int ResponseDispatcher::serveFile() {
 }
 
 int ResponseDispatcher::serveDelete() {
-	// TODO: implement DELETE
-	_w.writeStatusLine(Response::StatusNotImplemented);
+	std::string fsPath = resolvePath(_loc, _req.getPath());
+	struct stat st;
+	if (stat(fsPath.c_str(), &st) < 0) {
+		_w.writeStatusLine(Response::StatusNotFound);
+		_w.writeHeaders(Response::getDefaultHeaders(0));
+		return 404;
+	}
+	if (std::remove(fsPath.c_str()) != 0) {
+		_w.writeStatusLine(Response::StatusForbidden);
+		_w.writeHeaders(Response::getDefaultHeaders(0));
+		return 403;
+	}
+	_w.writeStatusLine(Response::StatusOk);
 	_w.writeHeaders(Response::getDefaultHeaders(0));
-	return 501;
+	return 200;
 }
 
