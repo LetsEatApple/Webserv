@@ -78,8 +78,10 @@ int Reactor::registerHandler(EventHandler *handler, uint32_t event){
 	handler->reactor(this);
 	ev.events = event;
 	
-	if (epoll_ctl(_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev) < 0)
+	if (epoll_ctl(_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev) < 0){
+		delete handler;
 		return false;
+	}
 
 	_handlers[ev.data.fd] = handler;
 	return true;
