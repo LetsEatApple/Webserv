@@ -7,13 +7,6 @@ static std::string resolvePath(const config::Location& loc, const std::string& r
 	return loc.alias + "/" + reqPath.substr(loc.path.size());
 }
 
-static bool isCGI(const std::string& path, const std::map<std::string, std::string>& cgi) {
-	size_t dot = path.rfind('.');
-	if (dot == std::string::npos)
-		return false;
-	return cgi.find(path.substr(dot)) != cgi.end();
-}
-
 static bool isRedirect(int code) {
 	return code == 301 || code == 302 || code == 307 || code == 308;
 }
@@ -60,10 +53,7 @@ int ResponseDispatcher::serveFile() {
 		return 404;
 	}
 	// TODO: 3. directory -> redirect 301 if missing trailing /, else try index, else autoindex, else 403
-	// 4. extension matches _loc.cgi -> hand off to CGI
-	if (isCGI(fsPath, _loc.cgi))
-		return serveCGI(fsPath);
-	// 5. regular file -> read, write status 200 + Content-Type from getMimeType()
+	// 4. regular file -> read, write status 200 + Content-Type from getMimeType()
 	std::ifstream file(fsPath.c_str(), std::ios::binary);
 	if (!file)
 		return 500;
@@ -88,10 +78,3 @@ int ResponseDispatcher::serveDelete() {
 	return 501;
 }
 
-int ResponseDispatcher::serveCGI(const std::string& fsPath) {
-	// TODO: implement CGI
-	(void)fsPath;
-	_w.writeStatusLine(Response::StatusNotImplemented);
-	_w.writeHeaders(Response::getDefaultHeaders(0));
-	return 501;
-}

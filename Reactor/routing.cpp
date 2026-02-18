@@ -150,6 +150,13 @@ bool	findLocation(const std::vector<config::Server>& servers, const Request &req
 	return true;
 }
 
+bool	isCGI(const std::string& path, const std::map<std::string, std::string>& cgi) {
+	size_t dot = path.rfind('.');
+	if (dot == std::string::npos)
+		return false;
+	return cgi.find(path.substr(dot)) != cgi.end();
+}
+
 bool	isMethodAllowed(const std::string& method, const std::set<std::string>& limit_except){
 	if (limit_except.empty())
 		return true;

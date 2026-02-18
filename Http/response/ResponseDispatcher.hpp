@@ -13,7 +13,6 @@ public:
 	int serveReturn();
 	int serveFile();
 	int serveDelete();
-	int serveCGI(const std::string& fsPath);
 
 private:
 	Response::Writer&		_w;

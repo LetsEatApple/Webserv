@@ -35,6 +35,9 @@ ProcessResult Connection::processRequest(){
 		if (_request.checkState(ParserState::Body)
 			&& _request.getContentLen() > _location.client_max_body_size)
 			return PayloadTooLarge;
+		// TODO: if CGI, fork here and pipe body to stdin as it arrives
+		if (isCGI(_request.getPath(), _location.cgi))
+			; // forkCGI()
 		if (!_readBuffer.empty() && !_request.done()){
 			consumed = _request.parse(_readBuffer, errorMsg);
 			if (consumed < 0)
