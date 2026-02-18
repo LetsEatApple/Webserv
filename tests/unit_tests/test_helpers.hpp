@@ -7,7 +7,6 @@
 #include <fstream>
 #include <unistd.h>
 #include "Request.hpp"
-#include "routing.hpp"
 
 struct TempDir {
     std::string path;
@@ -56,21 +55,6 @@ inline Request makeRequest(const std::string& method, const std::string& target,
 	return req;
 }
 
-inline void setLocation(Request& req, const config::Location& loc) {
-	config::Server srv;
-	srv.locations.push_back(loc);
-	std::vector<config::Server> servers;
-	servers.push_back(srv);
-	findLocation(servers, req);
-}
-
-inline config::Location makeLocation(size_t maxBody) {
-	config::Location loc;
-	loc.path = "/";
-	loc.autoindex = false;
-	loc.client_max_body_size = maxBody;
-	return loc;
-}
 
 inline std::string extractStatusLine(const std::string& response) {
 	return response.substr(0, response.find("\r\n"));

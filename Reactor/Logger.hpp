@@ -17,4 +17,4 @@ std::string		IP_port(sockaddr_in &c_addr);
 std::string		str(uint16_t port);
 void			logConnection(const Endpoint& listener, const Endpoint& client);
 void			logDisconnect(const Endpoint& listener, const Endpoint& client);
-void			logRequest(const Endpoint& listener, const Endpoint& client, const Request& req);
+void			logRequest(const Endpoint& listener, const Endpoint& client, const Request& req, const std::string& locationPath);

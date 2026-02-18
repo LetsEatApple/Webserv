@@ -13,10 +13,40 @@
 #include "handler.hpp"
 #include "routing.hpp"
 #include "reactor.hpp"
-#include "ReturnDirective.hpp"
+#include "ResponseDispatcher.hpp"
 
 //	CONNECTION HANDLER
 Connection::Connection(const SessionInfo &session) : EventHandler(session.client.socket), _session(session), _routed(false){}
+
+ProcessResult Connection::processRequest(){
+	std::string errorMsg;
+	int consumed = _request.parse(_readBuffer, errorMsg);
+	if (consumed < 0)
+		return RequestError;
+	if (consumed > 0)
+		_readBuffer.erase(0, consumed);
+	if (_request.headersDone() && !_routed){
+		if (!findLocation(_session.vhosts, _request, _location))
+			return RequestError;
+		_routed = true;
+		_request.setMaxBodySize(_location.client_max_body_size);
+		if (!isMethodAllowed(_request.getMethod(), _location.limit_except))
+			return MethodNotAllowed;
+		if (_request.checkState(ParserState::Body)
+			&& _request.getContentLen() > _location.client_max_body_size)
+			return PayloadTooLarge;
+		if (!_readBuffer.empty() && !_request.done()){
+			consumed = _request.parse(_readBuffer, errorMsg);
+			if (consumed < 0)
+				return RequestError;
+			if (consumed > 0)
+				_readBuffer.erase(0, consumed);
+		}
+	}
+	if (_request.done())
+		return RequestDone;
+	return NeedMoreData;
+}
 
 int Connection::handleRead(){
 
@@ -30,7 +60,7 @@ int Connection::handleRead(){
 		return false;
 
 	_readBuffer.append(buf, n);
-	ProcessResult result = processRequest(_readBuffer, _request, _session.vhosts, _routed);
+	ProcessResult result = processRequest();
 
 	switch (result){
 		case RequestError: {
@@ -53,8 +83,8 @@ int Connection::handleRead(){
 				w.writeStatusLine(Response::StatusBadRequest);
 				w.writeHeaders(Response::getDefaultHeaders(0));
 			} else {
-				logRequest(_session.listener, _session.client, _request);
-				serveReturn(w, _request);
+				logRequest(_session.listener, _session.client, _request, _location.path);
+				ResponseDispatcher(w, _request, _location).serve();
 			}
 			logDisconnect(_session.listener, _session.client);
 			return (_reactor->removeHandler(this, 0));
@@ -168,27 +198,3 @@ int Stdin::handleRead(){
 int Stdin::handleWrite(){
 	return true;
 }
-
-/* int process(Data &data, int fd){
-
-	data.request.append(data.buffer, data.buflen);
-	for (;;){
-		size_t delimeter = data.request.find("\n\n"); // replace later with request header delimeter "\r\n\r\n"
-		if (delimeter == std::string::npos)
-			break;
-		std::string single_request = data.request.substr(0, delimeter +2);
-		data.request.erase(0, delimeter +2);
-		std::stringstream ss;
-		ss << "Client request recieved (\"" << single_request << "\")\n";
-		data.response.append(ss.str());
-		ssize_t sent = send(fd, data.response.c_str(), data.response.length(), MSG_DONTWAIT);
-		if (sent < 0)
-			return true; //epoll decides what to do
-		if (static_cast<size_t>(sent) < data.response.length()){ //kernel buffer full
-			data.response.erase(0, sent);
-			return false; // modify handler
-		}
-		data.response.erase(0, sent);
-	}
-	return true;
-} */

@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include "MimeTypes.hpp"
-#include "StaticFile.hpp"
+#include "ResponseDispatcher.hpp"
 #include "test_helpers.hpp"
 
 static config::Location makeFileLocation(const std::string& alias,
@@ -35,12 +35,12 @@ TEST_CASE("serve regular file", "[static]") {
 	TempFile file(dir.path + "/hello.txt", "hello world");
 
 	Request req = makeRequest("GET", "/hello.txt");
-	setLocation(req, makeFileLocation(dir.path));
+	config::Location loc = makeFileLocation(dir.path);
 
 	int fds[2];
 	REQUIRE(pipe(fds) == 0);
 	Response::Writer w(fds[1]);
-	REQUIRE(serveFile(w, req));
+	CHECK(ResponseDispatcher(w, req, loc).serveFile() == 200);
 	close(fds[1]);
 
 	std::string out = readAll(fds[0]);
@@ -54,12 +54,12 @@ TEST_CASE("serve nonexistent file returns 404", "[static]") {
 	TempDir dir;
 
 	Request req = makeRequest("GET", "/nope.txt");
-	setLocation(req, makeFileLocation(dir.path));
+	config::Location loc = makeFileLocation(dir.path);
 
 	int fds[2];
 	REQUIRE(pipe(fds) == 0);
 	Response::Writer w(fds[1]);
-	REQUIRE(serveFile(w, req));
+	CHECK(ResponseDispatcher(w, req, loc).serveFile() == 404);
 	close(fds[1]);
 
 	std::string out = readAll(fds[0]);

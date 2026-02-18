@@ -3,7 +3,6 @@
 
 #include <string>
 #include "Headers.hpp"
-#include "Config.hpp"
 
 namespace ParserState {
     enum State {
@@ -44,6 +43,8 @@ public:
     const std::string&	getHttpVersion() const;
     const ::Headers&	getHeaders() const;
     const std::string&	getBody() const;
+    void	setMaxBodySize(size_t size);
+
     template <typename Func>
     void forEachHeader(Func func) const { headers.forEach(func); }
 
@@ -68,9 +69,7 @@ public:
     // Returns NULL on error, sets errorMsg if provided
     static Request* requestFromSocket(int socketFd, std::string& errorMsg);
 
-	// set matchedLocation (routing)
-	void	setLocation(const config::Location& match);
-	const config::Location&	getLocation() const;
+
 
 private:
     RequestLine requestLine;
@@ -78,7 +77,7 @@ private:
     std::string body;
     ParserState::State state;
     int chunkedRemaining;
-	config::Location matchedLocation;
+	size_t maxBodySize;
 
     static const char* const SEPARATOR;
 

@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
-#include "ReturnDirective.hpp"
+#include "ResponseDispatcher.hpp"
+#include "routing.hpp"
 #include "test_helpers.hpp"
 
 static std::vector<config::Server> oneReturn(const std::string& path, int code, const std::string& value) {
@@ -22,8 +23,9 @@ TEST_CASE("return 200 with body", "[return]") {
 
     std::vector<config::Server> servers = oneReturn("/", 200, "hello");
     Request req = makeRequest("GET", "/");
-    REQUIRE(findLocation(servers, req));
-    REQUIRE(serveReturn(w, req));
+    config::Location loc;
+    REQUIRE(findLocation(servers, req, loc));
+    ResponseDispatcher(w, req, loc).serveReturn();
     close(fds[1]);
 
     std::string out = readAll(fds[0]);
@@ -41,8 +43,9 @@ TEST_CASE("return 301 redirect", "[return]") {
 
     std::vector<config::Server> servers = oneReturn("/", 301, "/new");
     Request req = makeRequest("GET", "/old");
-    REQUIRE(findLocation(servers, req));
-    REQUIRE(serveReturn(w, req));
+    config::Location loc;
+    REQUIRE(findLocation(servers, req, loc));
+    ResponseDispatcher(w, req, loc).serveReturn();
     close(fds[1]);
 
     std::string out = readAll(fds[0]);
@@ -61,8 +64,9 @@ TEST_CASE("unknown status code returns 501", "[return]") {
 
     std::vector<config::Server> servers = oneReturn("/", 418, "teapot");
     Request req = makeRequest("GET", "/");
-    REQUIRE(findLocation(servers, req));
-    REQUIRE(serveReturn(w, req));
+    config::Location loc;
+    REQUIRE(findLocation(servers, req, loc));
+    ResponseDispatcher(w, req, loc).serveReturn();
     close(fds[1]);
 
     std::string out = readAll(fds[0]);
@@ -73,11 +77,7 @@ TEST_CASE("unknown status code returns 501", "[return]") {
     CHECK(body == "teapot");
 }
 
-TEST_CASE("no return directive falls through", "[return]") {
-    int fds[2];
-    REQUIRE(pipe(fds) == 0);
-    Response::Writer w(fds[1]);
-
+TEST_CASE("no return directive falls through to serveFile", "[return]") {
     config::Server srv;
     config::Location loc;
     loc.path = "/";
@@ -88,10 +88,9 @@ TEST_CASE("no return directive falls through", "[return]") {
     servers.push_back(srv);
 
     Request req = makeRequest("GET", "/");
-    REQUIRE(findLocation(servers, req));
-    CHECK_FALSE(serveReturn(w, req));
-    close(fds[1]);
-    close(fds[0]);
+    config::Location out;
+    REQUIRE(findLocation(servers, req, out));
+    CHECK(out.ret.empty());
 }
 
 TEST_CASE("two listeners with different return bodies", "[return]") {
@@ -102,8 +101,9 @@ TEST_CASE("two listeners with different return bodies", "[return]") {
     REQUIRE(pipe(fds1) == 0);
     Response::Writer w1(fds1[1]);
     Request req1 = makeRequest("GET", "/");
-    REQUIRE(findLocation(port8081, req1));
-    REQUIRE(serveReturn(w1, req1));
+    config::Location loc1;
+    REQUIRE(findLocation(port8081, req1, loc1));
+    ResponseDispatcher(w1, req1, loc1).serveReturn();
     close(fds1[1]);
     std::string out1 = readAll(fds1[0]);
     close(fds1[0]);
@@ -112,8 +112,9 @@ TEST_CASE("two listeners with different return bodies", "[return]") {
     REQUIRE(pipe(fds2) == 0);
     Response::Writer w2(fds2[1]);
     Request req2 = makeRequest("GET", "/");
-    REQUIRE(findLocation(port8082, req2));
-    REQUIRE(serveReturn(w2, req2));
+    config::Location loc2;
+    REQUIRE(findLocation(port8082, req2, loc2));
+    ResponseDispatcher(w2, req2, loc2).serveReturn();
     close(fds2[1]);
     std::string out2 = readAll(fds2[0]);
     close(fds2[0]);
@@ -147,9 +148,10 @@ TEST_CASE("redirect from /old to /new with return 200", "[return]") {
     int fds1[2];
     REQUIRE(pipe(fds1) == 0);
     Response::Writer w1(fds1[1]);
+    config::Location loc1;
     Request req1 = makeRequest("GET", "/old");
-    REQUIRE(findLocation(servers, req1));
-    REQUIRE(serveReturn(w1, req1));
+    REQUIRE(findLocation(servers, req1, loc1));
+    ResponseDispatcher(w1, req1, loc1).serveReturn();
     close(fds1[1]);
     std::string out1 = readAll(fds1[0]);
     close(fds1[0]);
@@ -162,9 +164,10 @@ TEST_CASE("redirect from /old to /new with return 200", "[return]") {
     int fds2[2];
     REQUIRE(pipe(fds2) == 0);
     Response::Writer w2(fds2[1]);
+    config::Location loc2;
     Request req2 = makeRequest("GET", "/new");
-    REQUIRE(findLocation(servers, req2));
-    REQUIRE(serveReturn(w2, req2));
+    REQUIRE(findLocation(servers, req2, loc2));
+    ResponseDispatcher(w2, req2, loc2).serveReturn();
     close(fds2[1]);
     std::string out2 = readAll(fds2[0]);
     close(fds2[0]);
@@ -199,8 +202,9 @@ TEST_CASE("longest prefix match wins", "[return]") {
     servers.push_back(srv);
 
     Request req = makeRequest("GET", "/api/users");
-    REQUIRE(findLocation(servers, req));
-    REQUIRE(serveReturn(w, req));
+    config::Location loc;
+    REQUIRE(findLocation(servers, req, loc));
+    ResponseDispatcher(w, req, loc).serveReturn();
     close(fds[1]);
 
     std::string out = readAll(fds[0]);
@@ -218,8 +222,9 @@ TEST_CASE("HEAD return 200 has empty body", "[return]") {
 
     std::vector<config::Server> servers = oneReturn("/", 200, "hello");
     Request req = makeRequest("HEAD", "/");
-    REQUIRE(findLocation(servers, req));
-    REQUIRE(serveReturn(w, req));
+    config::Location loc;
+    REQUIRE(findLocation(servers, req, loc));
+    ResponseDispatcher(w, req, loc).serveReturn();
     close(fds[1]);
 
     std::string out = readAll(fds[0]);

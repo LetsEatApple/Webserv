@@ -134,7 +134,8 @@ size_t findTarget(const config::Server& server, std::string path){
 	return server.locations.size() -1;
 }
 
-bool	findLocation(const std::vector<config::Server>& servers, Request &request){
+bool	findLocation(const std::vector<config::Server>& servers, const Request &request,
+					config::Location& location){
 
 	std::string host;
 	std::string reqTarget;
@@ -145,40 +146,15 @@ bool	findLocation(const std::vector<config::Server>& servers, Request &request){
 	size_t target_index = findTarget(servers[host_index], reqTarget);
 	if (target_index == std::string::npos)
 		return false;
-	request.setLocation(servers[host_index].locations[target_index]);
+	location = servers[host_index].locations[target_index];
 	return true;
 }
 
-ProcessResult	processRequest(std::string& readBuffer, Request& request,
-					const std::vector<config::Server>& vhosts, bool& routed){
-	std::string errorMsg;
-	int consumed = request.parse(readBuffer, errorMsg);
-	if (consumed < 0)
-		return RequestError;
-	if (consumed > 0)
-		readBuffer.erase(0, consumed);
-	if (request.headersDone() && !routed){
-		if (!findLocation(vhosts, request))
-			return RequestError;
-		routed = true;
-		const std::set<std::string>& allowed = request.getLocation().limit_except;
-		std::string method = request.getMethod();
-		if (method == "HEAD")
-			method = "GET";
-		if (!allowed.empty() && allowed.find(method) == allowed.end())
-			return MethodNotAllowed;
-		if (request.checkState(ParserState::Body)
-			&& request.getContentLen() > request.getLocation().client_max_body_size)
-			return PayloadTooLarge;
-		if (!readBuffer.empty() && !request.done()){
-			consumed = request.parse(readBuffer, errorMsg);
-			if (consumed < 0)
-				return RequestError;
-			if (consumed > 0)
-				readBuffer.erase(0, consumed);
-		}
-	}
-	if (request.done())
-		return RequestDone;
-	return NeedMoreData;
+bool	isMethodAllowed(const std::string& method, const std::set<std::string>& limit_except){
+	if (limit_except.empty())
+		return true;
+	std::string effective = method;
+	if (effective == "HEAD")
+		effective = "GET";
+	return limit_except.find(effective) != limit_except.end();
 }

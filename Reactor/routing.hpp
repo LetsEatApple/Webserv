@@ -2,8 +2,7 @@
 
 #include "lib.hpp"
 #include "Request.hpp"
-
-typedef std::pair<Request, config::Location>	RequestLocPair;
+#include "Config.hpp"
 
 enum ProcessResult {
 	NeedMoreData,
@@ -13,9 +12,9 @@ enum ProcessResult {
 	MethodNotAllowed
 };
 
-ProcessResult	processRequest(std::string& readBuffer, Request& request,
-					const std::vector<config::Server>& vhosts, bool& routed);
-bool			findLocation(const std::vector<config::Server>& servers, Request &request);
+bool			findLocation(const std::vector<config::Server>& servers, const Request &request,
+					config::Location& location);
+bool			isMethodAllowed(const std::string& method, const std::set<std::string>& limit_except);
 size_t			findTarget(const config::Server& server, std::string path);
 std::string		removeDoubleSlash(std::string path);
 std::string		removeDotSegments(std::string input);

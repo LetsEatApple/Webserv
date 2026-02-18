@@ -39,10 +39,12 @@ private:
 	Request					_request;
 	std::string				_readBuffer;
 	SessionInfo				_session;
+	config::Location		_location;
 
-	Data					_data;
+	Data					_data; // TODO: use for async response buffering
 	bool					_routed;
-	//adding struct containing data from config depending on fd / listening fd? or through reactor _server?
+
+	ProcessResult	processRequest();
 public:
 	Connection(const SessionInfo &session);
 	int	handleRead();

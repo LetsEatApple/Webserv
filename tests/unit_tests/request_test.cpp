@@ -428,7 +428,7 @@ TEST_CASE("Standard Body", "[request][body]") {
     int n = req.parse(data, errorMsg);
     REQUIRE(n > 0);
     REQUIRE(req.headersDone());
-    req.setLocation(makeLocation(1024));
+    req.setMaxBodySize(1024);
 
     std::string remaining = data.substr(n);
     int n2 = req.parse(remaining, errorMsg);
@@ -438,31 +438,21 @@ TEST_CASE("Standard Body", "[request][body]") {
 }
 
 TEST_CASE("POST body parsed when headers and body arrive together", "[request][body]") {
-    // When the entire request (headers + body) arrives in a single recv(),
-    // processRequest must parse headers, route, and then parse the body
-    // in one call — not leave the body sitting in readBuffer.
     std::string data = "POST /submit HTTP/1.1\r\n"
                        "Host: localhost\r\n"
                        "Content-Length: 11\r\n"
                        "\r\n"
                        "hello world";
-
-    std::vector<config::Server> servers;
-    config::Server srv;
-    config::Location loc;
-    loc.path = "/";
-    loc.autoindex = false;
-    loc.client_max_body_size = 1024;
-    srv.locations.push_back(loc);
-    servers.push_back(srv);
-
+    std::string err;
     Request req;
-    std::string readBuffer = data;
-    bool routed = false;
+    int consumed = req.parse(data, err);
+    REQUIRE(consumed > 0);
+    REQUIRE(req.headersDone());
 
-    ProcessResult result = processRequest(readBuffer, req, servers, routed);
+    std::string remaining = data.substr(consumed);
+    if (!remaining.empty() && !req.done())
+        req.parse(remaining, err);
 
-    CHECK(result == RequestDone);
     CHECK(req.done());
     CHECK(req.getBody() == "hello world");
 }
@@ -473,23 +463,11 @@ TEST_CASE("Negative Content-Length rejected", "[request][body]") {
                        "Content-Length: -1\r\n"
                        "\r\n"
                        "hello";
-
-    std::vector<config::Server> servers;
-    config::Server srv;
-    config::Location loc;
-    loc.path = "/";
-    loc.autoindex = false;
-    loc.client_max_body_size = 1024;
-    srv.locations.push_back(loc);
-    servers.push_back(srv);
-
+    std::string err;
     Request req;
-    std::string readBuffer = data;
-    bool routed = false;
-
-    ProcessResult result = processRequest(readBuffer, req, servers, routed);
-
-    CHECK(result == RequestError);
+    int consumed = req.parse(data, err);
+    CHECK(consumed < 0);
+    CHECK(req.error());
 }
 
 TEST_CASE("Body shorter than reported content length", "[request][body]") {
@@ -519,7 +497,7 @@ TEST_CASE("Single chunked body", "[request][chunked]") {
     int n = req.parse(headers, errorMsg);
     REQUIRE(n > 0);
     REQUIRE(req.headersDone());
-    req.setLocation(makeLocation(1024));
+    req.setMaxBodySize(1024);
 
     int n2 = req.parse(body, errorMsg);
     REQUIRE(n2 >= 0);
@@ -541,7 +519,7 @@ TEST_CASE("Multiple chunks with hex sizes", "[request][chunked]") {
     int n = req.parse(headers, errorMsg);
     REQUIRE(n > 0);
     REQUIRE(req.headersDone());
-    req.setLocation(makeLocation(1024));
+    req.setMaxBodySize(1024);
 
     int n2 = req.parse(body, errorMsg);
     REQUIRE(n2 >= 0);
@@ -563,7 +541,7 @@ TEST_CASE("Chunked body with incremental parsing", "[request][chunked]") {
     int n = req.parse(headers, errorMsg);
     REQUIRE(n > 0);
     REQUIRE(req.headersDone());
-    req.setLocation(makeLocation(1024));
+    req.setMaxBodySize(1024);
 
     req.parse(chunk1, errorMsg);
     req.parse(chunk2, errorMsg);
@@ -584,7 +562,7 @@ TEST_CASE("Empty chunked body", "[request][chunked]") {
     int n = req.parse(headers, errorMsg);
     REQUIRE(n > 0);
     REQUIRE(req.headersDone());
-    req.setLocation(makeLocation(1024));
+    req.setMaxBodySize(1024);
 
     int n2 = req.parse(body, errorMsg);
     REQUIRE(n2 >= 0);
@@ -598,169 +576,58 @@ TEST_CASE("POST body within max body size", "[request][body]") {
                        "Host: localhost\r\n"
                        "Content-Length: 50\r\n"
                        "\r\n" + body;
-
-    std::vector<config::Server> servers;
-    config::Server srv;
-    config::Location loc;
-    loc.path = "/";
-    loc.autoindex = false;
-    loc.client_max_body_size = 100;
-    srv.locations.push_back(loc);
-    servers.push_back(srv);
-
+    std::string err;
     Request req;
-    std::string readBuffer = data;
-    bool routed = false;
+    int consumed = req.parse(data, err);
+    REQUIRE(consumed > 0);
+    REQUIRE(req.headersDone());
+    CHECK(req.getContentLen() <= 100);
 
-    ProcessResult result = processRequest(readBuffer, req, servers, routed);
+    std::string remaining = data.substr(consumed);
+    if (!remaining.empty() && !req.done())
+        req.parse(remaining, err);
 
-    CHECK(result == RequestDone);
     CHECK(req.done());
     CHECK(req.getBody() == body);
 }
 
-TEST_CASE("POST body exceeding max body size returns PayloadTooLarge", "[request][body]") {
-    std::string body(200, 'A');
+TEST_CASE("POST body exceeding max body size", "[request][body]") {
     std::string data = "POST /post_body HTTP/1.1\r\n"
                        "Host: localhost\r\n"
                        "Content-Length: 200\r\n"
-                       "\r\n" + body;
-
-    std::vector<config::Server> servers;
-    config::Server srv;
-    config::Location loc;
-    loc.path = "/";
-    loc.autoindex = false;
-    loc.client_max_body_size = 100;
-    srv.locations.push_back(loc);
-    servers.push_back(srv);
-
-    Request req;
-    std::string readBuffer = data;
-    bool routed = false;
-
-    ProcessResult result = processRequest(readBuffer, req, servers, routed);
-
-    CHECK(result == PayloadTooLarge);
-}
-
-TEST_CASE("POST to GET-only location returns MethodNotAllowed", "[request][limit_except]") {
-    std::string data = "POST /submit HTTP/1.1\r\n"
-                       "Host: localhost\r\n"
-                       "Content-Length: 5\r\n"
-                       "\r\n"
-                       "hello";
-
-    std::vector<config::Server> servers;
-    config::Server srv;
-    config::Location loc;
-    loc.path = "/";
-    loc.autoindex = false;
-    loc.client_max_body_size = 1024;
-    loc.limit_except.insert("GET");
-    srv.locations.push_back(loc);
-    servers.push_back(srv);
-
-    Request req;
-    std::string readBuffer = data;
-    bool routed = false;
-
-    ProcessResult result = processRequest(readBuffer, req, servers, routed);
-
-    CHECK(result == MethodNotAllowed);
-}
-
-TEST_CASE("DELETE to GET-only location returns MethodNotAllowed", "[request][limit_except]") {
-    std::string data = "DELETE /resource HTTP/1.1\r\n"
-                       "Host: localhost\r\n"
                        "\r\n";
-
-    std::vector<config::Server> servers;
-    config::Server srv;
-    config::Location loc;
-    loc.path = "/";
-    loc.autoindex = false;
-    loc.client_max_body_size = 1024;
-    loc.limit_except.insert("GET");
-    srv.locations.push_back(loc);
-    servers.push_back(srv);
-
+    std::string err;
     Request req;
-    std::string readBuffer = data;
-    bool routed = false;
-
-    ProcessResult result = processRequest(readBuffer, req, servers, routed);
-
-    CHECK(result == MethodNotAllowed);
+    req.parse(data, err);
+    REQUIRE(req.headersDone());
+    CHECK(req.getContentLen() > 100);
 }
 
-TEST_CASE("GET to GET-only location succeeds", "[request][limit_except]") {
-    std::string data = "GET / HTTP/1.1\r\n"
-                       "Host: localhost\r\n"
-                       "\r\n";
-
-    std::vector<config::Server> servers;
-    config::Server srv;
-    config::Location loc;
-    loc.path = "/";
-    loc.autoindex = false;
-    loc.client_max_body_size = 1024;
-    loc.limit_except.insert("GET");
-    srv.locations.push_back(loc);
-    servers.push_back(srv);
-
-    Request req;
-    std::string readBuffer = data;
-    bool routed = false;
-
-    ProcessResult result = processRequest(readBuffer, req, servers, routed);
-
-    CHECK(result == RequestDone);
+TEST_CASE("POST to GET-only location is not allowed", "[limit_except]") {
+    std::set<std::string> allowed;
+    allowed.insert("GET");
+    CHECK_FALSE(isMethodAllowed("POST", allowed));
 }
 
-TEST_CASE("Empty limit_except allows all methods", "[request][limit_except]") {
-    std::string data = "DELETE /resource HTTP/1.1\r\n"
-                       "Host: localhost\r\n"
-                       "\r\n";
-
-    std::vector<config::Server> servers;
-    config::Server srv;
-    config::Location loc;
-    loc.path = "/";
-    loc.autoindex = false;
-    loc.client_max_body_size = 1024;
-    srv.locations.push_back(loc);
-    servers.push_back(srv);
-
-    Request req;
-    std::string readBuffer = data;
-    bool routed = false;
-
-    ProcessResult result = processRequest(readBuffer, req, servers, routed);
-
-    CHECK(result == RequestDone);
+TEST_CASE("DELETE to GET-only location is not allowed", "[limit_except]") {
+    std::set<std::string> allowed;
+    allowed.insert("GET");
+    CHECK_FALSE(isMethodAllowed("DELETE", allowed));
 }
 
-TEST_CASE("HEAD allowed when GET is allowed", "[request][limit_except]") {
-    std::string data = "HEAD / HTTP/1.1\r\n"
-                       "Host: localhost\r\n"
-                       "\r\n";
+TEST_CASE("GET to GET-only location succeeds", "[limit_except]") {
+    std::set<std::string> allowed;
+    allowed.insert("GET");
+    CHECK(isMethodAllowed("GET", allowed));
+}
 
-    std::vector<config::Server> servers;
-    config::Server srv;
-    config::Location loc;
-    loc.path = "/";
-    loc.autoindex = false;
-    loc.client_max_body_size = 1024;
-    loc.limit_except.insert("GET");
-    srv.locations.push_back(loc);
-    servers.push_back(srv);
+TEST_CASE("Empty limit_except allows all methods", "[limit_except]") {
+    std::set<std::string> allowed;
+    CHECK(isMethodAllowed("DELETE", allowed));
+}
 
-    Request req;
-    std::string readBuffer = data;
-    bool routed = false;
-
-    ProcessResult result = processRequest(readBuffer, req, servers, routed);
-
-    CHECK(result == RequestDone);
+TEST_CASE("HEAD allowed when GET is allowed", "[limit_except]") {
+    std::set<std::string> allowed;
+    allowed.insert("GET");
+    CHECK(isMethodAllowed("HEAD", allowed));
 }

@@ -7,7 +7,7 @@ const char* const Request::ERROR_MALFORMED_REQUEST_LINE = "malformed request-lin
 const char* const Request::ERROR_REQUEST_IN_ERROR_STATE = "request in error state";
 const char* const Request::SEPARATOR = "\r\n";
 
-Request::Request() : state(ParserState::Init), chunkedRemaining(0) {}
+Request::Request() : state(ParserState::Init), chunkedRemaining(0), maxBodySize(0) {}
 
 const std::string& Request::getMethod() const {
     return requestLine.method;
@@ -250,7 +250,7 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
                 if (chunkSize == 0) {
                     state = ParserState::ChunkedDone;
                 }
-				else if (body.size() + chunkSize > matchedLocation.client_max_body_size) {
+				else if (maxBodySize > 0 && body.size() + chunkSize > maxBodySize) {
 					errorMsg = "Payload Too Large";
 					state = ParserState::Error;
 					return -1;
@@ -337,10 +337,6 @@ Request* Request::requestFromSocket(int socketFd, std::string& errorMsg) {
     return request;
 }
 
-void	Request::setLocation(const config::Location& match){
-	this->matchedLocation = match;
-}
-
-const config::Location&	Request::getLocation() const{
-	return this->matchedLocation;
+void	Request::setMaxBodySize(size_t size){
+	this->maxBodySize = size;
 }

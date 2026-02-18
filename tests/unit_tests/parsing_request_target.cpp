@@ -6,6 +6,7 @@
 
 #include "Request.hpp"
 #include "routing.hpp"
+#include "test_helpers.hpp"
 
 static Request* parseFromString(const std::string& data, std::string& errorMsg, size_t chunkSize = 0) {
     int fds[2];
@@ -83,14 +84,15 @@ TEST_CASE("valid request target"){
     // Chunked read with 3 bytes per chunk
     Request* r = parseFromString(data, errorMsg, 3);
 	std::vector<config::Server> servers = setServers();
-	bool status = findLocation(servers, *r);
+	config::Location loc;
+	bool status = findLocation(servers, *r, loc);
 	CHECK(status == true);
 	CHECK(r->getMethod() == "GET");
 	CHECK(r->getTarget() == "/upload/cat.png");
 	CHECK(r->getPath() == "/upload/cat.png");
 	CHECK(r->getQuery().empty());
 	CHECK(r->getHost() == "example.com");
-	CHECK(r->getLocation().path == "/upload");
+	CHECK(loc.path == "/upload");
 
 	delete r;
 }

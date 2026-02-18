@@ -94,11 +94,12 @@ void logDisconnect(const Endpoint& listener, const Endpoint& client){
 	#endif
 }
 
-void logRequest(const Endpoint& listener, const Endpoint& client, const Request& req){
-	
+void logRequest(const Endpoint& listener, const Endpoint& client, const Request& req, const std::string& locationPath){
+
 	(void) listener;
 	(void) client;
 	(void) req;
+	(void) locationPath;
 
 	#ifdef DEBUG
 
@@ -106,15 +107,15 @@ void logRequest(const Endpoint& listener, const Endpoint& client, const Request&
 	<< "\033[0;36m" << client.portPair << " (fd=" << client.socket << ") \033[0m->\033[0;36m "
 	<< listener.portPair << " (fd=" << listener.socket << ")\033[0m :" << std::endl;
 
-	
+
 	Headers headers = req.getHeaders();
-	
+
 	std::cout << "\n\t\033[95mMethod: \033[0;36m" << req.getMethod()
 	<< "\n\t\033[95mRequest target: \033[0;36m" << req.getTarget()
 	<< "\n\t\033[95mTarget path: \033[0;36m" << req.getPath()
 	<< "\n\t\033[95mTarget query: \033[0;36m" << req.getQuery()
 	<< "\n\t\033[95mHost: \033[0;36m" << headers.get("host")
-	<< "\n\t\033[95mmatched Location (path): \033[0;36m" << req.getLocation().path << "\033[0;37m\n"
+	<< "\n\t\033[95mmatched Location (path): \033[0;36m" << locationPath << "\033[0;37m\n"
 	<< std::endl;
 	#endif
 }
