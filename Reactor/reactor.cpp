@@ -30,13 +30,16 @@ int set_signalfd(){
 		return -1;
 	int ret1 = fcntl(pfd[0], F_SETFL, O_NONBLOCK); // read end, watched by epoll
 	int ret2 = fcntl(pfd[1], F_SETFL, O_NONBLOCK); // write end, signalHandler writes here
-	if (ret1 == -1 || ret2 == -1)
+	if (ret1 == -1 || ret2 == -1){
+		close(pfd[0]);
+		close(pfd[1]);
 		return -1;
+	}
 	g_signal_fd = pfd[1];
 	return pfd[0];
 }
 
-Reactor::Reactor() : _epfd(-1), _sig(false) {}
+Reactor::Reactor() : _epfd(-1), _ev(), _evlist(), _sig(false) {}
 
 int Reactor::init(const activeSessions &sessions){
 
