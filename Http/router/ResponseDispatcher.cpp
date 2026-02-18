@@ -1,5 +1,10 @@
 #include "ResponseDispatcher.hpp"
 #include "MimeTypes.hpp"
+#include <sys/stat.h>
+
+static std::string resolvePath(const config::Location& loc, const std::string& reqPath) {
+	return loc.alias + reqPath.substr(loc.path.size());
+}
 
 static bool isRedirect(int code) {
 	return code == 301 || code == 302 || code == 307 || code == 308;
@@ -37,7 +42,20 @@ int ResponseDispatcher::serveReturn() {
 }
 
 int ResponseDispatcher::serveFile() {
-	std::string fsPath = _loc.alias + _req.getPath();
-	(void)_w;
+	// 1. resolve filesystem path from alias + request path
+    std::string fsPath = resolvePath(_loc, _req.getPath());
+	struct stat st;
+    // 2. stat() the path
+    // 3. not found -> 404
+	if (stat(fsPath.c_str(), &st) < 0) {
+		_w.writeStatusLine(Response::StatusNotFound);
+		_w.writeHeaders(Response::getDefaultHeaders(0));
+		return 404;
+	}
+	// 4. extension matches _loc.cgi -> hand off to CGI
+	// 5. regular file -> read, write status 200 + Content-Type from getMimeType()
+	// 6. HEAD -> same headers, skip body
+	// 7. return the status code sent
+
 	return 0;
 }
