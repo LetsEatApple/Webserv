@@ -29,8 +29,8 @@ Config/Validator.cpp \
 Http/request/Headers.cpp \
 Http/request/Request.cpp \
 Http/response/Response.cpp \
-Http/router/Router.cpp \
-Http/routes/routes.cpp \
+Http/response/ResponseDispatcher.cpp \
+Http/response/MimeTypes.cpp \
 
 CPP = c++
 CPPFLAGS = -std=c++98 -Wall -Werror -Wextra
@@ -39,9 +39,7 @@ INCLUDES = \
 -I./Reactor \
 -I./Http \
 -I./Http/request \
--I./Http/response \
--I./Http/router \
--I./Http/routes
+-I./Http/response
 DEBUG ?= 0
 
 ifeq ($(DEBUG),1)
