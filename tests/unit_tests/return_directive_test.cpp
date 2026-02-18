@@ -210,3 +210,21 @@ TEST_CASE("longest prefix match wins", "[return]") {
     CHECK(statusLine == "HTTP/1.1 200 OK");
     CHECK(body == "api");
 }
+
+TEST_CASE("HEAD return 200 has empty body", "[return]") {
+    int fds[2];
+    REQUIRE(pipe(fds) == 0);
+    Response::Writer w(fds[1]);
+
+    std::vector<config::Server> servers = oneReturn("/", 200, "hello");
+    Request req = makeRequest("HEAD", "/");
+    REQUIRE(findLocation(servers, req));
+    REQUIRE(serveReturn(w, req));
+    close(fds[1]);
+
+    std::string out = readAll(fds[0]);
+    close(fds[0]);
+    CHECK(extractStatusLine(out) == "HTTP/1.1 200 OK");
+    CHECK(out.find("content-length: 5") != std::string::npos);
+    CHECK(extractBody(out).empty());
+}

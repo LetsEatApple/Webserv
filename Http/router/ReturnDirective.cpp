@@ -26,7 +26,8 @@ bool serveReturn(Response::Writer& w, const Request& req) {
 		w.writeHeaders(h);
 	} else {
 		w.writeHeaders(Response::getDefaultHeaders(value.size()));
-		w.writeBody(value.c_str(), value.size());
+		if (req.getMethod() != "HEAD")
+			w.writeBody(value.c_str(), value.size());
 	}
 	return true;
 }
