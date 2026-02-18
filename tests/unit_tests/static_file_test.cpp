@@ -139,12 +139,12 @@ TEST_CASE("DELETE existing file returns 200", "[delete]") {
 	int fds[2];
 	REQUIRE(pipe(fds) == 0);
 	Response::Writer w(fds[1]);
-	CHECK(ResponseDispatcher(w, req, loc).serveDelete() == 200);
+	CHECK(ResponseDispatcher(w, req, loc).serveDelete() == 204);
 	close(fds[1]);
 
 	std::string out = readAll(fds[0]);
 	close(fds[0]);
-	CHECK(extractStatusLine(out).find("200 OK") != std::string::npos);
+	CHECK(extractStatusLine(out).find("204 No Content") != std::string::npos);
 
 	struct stat st;
 	CHECK(stat((dir.path + "/trash.txt").c_str(), &st) < 0);

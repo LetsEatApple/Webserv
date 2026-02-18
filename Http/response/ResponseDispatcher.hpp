@@ -13,6 +13,7 @@ public:
 	int serveReturn();
 	int serveFile();
 	int serveDelete();
+	int sendError(Response::StatusCode code);
 
 private:
 	Response::Writer&		_w;

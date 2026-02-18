@@ -7,6 +7,7 @@ namespace Response {
 
     enum StatusCode {
         StatusOk = 200,
+        StatusNoContent = 204,
         StatusMovedPermanently = 301,
         StatusFound = 302,
         StatusTemporaryRedirect = 307,
@@ -24,6 +25,7 @@ namespace Response {
     const char* statusCodeToLine(StatusCode code);
 
     Headers getDefaultHeaders(int contentLen);
+    std::string getDefaultErrorPage(StatusCode code);
 
     class Writer {
     public:

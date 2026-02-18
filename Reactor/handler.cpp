@@ -68,23 +68,20 @@ int Connection::handleRead(){
 	switch (result){
 		case RequestError: {
 			Response::Writer w(_fd);
-			w.writeStatusLine(Response::StatusBadRequest);
-			w.writeHeaders(Response::getDefaultHeaders(0));
+			ResponseDispatcher(w, _request, _location).sendError(Response::StatusBadRequest);
 			logDisconnect(_session.listener, _session.client);
 			return (_reactor->removeHandler(this, 0));
 		}
 		case PayloadTooLarge: {
 			Response::Writer w(_fd);
-			w.writeStatusLine(Response::StatusPayloadTooLarge);
-			w.writeHeaders(Response::getDefaultHeaders(0));
+			ResponseDispatcher(w, _request, _location).sendError(Response::StatusPayloadTooLarge);
 			logDisconnect(_session.listener, _session.client);
 			return _reactor->removeHandler(this, 0);
 		}
 		case RequestDone: {
 			Response::Writer w(_fd);
 			if (_request.error()) {
-				w.writeStatusLine(Response::StatusBadRequest);
-				w.writeHeaders(Response::getDefaultHeaders(0));
+				ResponseDispatcher(w, _request, _location).sendError(Response::StatusBadRequest);
 			} else {
 				logRequest(_session.listener, _session.client, _request, _location.path);
 				ResponseDispatcher(w, _request, _location).serve();
@@ -94,8 +91,7 @@ int Connection::handleRead(){
 		}
 		case MethodNotAllowed: {
 			Response::Writer w(_fd);
-			w.writeStatusLine(Response::StatusMethodNotAllowed);
-			w.writeHeaders(Response::getDefaultHeaders(0));
+			ResponseDispatcher(w, _request, _location).sendError(Response::StatusMethodNotAllowed);
 			logDisconnect(_session.listener, _session.client);
 			return (_reactor->removeHandler(this, 0));
 		}

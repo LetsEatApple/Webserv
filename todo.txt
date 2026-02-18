@@ -1,0 +1,10 @@
+- write() directly to the fd in serveFile, not buffered through epoll.
+- writer doesn't send chunked responses
+- timeout handling — a client that connects and sends nothing holds a slot forever.
+- Implement keeping sockets open: HTTP/1.1 defaults to Connection: keep-alive.
+- Date header — required by HTTP/1.1 in every response.
+- Directory handling
+- File upload
+- custom error pages
+- cookies/sessions
+- CGI

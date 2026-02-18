@@ -22,11 +22,20 @@ Headers Response::getDefaultHeaders(int contentLen) {
     return h;
 }
 
+std::string Response::getDefaultErrorPage(StatusCode code) {
+    const char* line = statusCodeToLine(code);
+    // extract "404 Not Found" from "HTTP/1.1 404 Not Found\r\n"
+    std::string reason(line + 9);
+    reason.erase(reason.size() - 2); // strip \r\n
+    return "<html><body><h1>" + reason + "</h1></body></html>";
+}
+
 Response::Writer::Writer(int fd) : fd(fd) {}
 
 const char* Response::statusCodeToLine(StatusCode code) {
     switch (code) {
         case StatusOk:                return "HTTP/1.1 200 OK\r\n";
+        case StatusNoContent:         return "HTTP/1.1 204 No Content\r\n";
         case StatusMovedPermanently:  return "HTTP/1.1 301 Moved Permanently\r\n";
         case StatusFound:             return "HTTP/1.1 302 Found\r\n";
         case StatusTemporaryRedirect: return "HTTP/1.1 307 Temporary Redirect\r\n";
@@ -45,6 +54,7 @@ const char* Response::statusCodeToLine(StatusCode code) {
 Response::StatusCode Response::intToStatusCode(int code) {
     switch (code) {
         case 200: return StatusOk;
+        case 204: return StatusNoContent;
         case 301: return StatusMovedPermanently;
         case 302: return StatusFound;
         case 307: return StatusTemporaryRedirect;
