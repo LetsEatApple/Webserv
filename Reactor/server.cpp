@@ -73,7 +73,7 @@ int Server::createServer(){
 			return error_close("binding socket failed", i);
 
 		// listen
-		int listen_val = listen(_servers[i].sock, 1);
+		int listen_val = listen(_servers[i].sock, SOMAXCONN);
 		if(listen_val < 0)
 			return error_close("listening to socket failed", i);
 		std::stringstream ss;
