@@ -54,17 +54,26 @@ int Reactor::init(const activeSessions &sessions){
 	int sfd = set_signalfd();
 	if (sfd == -1)
 		return error("creatig signal fd failed", 1);
-	if (!registerHandler(new Signal(sfd), EPOLLIN))
+	Signal* sig = new Signal(sfd);
+	if (!registerHandler(sig, EPOLLIN)) {
+		delete sig;
 		return false;
+	}
 
 	// stdin
-	if(!registerHandler(new Stdin(STDIN_FILENO), EPOLLIN))
+	Stdin* in = new Stdin(STDIN_FILENO);
+	if(!registerHandler(in, EPOLLIN)) {
+		delete in;
 		return false;
+	}
 
 	// register listening sockets and their handlers
 	for (size_t i = 0; i < sessions.size(); i++){
-		if (!registerHandler(new Acceptor(sessions[i]), EPOLLIN))
+		Acceptor* acc = new Acceptor(sessions[i]);
+		if (!registerHandler(acc, EPOLLIN)) {
+			delete acc;
 			return error("epoll_ctl on listening socket failed", 1);
+		}
 	}
 	logInfo("Server ready to accept connections", " ...");
 	return true;
