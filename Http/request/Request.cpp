@@ -9,6 +9,19 @@ const char* const Request::SEPARATOR = "\r\n";
 
 Request::Request() : state(ParserState::Init), chunkedRemaining(0), maxBodySize(0) {}
 
+void Request::reset() {
+	requestLine.method.clear();
+	requestLine.requestTarget.full.clear();
+	requestLine.requestTarget.path.clear();
+	requestLine.requestTarget.query.clear();
+	requestLine.httpVersion.clear();
+	headers.clear();
+	body.clear();
+	state = ParserState::Init;
+	chunkedRemaining = 0;
+	maxBodySize = 0;
+}
+
 const std::string& Request::getMethod() const {
     return requestLine.method;
 }

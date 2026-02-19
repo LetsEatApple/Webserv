@@ -44,6 +44,7 @@ public:
     const ::Headers&	getHeaders() const;
     const std::string&	getBody() const;
     void	setMaxBodySize(size_t size);
+    void	reset();
 
     template <typename Func>
     void forEachHeader(Func func) const { headers.forEach(func); }

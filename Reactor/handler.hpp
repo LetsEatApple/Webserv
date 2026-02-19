@@ -41,7 +41,7 @@ private:
 	SessionInfo				_session;
 	config::Location		_location;
 
-	Data					_data; // TODO: use for async response buffering
+	Data					_data;
 	bool					_routed;
 
 	ProcessResult	processRequest();

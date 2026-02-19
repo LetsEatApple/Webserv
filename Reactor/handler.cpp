@@ -60,41 +60,37 @@ int Connection::handleRead(){
 		logDisconnect(_session.listener, _session.client);
 		return (_reactor->removeHandler(this, 0));
 	}
-	if (n < 0) // Error occured, epoll decides what to do
+	if (n > 0)
+		_readBuffer.append(buf, n);
+	else if (_readBuffer.empty()) // Error occured and buffer empty, epoll decides what to do
 		return false;
-
-	_readBuffer.append(buf, n);
-	ProcessResult result = processRequest();
+	const ProcessResult result = processRequest();
 
 	switch (result){
 		case RequestError: {
-			Response::Writer w(_fd);
+			Response::Writer w(_data.response);
 			ResponseDispatcher(w, _request, _location).sendError(Response::StatusBadRequest);
-			logDisconnect(_session.listener, _session.client);
-			return (_reactor->removeHandler(this, 0));
+			return _reactor->modifyHandler(this, EPOLLOUT);
 		}
 		case PayloadTooLarge: {
-			Response::Writer w(_fd);
+			Response::Writer w(_data.response);
 			ResponseDispatcher(w, _request, _location).sendError(Response::StatusPayloadTooLarge);
-			logDisconnect(_session.listener, _session.client);
-			return _reactor->removeHandler(this, 0);
+			return _reactor->modifyHandler(this, EPOLLOUT);
 		}
 		case RequestDone: {
-			Response::Writer w(_fd);
+			Response::Writer w(_data.response);
 			if (_request.error()) {
 				ResponseDispatcher(w, _request, _location).sendError(Response::StatusBadRequest);
 			} else {
 				logRequest(_session.listener, _session.client, _request, _location.path);
 				ResponseDispatcher(w, _request, _location).serve();
 			}
-			logDisconnect(_session.listener, _session.client);
-			return (_reactor->removeHandler(this, 0));
+			return _reactor->modifyHandler(this, EPOLLOUT);
 		}
 		case MethodNotAllowed: {
-			Response::Writer w(_fd);
+			Response::Writer w(_data.response);
 			ResponseDispatcher(w, _request, _location).sendError(Response::StatusMethodNotAllowed);
-			logDisconnect(_session.listener, _session.client);
-			return (_reactor->removeHandler(this, 0));
+			return _reactor->modifyHandler(this, EPOLLOUT);
 		}
 		case NeedMoreData:
 			return true;
@@ -110,14 +106,24 @@ int Connection::handleRead(){
 
 int Connection::handleWrite() {
 
-	if (_data.response.empty())
+	if (_data.response.empty()) {
+		_request.reset();
+		_routed = false;
+		if (!_readBuffer.empty())
+			return handleRead();
 		return (_reactor->modifyHandler(this, EPOLLIN));
+	}
 
-	int sent = send(_fd, _data.response.c_str(), _data.response.length(), MSG_DONTWAIT);
+	const ssize_t sent = send(_fd, _data.response.c_str(), _data.response.length(), MSG_DONTWAIT);
 	if (sent > 0)
 		_data.response.erase(0, sent);
-	if (_data.response.empty())
+	if (_data.response.empty()) {
+		_request.reset();
+		_routed = false;
+		if (!_readBuffer.empty())
+			return handleRead();
 		return (_reactor->modifyHandler(this, EPOLLIN));
+	}
 	if (sent < 0)
 		return false; // decision up to epoll; Wait for epoll to report EPOLLERR / EPOLLHUP
 

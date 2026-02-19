@@ -29,8 +29,7 @@ namespace Response {
 
     class Writer {
     public:
-        Writer(int fd);
-
+        Writer(std::string& buf);
         bool writeStatusLine(StatusCode statusCode) const;
         bool writeHeaders(const Headers& h) const;
         bool writeBody(const char* data, size_t len) const;
@@ -38,7 +37,7 @@ namespace Response {
         bool writeChunkedBodyDone() const;
 
     private:
-        int fd;
+        std::string* _buf;
     };
 
 }

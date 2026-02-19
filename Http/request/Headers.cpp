@@ -7,6 +7,8 @@ static const size_t CRLF_LEN = 2;
 
 Headers::Headers() {}
 
+void Headers::clear() { headers.clear(); }
+
 std::string Headers::toLower(const std::string& str) {
     std::string result = str;
     std::transform(result.begin(), result.end(), result.begin(), static_cast<int(*)(int)>(std::tolower));

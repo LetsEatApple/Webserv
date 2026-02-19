@@ -1,10 +1,6 @@
-- write() directly to the fd in serveFile, not buffered through epoll.
-  -- Problem: writeStatusLine, writeHeaders, writeBody are 3 separate write() calls per epoll cycle - only one allowed
 - writer doesn't send chunked responses
 - timeout handling — a client that connects and sends nothing holds a slot forever.
-- Implement keeping sockets open: HTTP/1.1 defaults to Connection: keep-alive.
-  -- keeping them open will give much better results for siege
-- Date header — required by HTTP/1.1 in every response.
+- Date header — required by HTTP/1.1 in every response. RFC 9110 Section 6.6.1
 - Directory handling (autoindex)
 - File upload
 - custom error pages

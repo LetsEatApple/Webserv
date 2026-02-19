@@ -2,7 +2,6 @@
 #include <cstring>
 #include <cstdio>
 #include <sstream>
-#include <unistd.h>
 
 struct HeaderAppender {
     std::string& buf;
@@ -17,7 +16,7 @@ Headers Response::getDefaultHeaders(int contentLen) {
     std::ostringstream oss;
     oss << contentLen;
     h.set("Content-Length", oss.str());
-    h.set("Connection", "close");
+    h.set("Connection", "keep-alive");
     h.set("Content-Type", "text/plain");
     return h;
 }
@@ -30,7 +29,7 @@ std::string Response::getDefaultErrorPage(StatusCode code) {
     return "<html><body><h1>" + reason + "</h1></body></html>";
 }
 
-Response::Writer::Writer(int fd) : fd(fd) {}
+Response::Writer::Writer(std::string& buf) : _buf(&buf) {}
 
 const char* Response::statusCodeToLine(StatusCode code) {
     switch (code) {
@@ -73,22 +72,21 @@ bool Response::Writer::writeStatusLine(StatusCode statusCode) const {
     const char* statusLine = statusCodeToLine(statusCode);
     if (!statusLine)
         return false;
-    size_t len = std::strlen(statusLine);
-    ssize_t n = ::write(fd, statusLine, len);
-    return n == static_cast<ssize_t>(len);
+    _buf->append(statusLine, std::strlen(statusLine));
+    return true;
 }
 
 bool Response::Writer::writeHeaders(const Headers& h) const {
     std::string buf;
     h.forEach(HeaderAppender(buf));
     buf += "\r\n";
-    ssize_t n = ::write(fd, buf.c_str(), buf.size());
-    return n == static_cast<ssize_t>(buf.size());
+    _buf->append(buf);
+    return true;
 }
 
 bool Response::Writer::writeBody(const char* data, size_t len) const {
-    ssize_t n = ::write(fd, data, len);
-    return n == static_cast<ssize_t>(len);
+    _buf->append(data, len);
+    return true;
 }
 
 bool Response::Writer::writeChunkedBody(const char* data, size_t len) const {
