@@ -4,8 +4,19 @@
 #include <cstdio>
 #include <fstream>
 
+static bool hasPathTraversal(const std::string& path) {
+	if (path.find("/..") != std::string::npos)
+		return true;
+	if (path.compare(0, 3, "../") == 0)
+		return true;
+	return false;
+}
+
 static std::string resolvePath(const config::Location& loc, const std::string& reqPath) {
-	return loc.alias + "/" + reqPath.substr(loc.path.size());
+	std::string rel = reqPath.substr(loc.path.size());
+	if (hasPathTraversal(rel))
+		return "";
+	return loc.alias + "/" + rel;
 }
 
 static bool isRedirect(int code) {
@@ -20,6 +31,7 @@ int ResponseDispatcher::sendError(Response::StatusCode code) {
 	_w.writeStatusLine(code);
 	Headers h = Response::getDefaultHeaders(body.size());
 	h.set("Content-Type", "text/html");
+	h.set("Connection", "close");
 	_w.writeHeaders(h);
 	if (_req.getMethod() != "HEAD")
 		_w.writeBody(body.c_str(), body.size());
@@ -43,9 +55,7 @@ int ResponseDispatcher::serveReturn() {
 	_w.writeStatusLine(status);
 
 	if (isRedirect(code)) {
-		Headers h;
-		h.set("Content-Length", "0");
-		h.set("Connection", "close");
+		Headers h = Response::getDefaultHeaders(0);
 		h.set("location", value);
 		_w.writeHeaders(h);
 	} else {

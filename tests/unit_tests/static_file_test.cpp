@@ -140,6 +140,19 @@ TEST_CASE("DELETE nonexistent file returns 404", "[delete]") {
 	CHECK(extractStatusLine(out).find("404 Not Found") != std::string::npos);
 }
 
+TEST_CASE("filename with double dots is allowed", "[static][security]") {
+	TempDir dir;
+	TempFile file(dir.path + "/archive.tar.gz", "tarball");
+
+	Request req = makeRequest("GET", "/archive.tar.gz");
+	config::Location loc = makeFileLocation(dir.path);
+
+	std::string out;
+	Response::Writer w(out);
+	CHECK(ResponseDispatcher(w, req, loc).serveFile() == 200);
+	CHECK(extractBody(out) == "tarball");
+}
+
 TEST_CASE("serve nonexistent file returns 404", "[static]") {
 	TempDir dir;
 
@@ -152,4 +165,45 @@ TEST_CASE("serve nonexistent file returns 404", "[static]") {
 
 	CHECK(extractStatusLine(out).find("404 Not Found") != std::string::npos);
 	CHECK(out.find("date: ") != std::string::npos);
+}
+
+TEST_CASE("path traversal with .. is blocked", "[static][security]") {
+	// Create /tmp/webserv_XXX/sub/ as document root with a file in the parent
+	TempDir dir;
+	std::string subdir = dir.path + "/sub";
+	mkdir(subdir.c_str(), 0755);
+	TempFile file(dir.path + "/secret.txt", "secret");
+
+	// alias points to subdir, request tries to escape via ..
+	// resolvePath: subdir + "/../secret.txt" = dir.path + "/sub/../secret.txt"
+	// which the OS resolves to dir.path + "/secret.txt"
+	Request req = makeRequest("GET", "/../secret.txt");
+	config::Location loc = makeFileLocation(subdir);
+
+	std::string out;
+	Response::Writer w(out);
+	int status = ResponseDispatcher(w, req, loc).serveFile();
+
+	// should be 403 or 404, NOT 200
+	CHECK(status != 200);
+	CHECK(extractBody(out).find("secret") == std::string::npos);
+	rmdir(subdir.c_str());
+}
+
+TEST_CASE("deep path traversal is blocked", "[static][security]") {
+	TempDir dir;
+	std::string subdir = dir.path + "/www";
+	mkdir(subdir.c_str(), 0755);
+	TempFile file(dir.path + "/outside.txt", "outside");
+
+	Request req = makeRequest("GET", "/../../../../../../.." + dir.path + "/outside.txt");
+	config::Location loc = makeFileLocation(subdir);
+
+	std::string out;
+	Response::Writer w(out);
+	int status = ResponseDispatcher(w, req, loc).serveFile();
+
+	CHECK(status != 200);
+	CHECK(extractBody(out).find("outside") == std::string::npos);
+	rmdir(subdir.c_str());
 }
