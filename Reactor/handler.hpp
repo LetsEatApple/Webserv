@@ -43,6 +43,7 @@ private:
 
 	Data					_data;
 	bool					_routed;
+	bool					_closeAfterResponse;
 
 	ProcessResult	processRequest();
 public:

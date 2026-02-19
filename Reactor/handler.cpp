@@ -16,7 +16,10 @@
 #include "ResponseDispatcher.hpp"
 
 //	CONNECTION HANDLER
-Connection::Connection(const SessionInfo &session) : EventHandler(session.client.socket), _session(session), _routed(false){}
+Connection::Connection(const SessionInfo &session) : EventHandler(session.client.socket), _session(session),
+                                                     _location(), _data(),
+                                                     _routed(false), _closeAfterResponse(false) {
+}
 
 ProcessResult Connection::processRequest(){
 	std::string errorMsg;
@@ -68,11 +71,13 @@ int Connection::handleRead(){
 
 	switch (result){
 		case RequestError: {
+			_closeAfterResponse = true;
 			Response::Writer w(_data.response);
 			ResponseDispatcher(w, _request, _location).sendError(Response::StatusBadRequest);
 			return _reactor->modifyHandler(this, EPOLLOUT);
 		}
 		case PayloadTooLarge: {
+			_closeAfterResponse = true;
 			Response::Writer w(_data.response);
 			ResponseDispatcher(w, _request, _location).sendError(Response::StatusPayloadTooLarge);
 			return _reactor->modifyHandler(this, EPOLLOUT);
@@ -80,6 +85,7 @@ int Connection::handleRead(){
 		case RequestDone: {
 			Response::Writer w(_data.response);
 			if (_request.error()) {
+				_closeAfterResponse = true;
 				ResponseDispatcher(w, _request, _location).sendError(Response::StatusBadRequest);
 			} else {
 				logRequest(_session.listener, _session.client, _request, _location.path);
@@ -88,6 +94,7 @@ int Connection::handleRead(){
 			return _reactor->modifyHandler(this, EPOLLOUT);
 		}
 		case MethodNotAllowed: {
+			_closeAfterResponse = true;
 			Response::Writer w(_data.response);
 			ResponseDispatcher(w, _request, _location).sendError(Response::StatusMethodNotAllowed);
 			return _reactor->modifyHandler(this, EPOLLOUT);
@@ -107,6 +114,10 @@ int Connection::handleRead(){
 int Connection::handleWrite() {
 
 	if (_data.response.empty()) {
+		if (_closeAfterResponse) {
+			logDisconnect(_session.listener, _session.client);
+			return _reactor->removeHandler(this, 0);
+		}
 		_request.reset();
 		_routed = false;
 		if (!_readBuffer.empty())
@@ -118,6 +129,10 @@ int Connection::handleWrite() {
 	if (sent > 0)
 		_data.response.erase(0, sent);
 	if (_data.response.empty()) {
+		if (_closeAfterResponse) {
+			logDisconnect(_session.listener, _session.client);
+			return _reactor->removeHandler(this, 0);
+		}
 		_request.reset();
 		_routed = false;
 		if (!_readBuffer.empty())
