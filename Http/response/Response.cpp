@@ -2,6 +2,7 @@
 #include <cstring>
 #include <cstdio>
 #include <sstream>
+#include <ctime>
 
 struct HeaderAppender {
     std::string& buf;
@@ -18,6 +19,10 @@ Headers Response::getDefaultHeaders(int contentLen) {
     h.set("Content-Length", oss.str());
     h.set("Connection", "keep-alive");
     h.set("Content-Type", "text/plain");
+    std::time_t now = std::time(NULL);
+    char dateBuf[30];
+    std::strftime(dateBuf, sizeof(dateBuf), "%a, %d %b %Y %H:%M:%S GMT", std::gmtime(&now));
+    h.set("Date", dateBuf);
     return h;
 }
 

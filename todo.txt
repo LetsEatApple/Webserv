@@ -1,6 +1,5 @@
-- writer doesn't send chunked responses
+- writer never sends chunked responses
 - timeout handling — a client that connects and sends nothing holds a slot forever.
-- Date header — required by HTTP/1.1 in every response. RFC 9110 Section 6.6.1
 - Directory handling (autoindex)
 - File upload
 - custom error pages

@@ -45,6 +45,7 @@ TEST_CASE("serve regular file", "[static]") {
 	CHECK(extractStatusLine(out).find("200 OK") != std::string::npos);
 	CHECK(out.find("text/plain") != std::string::npos);
 	CHECK(extractBody(out) == "hello world");
+	CHECK(out.find("date: ") != std::string::npos);
 }
 
 TEST_CASE("serve HTML file has correct content-type", "[static]") {
@@ -150,4 +151,5 @@ TEST_CASE("serve nonexistent file returns 404", "[static]") {
 	CHECK(ResponseDispatcher(w, req, loc).serveFile() == 404);
 
 	CHECK(extractStatusLine(out).find("404 Not Found") != std::string::npos);
+	CHECK(out.find("date: ") != std::string::npos);
 }

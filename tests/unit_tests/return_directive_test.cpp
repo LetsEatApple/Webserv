@@ -30,6 +30,7 @@ TEST_CASE("return 200 with body", "[return]") {
     std::string body = extractBody(out);
     CHECK(statusLine == "HTTP/1.1 200 OK");
     CHECK(body == "hello");
+    CHECK(out.find("date: ") != std::string::npos);
 }
 
 TEST_CASE("return 301 redirect", "[return]") {

@@ -60,6 +60,18 @@ inline std::string extractStatusLine(const std::string& response) {
 	return response.substr(0, response.find("\r\n"));
 }
 
+inline std::string extractHeader(const std::string& response, const std::string& name) {
+	std::string search = name + ": ";
+	std::string::size_type pos = response.find(search);
+	if (pos == std::string::npos)
+		return "";
+	pos += search.size();
+	std::string::size_type end = response.find("\r\n", pos);
+	if (end == std::string::npos)
+		return "";
+	return response.substr(pos, end - pos);
+}
+
 inline std::string extractBody(const std::string& response) {
 	std::string::size_type pos = response.find("\r\n\r\n");
 	if (pos == std::string::npos)
