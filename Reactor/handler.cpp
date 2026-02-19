@@ -17,7 +17,7 @@
 
 //	CONNECTION HANDLER
 Connection::Connection(const SessionInfo &session) : EventHandler(session.client.socket), _session(session),
-                                                     _location(), _data(),
+                                                     _location(),
                                                      _routed(false), _closeAfterResponse(false) {
 }
 
@@ -72,18 +72,18 @@ int Connection::handleRead(){
 	switch (result){
 		case RequestError: {
 			_closeAfterResponse = true;
-			Response::Writer w(_data.response);
+			Response::Writer w(_writeBuffer);
 			ResponseDispatcher(w, _request, _location).sendError(Response::StatusBadRequest);
 			return _reactor->modifyHandler(this, EPOLLOUT);
 		}
 		case PayloadTooLarge: {
 			_closeAfterResponse = true;
-			Response::Writer w(_data.response);
+			Response::Writer w(_writeBuffer);
 			ResponseDispatcher(w, _request, _location).sendError(Response::StatusPayloadTooLarge);
 			return _reactor->modifyHandler(this, EPOLLOUT);
 		}
 		case RequestDone: {
-			Response::Writer w(_data.response);
+			Response::Writer w(_writeBuffer);
 			if (_request.error()) {
 				_closeAfterResponse = true;
 				ResponseDispatcher(w, _request, _location).sendError(Response::StatusBadRequest);
@@ -95,7 +95,7 @@ int Connection::handleRead(){
 		}
 		case MethodNotAllowed: {
 			_closeAfterResponse = true;
-			Response::Writer w(_data.response);
+			Response::Writer w(_writeBuffer);
 			ResponseDispatcher(w, _request, _location).sendError(Response::StatusMethodNotAllowed);
 			return _reactor->modifyHandler(this, EPOLLOUT);
 		}
@@ -113,7 +113,7 @@ int Connection::handleRead(){
 
 int Connection::handleWrite() {
 
-	if (_data.response.empty()) {
+	if (_writeBuffer.empty()) {
 		if (_closeAfterResponse) {
 			logDisconnect(_session.listener, _session.client);
 			return _reactor->removeHandler(this, 0);
@@ -125,10 +125,10 @@ int Connection::handleWrite() {
 		return (_reactor->modifyHandler(this, EPOLLIN));
 	}
 
-	const ssize_t sent = send(_fd, _data.response.c_str(), _data.response.length(), MSG_DONTWAIT);
+	const ssize_t sent = send(_fd, _writeBuffer.c_str(), _writeBuffer.length(), MSG_DONTWAIT);
 	if (sent > 0)
-		_data.response.erase(0, sent);
-	if (_data.response.empty()) {
+		_writeBuffer.erase(0, sent);
+	if (_writeBuffer.empty()) {
 		if (_closeAfterResponse) {
 			logDisconnect(_session.listener, _session.client);
 			return _reactor->removeHandler(this, 0);

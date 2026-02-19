@@ -23,25 +23,15 @@
 
 class Reactor;
 
-// storing read and write data for request and response
-struct Data{
-	std::string	request;
-	int			max_size;
-	std::string	response;
-	char		buffer[MAX];
-	int			buflen;
-};
-
 // handling client sockets
 class Connection : public EventHandler{
 
 private:
 	Request					_request;
 	std::string				_readBuffer;
+	std::string				_writeBuffer;
 	SessionInfo				_session;
 	config::Location		_location;
-
-	Data					_data;
 	bool					_routed;
 	bool					_closeAfterResponse;
 
