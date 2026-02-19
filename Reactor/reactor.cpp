@@ -43,6 +43,8 @@ Reactor::Reactor() : _epfd(-1), _ev(), _evlist(), _sig(false) {}
 
 int Reactor::init(const activeSessions &sessions){
 
+	signal(SIGPIPE, SIG_IGN);
+
 	// epoll_create
 	_epfd = epoll_create(42);
 	if (_epfd < 0)
@@ -87,10 +89,8 @@ int Reactor::registerHandler(EventHandler *handler, uint32_t event){
 	handler->reactor(this);
 	ev.events = event;
 	
-	if (epoll_ctl(_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev) < 0){
-		delete handler;
+	if (epoll_ctl(_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev) < 0)
 		return false;
-	}
 
 	_handlers[ev.data.fd] = handler;
 	return true;

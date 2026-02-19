@@ -169,6 +169,7 @@ int Acceptor::handleRead() {
 		}
 		Connection* conn = new Connection(this->_session);
 		if (!_reactor->registerHandler(conn, EPOLLIN)) {
+			close(cfd);
 			delete conn;
 			return false;
 		}
