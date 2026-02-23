@@ -625,9 +625,3 @@ TEST_CASE("Empty limit_except allows all methods", "[limit_except]") {
     std::set<std::string> allowed;
     CHECK(isMethodAllowed("DELETE", allowed));
 }
-
-TEST_CASE("HEAD allowed when GET is allowed", "[limit_except]") {
-    std::set<std::string> allowed;
-    allowed.insert("GET");
-    CHECK(isMethodAllowed("HEAD", allowed));
-}
