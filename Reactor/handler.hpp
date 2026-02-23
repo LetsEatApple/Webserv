@@ -19,9 +19,31 @@
 #include "Response.hpp"
 #include "server.hpp"
 #include "routing.hpp"
+#include <ctime>
 
 
 class Reactor;
+class Connection;
+
+class CgiFdHandler : public EventHandler {
+public:
+  enum Kind { CGI_IN, CGI_OUT };
+  CgiFdHandler(int fd, Connection *owner, Kind kind);
+  ~CgiFdHandler();
+  int handleRead();
+  int handleWrite();
+private:
+  Connection *_owner;
+  Kind _kind;
+};
+
+enum ConnState {
+  StateReadingHeaders,
+  StateReadingBody,
+  StateCgiRunning,
+  StateSendingResponse,
+  StateClosing
+};
 
 // handling client sockets
 class Connection : public EventHandler{
@@ -35,11 +57,35 @@ private:
 	bool					_routed;
 	bool					_closeAfterResponse;
 
+  ConnState _state;
+  bool _isCgi;
+  pid_t _cgiPid;
+  int _cgiInFd;
+  int _cgiOutFd;
+  bool _cgiInClosed;
+
+  std::string _cgiInBuffer;
+  std::string _cgiOutBuffer;
+  CgiFdHandler* _cgiInHandler;
+  CgiFdHandler* _cgiOutHandler;
+  std::time_t    _cgiStartTime;
+
+  bool startCgi();
+  void stopCgi(bool killChild);
+  bool flushRequestBodyChunksToCgiBuffer();
+  bool closeCgiInputIfDone();
+  bool buildHttpResponseFromCgi();
+
 	ProcessResult	processRequest();
 public:
 	Connection(const SessionInfo &session);
+  ~Connection();
 	int	handleRead();
 	int	handleWrite();
+  bool checkTimeout();
+  int onCgiWritable();
+  int onCgiReadable();
+  void onCgiHandlerClosed(CgiFdHandler::Kind kind);
 };
 
 // handling listening sockets

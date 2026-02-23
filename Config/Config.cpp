@@ -508,7 +508,7 @@ Listeners buildConfig(const std::string &path) {
   for (size_t i = 0; i < http.blocks.size(); ++i)
     buildServers(listeners, http.blocks[i], http_default_location);
 
-  //std::cout << listeners;
+  std::cout << listeners;
   return listeners;
 }
 }; // namespace config

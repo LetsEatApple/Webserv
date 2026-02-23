@@ -10,8 +10,12 @@
 /*                                                                            */
 /* ************************************************************************** */
 
+#include "AEventHandler.hpp"
 #include "lib.hpp"
 #include "reactor.hpp"
+#include <map>
+#include <sys/epoll.h>
+#include <vector>
 
 static int g_signal_fd = -1;
 
@@ -128,22 +132,56 @@ int Reactor::removeHandler (EventHandler *handler, uint32_t event){
 
 int Reactor::handleEvents(){
 
-	int nfds = epoll_wait(_epfd, _evlist, MAX, -1);
-	if (nfds < 0)
-		return false;
+	int nfds = epoll_wait(_epfd, _evlist, MAX, 1000);
+	if (nfds == 0) {
+    checkTimeouts();
+		return true;
+  }
 
 	for (int i = 0; i < nfds; i++){
 		int fd = _evlist[i].data.fd;
 		if (_handlers.find(fd) == _handlers.end())
 			continue;
+
+    uint32_t ev = _evlist[i].events;
+
+    if (ev & EPOLLIN)
+      _handlers[fd]->handleRead();
+    else if (ev & EPOLLOUT) {
+      if (_handlers.find(fd) != _handlers.end())
+        _handlers[fd]->handleWrite();
+    }
+    else if (ev & (EPOLLHUP | EPOLLERR)) {
+      if (_handlers.find(fd) != _handlers.end())
+          _handlers[fd]->handleRead();
+    }
+
+    if ((ev & (EPOLLHUP | EPOLLERR)) && _handlers.find(fd) != _handlers.end())
+      removeHandler(_handlers[fd], 0);
+    /*
 		if (_evlist[i].events & (EPOLLHUP | EPOLLERR))
 			removeHandler(_handlers[fd], 0);
 		else if (_evlist[i].events & EPOLLIN)
 			_handlers[fd]->handleRead();
 		else if (_evlist[i].events & EPOLLOUT)
 			_handlers[fd]->handleWrite();
+    */
 	}
+  checkTimeouts();
 	return true;
+}
+
+void Reactor::checkTimeouts() {
+  std::vector<EventHandler*> timedOut;
+  for (std::map<int, EventHandler*>::iterator it = _handlers.begin(); it != _handlers.end(); ++it) {
+    if (it->second->checkTimeout())
+      timedOut.push_back(it->second);
+  }
+  for (size_t i = 0; i < timedOut.size(); ++i) {
+    int fd = timedOut[i]->get_fd();
+    if (_handlers.find(fd) != _handlers.end())
+      removeHandler(timedOut[i], 0);
+  }
 }
 
 bool Reactor::stop(int mode){

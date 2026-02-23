@@ -18,7 +18,9 @@ namespace Response {
         StatusMethodNotAllowed = 405,
         StatusPayloadTooLarge = 413,
         StatusInternalServerError = 500,
-        StatusNotImplemented = 501
+        StatusNotImplemented = 501,
+        StatusBadGateway = 502,
+        StatusGatewayTimeout = 504
     };
 
     StatusCode intToStatusCode(int code);

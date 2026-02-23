@@ -31,5 +31,6 @@ public:
 	//int			fd(int mode, int fd);
 	virtual int		handleRead() = 0;
 	virtual int		handleWrite() = 0;
+  virtual bool  checkTimeout();
 	virtual			~EventHandler();
 };
