@@ -4,7 +4,6 @@
 - a client can crash the server by sending an infinite header
   - we need to limit the max header size
 - timeout handling — a client that connects and sends nothing holds a slot forever.
-- missing: Directory handling (autoindex)
 - missing: File upload
 - minor problem: _writeBuffer.erase(0, sent) copies the entire buffer. can we use a ringbuffer?
 - missing: custom error pages
