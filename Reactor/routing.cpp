@@ -160,8 +160,5 @@ bool	isCGI(const std::string& path, const std::map<std::string, std::string>& cg
 bool	isMethodAllowed(const std::string& method, const std::set<std::string>& limit_except){
 	if (limit_except.empty())
 		return true;
-	std::string effective = method;
-	if (effective == "HEAD")
-		effective = "GET";
-	return limit_except.find(effective) != limit_except.end();
+	return limit_except.find(method) != limit_except.end();
 }

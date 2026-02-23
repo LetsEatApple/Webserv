@@ -31,7 +31,6 @@ int ResponseDispatcher::sendError(Response::StatusCode code) {
 	_w.writeStatusLine(code);
 	Headers h = Response::getDefaultHeaders(body.size());
 	h.replace("Content-Type", "text/html");
-	h.replace("Connection", "close");
 	_w.writeHeaders(h);
 	if (_req.getMethod() != "HEAD")
 		_w.writeBody(body.c_str(), body.size());
@@ -89,12 +88,12 @@ int ResponseDispatcher::serveFile() {
 			} else if (_loc.autoindex) {
 				return sendError(Response::StatusForbidden);
 			} else {
-				return sendError(Response::StatusForbidden);
+				return sendError(Response::StatusNotFound);
 			}
 		} else if (_loc.autoindex) {
 			return sendError(Response::StatusForbidden);
 		} else {
-			return sendError(Response::StatusForbidden);
+			return sendError(Response::StatusNotFound);
 		}
 	}
 	// 4. regular file -> read, write status 200 + Content-Type from getMimeType()

@@ -33,8 +33,6 @@ ProcessResult Connection::processRequest(){
 			return RequestError;
 		_routed = true;
 		_request.setMaxBodySize(_location.client_max_body_size);
-		if (!isMethodAllowed(_request.getMethod(), _location.limit_except))
-			return MethodNotAllowed;
 		if (_request.checkState(ParserState::Body)
 			&& _request.getContentLen() > _location.client_max_body_size)
 			return PayloadTooLarge;
@@ -50,8 +48,11 @@ ProcessResult Connection::processRequest(){
 				_readBuffer.erase(0, consumed);
 		}
 	}
-	if (_request.done())
+	if (_request.done()) {
+		if (_routed && !isMethodAllowed(_request.getMethod(), _location.limit_except))
+			return MethodNotAllowed;
 		return RequestDone;
+	}
 	return NeedMoreData;
 }
 
@@ -94,7 +95,6 @@ int Connection::handleRead(){
 			return _reactor->modifyHandler(this, EPOLLOUT);
 		}
 		case MethodNotAllowed: {
-			_closeAfterResponse = true;
 			Response::Writer w(_writeBuffer);
 			ResponseDispatcher(w, _request, _location).sendError(Response::StatusMethodNotAllowed);
 			return _reactor->modifyHandler(this, EPOLLOUT);
