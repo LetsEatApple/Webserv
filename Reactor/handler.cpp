@@ -110,7 +110,7 @@ bool Connection::startCgi() {
           script = reqPath.substr(0, extEnd);
         else
           script = reqPath.substr(prev_slash, extEnd);
-        pathInfo = reqPath.substr(extEnd);
+        pathInfo = reqPath;//reqPath.substr(extEnd);
         found = true;
         break;
       }
@@ -175,18 +175,21 @@ bool Connection::startCgi() {
     addEnv(envStore, "SCRIPT_NAME", scriptName);
     addEnv(envStore, "SCRIPT_FILENAME", scriptFileName);
     addEnv(envStore, "QUERY_STRING", queryString);
-    addEnv(envStore, "PATH_INFO", pathInfo);
-    addEnv(envStore, "PATH_TRANSLATED", pathTranslated);
+    if (!pathInfo.empty()) {
+      addEnv(envStore, "PATH_INFO", pathInfo);
+      addEnv(envStore, "PATH_TRANSLATED", pathTranslated);
+    }
     addEnv(envStore, "DOCUMENT_ROOT", documentRoot);
     addEnv(envStore, "REQUEST_URI", _request.getTarget());
     addEnv(envStore, "SERVER_NAME", _request.getHost());
     addEnv(envStore, "REDIRECT_STATUS", "200");
-    if (requestMethod == "POST")
+    if (requestMethod == "POST") {
       addEnv(envStore, "CONTENT_LENGTH", cl.str());
 
-    std::string contentType = _request.getHeaders().get("content-type");
-    if (!contentType.empty())
-      addEnv(envStore, "CONTENT_TYPE", contentType);
+      std::string contentType = _request.getHeaders().get("content-type");
+      if (!contentType.empty())
+        addEnv(envStore, "CONTENT_TYPE", contentType);
+    }
 
     const Headers& hdrs = _request.getHeaders();
     hdrs.forEach(AddHttpEnv(envStore));
@@ -297,31 +300,41 @@ void Connection::onCgiHandlerClosed(CgiFdHandler::Kind kind) {
   }
 }
 
+  void pr(const std::string& f, const std::string& s) {
+    std::cout << f << ":  " << s << std::endl;
+  }
 bool Connection::buildHttpResponseFromCgi() {
     size_t sep = _cgiOutBuffer.find("\r\n\r\n");
     size_t sepLen = 4;
-    if (sep == std::string::npos) {
-        sep = _cgiOutBuffer.find("\n\n");
-        sepLen = 2;
-    }
+    //if (sep == std::string::npos) {
+    //    sep = _cgiOutBuffer.find("\n\n");
+    //    sepLen = 2;
+    //}
+
+    if (sep == std::string::npos)
+      return false;
 
     // No CGI headers: treat entire output as body TODO: should be an error?
-    if (sep == std::string::npos) {
-        Response::Writer w(_writeBuffer);
-        w.writeStatusLine(Response::StatusOk);
-        Headers h = Response::getDefaultHeaders(_cgiOutBuffer.size());
-        h.set("Connection", "close");
-        w.writeHeaders(h);
-        w.writeBody(_cgiOutBuffer.c_str(), _cgiOutBuffer.size());
-        return true;
-    }
+    //if (sep == std::string::npos) {
+    //    Response::Writer w(_writeBuffer);
+    //    w.writeStatusLine(Response::StatusOk);
+    //    Headers h = Response::getDefaultHeaders(_cgiOutBuffer.size());
+    //    h.set("Connection", "close");
+    //    w.writeHeaders(h);
+    //    w.writeBody(_cgiOutBuffer.c_str(), _cgiOutBuffer.size());
+    //    return true;
+    //}
     
     std::string rawHeaders = _cgiOutBuffer.substr(0, sep);
     std::string body = _cgiOutBuffer.substr(sep + sepLen);
 
+    //std::cerr << "TOTAL CGI OUT SIZE: " << _cgiOutBuffer.size() << std::endl;
+    //std::cerr << "SEP POSITION: " << sep << std::endl;
+    //std::cerr << "BODY SIZE: " << body.size() << std::endl;
+    
     int status = 200;
     Headers cgiHeaders;
-    bool hasContentLength = false;
+    //bool hasContentLength = false;
     bool hasContentType = false;
 
     std::istringstream hs(rawHeaders);
@@ -346,8 +359,9 @@ bool Connection::buildHttpResponseFromCgi() {
             if (status <= 0) status = 200;
             continue;
         }
-        if (name == "Content-Length")
-            hasContentLength = true;
+        if (name == "Content-Length" || name == "content-length")
+            //hasContentLength = true;
+            continue;
         if (name == "Content-Type")
             hasContentType = true;
 
@@ -358,13 +372,18 @@ bool Connection::buildHttpResponseFromCgi() {
     Response::Writer w(_writeBuffer);
     w.writeStatusLine(code);
 
-    if (!hasContentLength)
-        cgiHeaders.set("Content-Length", str(body.size()));
+    std::ostringstream oss;
+    oss << body.size();
+    cgiHeaders.set("Content-Length", oss.str());
     if (!hasContentType)
         cgiHeaders.set("Content-Type", "text/html");
 
+    //cgiHeaders.forEach(pr);
+
     w.writeHeaders(cgiHeaders);
+
     w.writeBody(body.c_str(), body.size());
+    //std::cerr << "WRITE BUFFER SIZE: " << _writeBuffer.size() << std::endl;
     return true;
 }
 
