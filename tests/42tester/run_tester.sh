@@ -20,7 +20,7 @@ mkdir -p /tmp/www /tmp/www/YoupiBanane/nop /tmp/www/YoupiBanane/Yeah
 
 # Build server (only if binary doesn't exist)
 if [ ! -f ../../cmake-build-debug/webserv ]; then
-    cmake -S ../.. -B ../../cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++19 > /dev/null 2>&1
+    cmake -S ../.. -B ../../cmake-build-debug -DCMAKE_BUILD_TYPE=Debug > /dev/null 2>&1
     cmake --build ../../cmake-build-debug --target webserv || exit 1
 fi
 

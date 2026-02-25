@@ -309,10 +309,12 @@ void Connection::onCgiHandlerClosed(CgiFdHandler::Kind kind) {
 bool Connection::buildHttpResponseFromCgi() {
     size_t sep = _cgiOutBuffer.find("\r\n\r\n");
     size_t sepLen = 4;
-    //if (sep == std::string::npos) {
-    //    sep = _cgiOutBuffer.find("\n\n");
-    //    sepLen = 2;
-    //}
+
+    // Perl CGI uses \n\n as separator TODO: 
+    if (sep == std::string::npos) {
+        sep = _cgiOutBuffer.find("\n\n");
+        sepLen = 2;
+    }
 
     if (sep == std::string::npos)
       return false;
@@ -394,7 +396,7 @@ int Connection::onCgiWritable() {
     if (!_isCgi || _cgiInFd < 0) return true;
 
     if (!_cgiInBuffer.empty()) {
-            ssize_t n = send(_cgiInFd, _cgiInBuffer.c_str(), _cgiInBuffer.size(), MSG_DONTWAIT);
+      ssize_t n = send(_cgiInFd, _cgiInBuffer.c_str(), _cgiInBuffer.size(), MSG_DONTWAIT);
        // ssize_t n = write(_cgiInFd, _cgiInBuffer.c_str(), _cgiInBuffer.size());
         if (n > 0)
             _cgiInBuffer.erase(0, static_cast<size_t>(n));
@@ -409,7 +411,8 @@ int Connection::onCgiReadable() {
     if (!_isCgi || _cgiOutFd < 0) return true;
 
     char buf[MAX];
-    ssize_t n = read(_cgiOutFd, buf, sizeof(buf));
+      ssize_t n = recv(_cgiOutFd, buf, sizeof(buf), MSG_DONTWAIT);
+ //   ssize_t n = read(_cgiOutFd, buf, sizeof(buf));
     if (n > 0) {
         _cgiOutBuffer.append(buf, static_cast<size_t>(n));
         return true;
