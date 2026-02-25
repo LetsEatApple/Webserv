@@ -35,7 +35,7 @@
 # define MAX 1024
 # define SET 1
 # define GET 0
-# define CGI_TIMEOUT_SEC 100
+# define CGI_TIMEOUT_SEC 1000
 
 int	error(const std::string& err, int errno_on);
 

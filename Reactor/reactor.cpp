@@ -15,6 +15,7 @@
 #include "reactor.hpp"
 #include <map>
 #include <sys/epoll.h>
+#include <sys/socket.h>
 #include <vector>
 
 static int g_signal_fd = -1;
@@ -30,15 +31,19 @@ void on_signal(int sig) {
 int set_signalfd(){
 
 	int pfd[2];
+  //if (socketpair(AF_UNIX, SOCK_STREAM, 0, pfd) == -1)
+  //  return -1;
+  
 	if (pipe(pfd) == -1)
 		return -1;
-	int ret1 = fcntl(pfd[0], F_SETFL, O_NONBLOCK); // read end, watched by epoll
+	/*int ret1 = fcntl(pfd[0], F_SETFL, O_NONBLOCK); // read end, watched by epoll
 	int ret2 = fcntl(pfd[1], F_SETFL, O_NONBLOCK); // write end, signalHandler writes here
 	if (ret1 == -1 || ret2 == -1){
 		close(pfd[0]);
 		close(pfd[1]);
 		return -1;
 	}
+  */
 	g_signal_fd = pfd[1];
 	return pfd[0];
 }

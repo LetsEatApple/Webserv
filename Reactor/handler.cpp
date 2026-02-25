@@ -28,9 +28,9 @@
 #include <cstring>
 #include <sstream>
 #include <vector>
-#include <fcntl.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <sys/un.h>
 
 CgiFdHandler::CgiFdHandler(int fd, Connection* owner, Kind kind) : EventHandler(fd), _owner(owner),
   _kind(kind) {}
@@ -54,12 +54,12 @@ Connection::~Connection() {
   _state = StateClosing;
   stopCgi(true);
 }
-
+/*
 static bool makeNonBlocking(int fd) {
   int fl = fcntl(fd, F_GETFL, 0);
   return (fl >= 0 && fcntl(fd, F_SETFL, fl | O_NONBLOCK) == 0);
 }
-
+*/
 static std::string dirNameOf(const std::string& p) {
   size_t pos = p.find_last_of('/');
   if (pos == std::string::npos) return ".";
@@ -125,19 +125,22 @@ bool Connection::startCgi() {
 
   int inPipe[2] = {-1, -1};
   int outPipe[2] = {-1, -1};
-  if (pipe(inPipe) != 0 || pipe(outPipe) != 0) {
+  //if (pipe(inPipe) != 0 || pipe(outPipe) != 0) {
+  if (socketpair(AF_UNIX, SOCK_STREAM, 0, inPipe) != 0 
+    || socketpair(AF_UNIX, SOCK_STREAM, 0, outPipe) != 0) {
     if (inPipe[0] != -1) close(inPipe[0]);
-    if (inPipe[1] != -1) close(inPipe[1]);
+  if (inPipe[1] != -1) close(inPipe[1]);
     if (outPipe[0] != -1) close(outPipe[0]);
     if (outPipe[1] != -1) close(outPipe[1]);
     return false;
   }
+/*
   if (!makeNonBlocking(inPipe[1]) || !makeNonBlocking(outPipe[0])) {
     close(inPipe[0]); close(inPipe[1]);
     close(outPipe[0]); close(outPipe[1]);
     return false;
   }
-
+*/
   pid_t pid = fork();
   if (pid < 0) {
     close(inPipe[0]); close(inPipe[1]);
@@ -391,7 +394,8 @@ int Connection::onCgiWritable() {
     if (!_isCgi || _cgiInFd < 0) return true;
 
     if (!_cgiInBuffer.empty()) {
-        ssize_t n = write(_cgiInFd, _cgiInBuffer.c_str(), _cgiInBuffer.size());
+            ssize_t n = send(_cgiInFd, _cgiInBuffer.c_str(), _cgiInBuffer.size(), MSG_DONTWAIT);
+       // ssize_t n = write(_cgiInFd, _cgiInBuffer.c_str(), _cgiInBuffer.size());
         if (n > 0)
             _cgiInBuffer.erase(0, static_cast<size_t>(n));
         else
@@ -604,12 +608,14 @@ int Acceptor::handleRead() {
 			break; // accept() may return -1 with EAGAIN if no connections are pending (not an error)
 		_session.client.portPair = IP_port(c_addr);
 		_session.client.socket = cfd;
+    /*
 		int flags = fcntl(cfd, F_GETFL, 0);
 		int ret = fcntl(cfd, F_SETFL, flags | O_NONBLOCK);
 		if (ret == -1 || flags == -1){
 			close(cfd);
 			return false;
 		}
+    */
 		Connection* conn = new Connection(this->_session);
 		if (!_reactor->registerHandler(conn, EPOLLIN)) {
 			close(cfd);
@@ -634,7 +640,8 @@ Signal::Signal(int fd) : EventHandler(fd){
 int Signal::handleRead(){
 
 	char buffer[MAX];
-	while (read(_fd, buffer, sizeof(buffer)) > 0) {}
+  read(_fd, buffer, sizeof(buffer));
+	//while (read(_fd, buffer, sizeof(buffer)) > 0) {}
 	std::cout << "\n\033[95mSignal detected: Shutting down ...\033[0;37m" << std::endl;
 	return (_reactor->stop(SET));
 }
