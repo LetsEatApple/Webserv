@@ -42,3 +42,4 @@ EventHandler::~EventHandler(){}
 	return _fd;
 } */
 
+bool EventHandler::checkTimeout() { return false; }

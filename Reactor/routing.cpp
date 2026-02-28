@@ -1,4 +1,6 @@
 #include "routing.hpp"
+#include <cstddef>
+#include <string>
 
 size_t	findHost(const std::vector<config::Server>& servers, const std::string& host){
 
@@ -151,10 +153,20 @@ bool	findLocation(const std::vector<config::Server>& servers, const Request &req
 }
 
 bool	isCGI(const std::string& path, const std::map<std::string, std::string>& cgi) {
-	size_t dot = path.rfind('.');
-	if (dot == std::string::npos)
-		return false;
-	return cgi.find(path.substr(dot)) != cgi.end();
+  size_t searchFrom = 0;
+  while (searchFrom < path.size()) {
+    size_t dot = path.find('.', searchFrom);
+    if (dot == std::string::npos)
+      return false;
+    size_t extEnd = path.find('/', dot);
+    if (extEnd == std::string::npos)
+      extEnd = path.size();
+    std::string ext = path.substr(dot, extEnd - dot);
+    if (cgi.find(ext) != cgi.end())
+      return true;
+    searchFrom = extEnd;
+  }
+  return false;
 }
 
 bool	isMethodAllowed(const std::string& method, const std::set<std::string>& limit_except){

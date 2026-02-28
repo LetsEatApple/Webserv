@@ -10,8 +10,13 @@
 /*                                                                            */
 /* ************************************************************************** */
 
+#include "AEventHandler.hpp"
 #include "lib.hpp"
 #include "reactor.hpp"
+#include <map>
+#include <sys/epoll.h>
+#include <sys/socket.h>
+#include <vector>
 
 static int g_signal_fd = -1;
 
@@ -26,15 +31,19 @@ void on_signal(int sig) {
 int set_signalfd(){
 
 	int pfd[2];
+  //if (socketpair(AF_UNIX, SOCK_STREAM, 0, pfd) == -1)
+  //  return -1;
+  
 	if (pipe(pfd) == -1)
 		return -1;
-	int ret1 = fcntl(pfd[0], F_SETFL, O_NONBLOCK); // read end, watched by epoll
+	/*int ret1 = fcntl(pfd[0], F_SETFL, O_NONBLOCK); // read end, watched by epoll
 	int ret2 = fcntl(pfd[1], F_SETFL, O_NONBLOCK); // write end, signalHandler writes here
 	if (ret1 == -1 || ret2 == -1){
 		close(pfd[0]);
 		close(pfd[1]);
 		return -1;
 	}
+  */
 	g_signal_fd = pfd[1];
 	return pfd[0];
 }
@@ -128,22 +137,56 @@ int Reactor::removeHandler (EventHandler *handler, uint32_t event){
 
 int Reactor::handleEvents(){
 
-	int nfds = epoll_wait(_epfd, _evlist, MAX, -1);
-	if (nfds < 0)
-		return false;
+	int nfds = epoll_wait(_epfd, _evlist, MAX, 1000);
+	if (nfds == 0) {
+    checkTimeouts();
+		return true;
+  }
 
 	for (int i = 0; i < nfds; i++){
 		int fd = _evlist[i].data.fd;
 		if (_handlers.find(fd) == _handlers.end())
 			continue;
+
+    uint32_t ev = _evlist[i].events;
+
+    if (ev & EPOLLIN)
+      _handlers[fd]->handleRead();
+    else if (ev & EPOLLOUT) {
+      if (_handlers.find(fd) != _handlers.end())
+        _handlers[fd]->handleWrite();
+    }
+    else if (ev & (EPOLLHUP | EPOLLERR)) {
+      if (_handlers.find(fd) != _handlers.end())
+          _handlers[fd]->handleRead();
+    }
+
+    if ((ev & (EPOLLHUP | EPOLLERR)) && _handlers.find(fd) != _handlers.end())
+      removeHandler(_handlers[fd], 0);
+    /*
 		if (_evlist[i].events & (EPOLLHUP | EPOLLERR))
 			removeHandler(_handlers[fd], 0);
 		else if (_evlist[i].events & EPOLLIN)
 			_handlers[fd]->handleRead();
 		else if (_evlist[i].events & EPOLLOUT)
 			_handlers[fd]->handleWrite();
+    */
 	}
+  checkTimeouts();
 	return true;
+}
+
+void Reactor::checkTimeouts() {
+  std::vector<EventHandler*> timedOut;
+  for (std::map<int, EventHandler*>::iterator it = _handlers.begin(); it != _handlers.end(); ++it) {
+    if (it->second->checkTimeout())
+      timedOut.push_back(it->second);
+  }
+  for (size_t i = 0; i < timedOut.size(); ++i) {
+    int fd = timedOut[i]->get_fd();
+    if (_handlers.find(fd) != _handlers.end())
+      removeHandler(timedOut[i], 0);
+  }
 }
 
 bool Reactor::stop(int mode){

@@ -1,5 +1,6 @@
 #include "ResponseDispatcher.hpp"
 #include "MimeTypes.hpp"
+#include "Response.hpp"
 #include <sys/stat.h>
 #include <cstdio>
 #include <fstream>

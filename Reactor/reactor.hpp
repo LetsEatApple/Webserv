@@ -30,6 +30,7 @@ public:
 	int		removeHandler (EventHandler *handler, uint32_t event);
 	int		modifyHandler (EventHandler *handler, uint32_t event);
 	int		handleEvents();
+  void  checkTimeouts();
 	bool	stop (int mode);
 	~Reactor();
 };

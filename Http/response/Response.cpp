@@ -50,8 +50,10 @@ const char* Response::statusCodeToLine(StatusCode code) {
         case StatusMethodNotAllowed:  return "HTTP/1.1 405 Method Not Allowed\r\n";
         case StatusPayloadTooLarge:  return "HTTP/1.1 413 Payload Too Large\r\n";
         case StatusInternalServerError: return "HTTP/1.1 500 Internal Server Error\r\n";
-        case StatusNotImplemented:    return "HTTP/1.1 501 Not Implemented\r\n";
-        default:                      return NULL;
+        case StatusNotImplemented:    return "HTTP/1.1 501 Not Implemented\r\n"; 
+        case StatusBadGateway:        return "HTTP/1.1 502 Bad Gateway\r\n";
+        case StatusGatewayTimeout:  return "HTTP/1.1 504 Gateway Timeout\r\n";
+        default:                      return NULL; // AddressSanitizer error if NULL;
     }
 }
 
