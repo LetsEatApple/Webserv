@@ -68,13 +68,10 @@ def test_static_files():
         assert body == "hello world", f"Expected 'hello world', got '{body}'"
         print("PASS: GET /files/hello.txt -> 200 (non-root location)")
 
-        # 6. HEAD returns headers but no body
+        # 6. HEAD is not in limit_except -> 405
         status, headers, body = request(8091, "/hello.txt", method="HEAD")
-        assert status == 200, f"Expected 200, got {status}"
-        assert body == "", f"Expected empty body, got '{body}'"
-        assert int(headers.get("content-length", 0)) > 0, \
-            "Expected non-zero Content-Length"
-        print("PASS: HEAD /hello.txt -> 200 with empty body")
+        assert status == 405, f"Expected 405, got {status}"
+        print("PASS: HEAD /hello.txt -> 405 (not in limit_except)")
 
         # 7. Nonexistent path under non-root location returns 404
         status, _, _ = request(8091, "/files/nonexistent.txt")

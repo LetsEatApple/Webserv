@@ -11,24 +11,8 @@
 /* ************************************************************************** */
 
 #include "handler.hpp"
-#include "Headers.hpp"
-#include "Logger.hpp"
-#include "Utils.hpp"
-#include "routing.hpp"
 #include "reactor.hpp"
 #include "ResponseDispatcher.hpp"
-#include <cstddef>
-#include <cstdlib>
-#include <ctime>
-#include <string>
-#include <sys/epoll.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <cstring>
-#include <sstream>
-#include <vector>
-#include <signal.h>
 #include <sys/wait.h>
 #include <sys/un.h>
 
@@ -89,7 +73,7 @@ struct AddHttpEnv {
 };
 
 bool Connection::startCgi() {
-  const std::string reqPath = _request.getPath(); // /perl/perl.cgi 
+  const std::string reqPath = _request.getPath(); // /perl/perl.cgi
 
   std::string script;
   std::string pathInfo;
@@ -126,7 +110,7 @@ bool Connection::startCgi() {
   int inPipe[2] = {-1, -1};
   int outPipe[2] = {-1, -1};
   //if (pipe(inPipe) != 0 || pipe(outPipe) != 0) {
-  if (socketpair(AF_UNIX, SOCK_STREAM, 0, inPipe) != 0 
+  if (socketpair(AF_UNIX, SOCK_STREAM, 0, inPipe) != 0
     || socketpair(AF_UNIX, SOCK_STREAM, 0, outPipe) != 0) {
     if (inPipe[0] != -1) close(inPipe[0]);
   if (inPipe[1] != -1) close(inPipe[1]);
@@ -234,7 +218,7 @@ bool Connection::startCgi() {
     stopCgi(true);
     return false;
   }
-  
+
   if (_cgiInBuffer.empty()) {
     closeCgiInputIfDone(); // sends EOF to CGI stdin for GET
 }
@@ -310,7 +294,7 @@ bool Connection::buildHttpResponseFromCgi() {
     size_t sep = _cgiOutBuffer.find("\r\n\r\n");
     size_t sepLen = 4;
 
-    // Perl CGI uses \n\n as separator TODO: 
+    // Perl CGI uses \n\n as separator TODO:
     if (sep == std::string::npos) {
         sep = _cgiOutBuffer.find("\n\n");
         sepLen = 2;
@@ -329,14 +313,14 @@ bool Connection::buildHttpResponseFromCgi() {
     //    w.writeBody(_cgiOutBuffer.c_str(), _cgiOutBuffer.size());
     //    return true;
     //}
-    
+
     std::string rawHeaders = _cgiOutBuffer.substr(0, sep);
     std::string body = _cgiOutBuffer.substr(sep + sepLen);
 
     //std::cerr << "TOTAL CGI OUT SIZE: " << _cgiOutBuffer.size() << std::endl;
     //std::cerr << "SEP POSITION: " << sep << std::endl;
     //std::cerr << "BODY SIZE: " << body.size() << std::endl;
-    
+
     int status = 200;
     Headers cgiHeaders;
     //bool hasContentLength = false;
@@ -469,25 +453,17 @@ ProcessResult Connection::processRequest(){
 		}
 	}
 	if (_request.done()) {
-<<<<<<< HEAD
 		if (_routed && !isMethodAllowed(_request.getMethod(), _location.limit_except))
 			return MethodNotAllowed;
+		if (!_isCgi && _routed && isCGI(_request.getPath(), _location.cgi)) {
+			if (!startCgi())
+				return RequestError;
+			return NeedMoreData;
+		}
+		if (_isCgi)
+			return NeedMoreData;
 		return RequestDone;
 	}
-=======
-    if (_routed && !isMethodAllowed(_request.getMethod(), _location.limit_except))
-			return MethodNotAllowed;
-    if (!_isCgi && _routed && isCGI(_request.getPath(), _location.cgi)) {
-      if (!startCgi())
-        return RequestError;
-      return NeedMoreData;
-    }
-    if (_isCgi)
-      return NeedMoreData;
-		return RequestDone;
-  }
-
->>>>>>> origin/cgi
 	return NeedMoreData;
 }
 
