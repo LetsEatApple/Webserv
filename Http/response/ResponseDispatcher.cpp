@@ -28,10 +28,22 @@ ResponseDispatcher::ResponseDispatcher(Response::Writer& w, const Request& req, 
 	: _w(w), _req(req), _loc(loc) {}
 
 int ResponseDispatcher::sendError(Response::StatusCode code) {
-	std::string body = Response::getDefaultErrorPage(code);
+	std::string body;
+	std::string contentType = "text/html";
+	std::map<int, std::string>::const_iterator it = _loc.error_page.find(static_cast<int>(code));
+	if (it != _loc.error_page.end()) {
+		std::ifstream file(it->second.c_str(), std::ios::binary);
+		if (file) {
+			body.assign(std::istreambuf_iterator<char>(file),
+						std::istreambuf_iterator<char>());
+			contentType = getMimeType(it->second);
+		}
+	}
+	if (body.empty())
+		body = Response::getDefaultErrorPage(code);
 	_w.writeStatusLine(code);
 	Headers h = Response::getDefaultHeaders(body.size());
-	h.replace("Content-Type", "text/html");
+	h.replace("Content-Type", contentType);
 	_w.writeHeaders(h);
 	if (_req.getMethod() != "HEAD")
 		_w.writeBody(body.c_str(), body.size());

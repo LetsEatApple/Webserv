@@ -15,6 +15,13 @@ static config::Location makeFileLocation(const std::string& alias,
 	return loc;
 }
 
+static config::Location makeLocationWithErrorPage(const std::string& alias,
+												  int code, const std::string& pagePath) {
+	config::Location loc = makeFileLocation(alias);
+	loc.error_page[code] = pagePath;
+	return loc;
+}
+
 TEST_CASE("getMimeType returns correct MIME type", "[mime]") {
 	CHECK(getMimeType("style.css") == "text/css");
 	CHECK(getMimeType("index.html") == "text/html");
@@ -206,4 +213,76 @@ TEST_CASE("deep path traversal is blocked", "[static][security]") {
 	CHECK(status != 200);
 	CHECK(extractBody(out).find("outside") == std::string::npos);
 	rmdir(subdir.c_str());
+}
+
+TEST_CASE("custom error page served on 404", "[error_page]") {
+	TempDir dir;
+	TempFile errorFile(dir.path + "/404.html", "<h1>Custom Not Found</h1>");
+
+	Request req = makeRequest("GET", "/nope.txt");
+	config::Location loc = makeLocationWithErrorPage(dir.path, 404, dir.path + "/404.html");
+
+	std::string out;
+	Response::Writer w(out);
+	CHECK(ResponseDispatcher(w, req, loc).sendError(Response::StatusNotFound) == 404);
+
+	CHECK(extractStatusLine(out).find("404 Not Found") != std::string::npos);
+	CHECK(extractBody(out) == "<h1>Custom Not Found</h1>");
+}
+
+TEST_CASE("custom error page with missing file falls back to default", "[error_page]") {
+	TempDir dir;
+
+	Request req = makeRequest("GET", "/nope.txt");
+	config::Location loc = makeLocationWithErrorPage(dir.path, 404, dir.path + "/nonexistent.html");
+
+	std::string out;
+	Response::Writer w(out);
+	CHECK(ResponseDispatcher(w, req, loc).sendError(Response::StatusNotFound) == 404);
+
+	CHECK(extractStatusLine(out).find("404 Not Found") != std::string::npos);
+	CHECK(extractBody(out).find("404 Not Found") != std::string::npos);
+}
+
+TEST_CASE("no custom error page uses default", "[error_page]") {
+	TempDir dir;
+
+	Request req = makeRequest("GET", "/nope.txt");
+	config::Location loc = makeFileLocation(dir.path);
+
+	std::string out;
+	Response::Writer w(out);
+	CHECK(ResponseDispatcher(w, req, loc).sendError(Response::StatusNotFound) == 404);
+
+	CHECK(extractBody(out).find("404 Not Found") != std::string::npos);
+}
+
+TEST_CASE("custom error page for 403", "[error_page]") {
+	TempDir dir;
+	TempFile errorFile(dir.path + "/403.html", "Forbidden!");
+
+	Request req = makeRequest("GET", "/");
+	config::Location loc = makeLocationWithErrorPage(dir.path, 403, dir.path + "/403.html");
+
+	std::string out;
+	Response::Writer w(out);
+	CHECK(ResponseDispatcher(w, req, loc).sendError(Response::StatusForbidden) == 403);
+
+	CHECK(extractBody(out) == "Forbidden!");
+}
+
+TEST_CASE("custom error page only matches its status code", "[error_page]") {
+	TempDir dir;
+	TempFile errorFile(dir.path + "/404.html", "Custom 404");
+
+	Request req = makeRequest("GET", "/");
+	config::Location loc = makeLocationWithErrorPage(dir.path, 404, dir.path + "/404.html");
+
+	std::string out;
+	Response::Writer w(out);
+	CHECK(ResponseDispatcher(w, req, loc).sendError(Response::StatusBadRequest) == 400);
+
+	// 400 should NOT use the 404 custom page
+	CHECK(extractBody(out).find("Custom 404") == std::string::npos);
+	CHECK(extractBody(out).find("400 Bad Request") != std::string::npos);
 }

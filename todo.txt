@@ -6,9 +6,8 @@
 - timeout handling — a client that connects and sends nothing holds a slot forever.
 - missing: File upload
 - minor problem: _writeBuffer.erase(0, sent) copies the entire buffer. can we use a ringbuffer?
-- missing: custom error pages
 - missing: cookies/sessions
-- missing: CGI
+- problem: CGI hangs on large requests
 - clean up SessionInfo, first prevent deep copies of the configuration for every client
 - write documentation of the architecture
 - problem: EPOLLHUB is handled before EPOLLIN, they can fire together, if a client immediately closes the connection, then the request is dropped

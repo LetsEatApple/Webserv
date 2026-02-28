@@ -161,7 +161,7 @@ int Reactor::handleEvents(){
           _handlers[fd]->handleRead();
     }
 
-    if ((ev & (EPOLLHUP | EPOLLERR)) && _handlers.find(fd) != _handlers.end())
+    if ((ev & (EPOLLHUP | EPOLLERR)) && !(ev & EPOLLIN) && _handlers.find(fd) != _handlers.end())
       removeHandler(_handlers[fd], 0);
     /*
 		if (_evlist[i].events & (EPOLLHUP | EPOLLERR))
