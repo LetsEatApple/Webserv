@@ -71,7 +71,7 @@ private:
   std::time_t    _cgiStartTime;
 
   bool startCgi();
-  void stopCgi(bool killChild);
+  void stopCgi();
   bool closeCgiInputIfDone();
   bool buildHttpResponseFromCgi();
 

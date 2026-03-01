@@ -38,7 +38,7 @@ _cgiInHandler(NULL), _cgiOutHandler(NULL), _cgiStartTime(0) {
 
 Connection::~Connection() {
   _state = StateClosing;
-  stopCgi(true);
+  stopCgi();
 }
 
 static std::string dirNameOf(const std::string& p) {
@@ -199,11 +199,11 @@ bool Connection::startCgi() {
   _cgiOutHandler = new CgiFdHandler(_cgiOutFd, this, CgiFdHandler::CGI_OUT);
 
   if (!_reactor->registerHandler(_cgiInHandler, EPOLLOUT)) {
-    stopCgi(true);
+    stopCgi();
     return false;
   }
   if (!_reactor->registerHandler(_cgiOutHandler, EPOLLIN)) {
-    stopCgi(true);
+    stopCgi();
     return false;
   }
 
@@ -216,7 +216,7 @@ bool Connection::startCgi() {
   return true;
 }
 
-void Connection::stopCgi(bool killChild) {
+void Connection::stopCgi() {
     if (_cgiInHandler) {
         _reactor->removeHandler(_cgiInHandler, 0);
     }
@@ -234,10 +234,8 @@ void Connection::stopCgi(bool killChild) {
     if (_cgiPid > 0) {
       int status;
       if (waitpid(_cgiPid, &status, WNOHANG) == 0) {
-          if (killChild) {
-            kill(_cgiPid, SIGKILL);
-            waitpid(_cgiPid, &status, 0);
-          }
+          kill(_cgiPid, SIGKILL);
+          waitpid(_cgiPid, &status, 0);
       }
     _cgiPid = -1;
     }
@@ -373,7 +371,7 @@ int Connection::onCgiReadable() {
         Response::Writer w(_writeBuffer);
         ResponseDispatcher(w, _request, _location).sendError(Response::StatusBadGateway);
       }
-      stopCgi(true);
+      stopCgi();
       _state = StateSendingResponse;
       return _reactor->modifyHandler(this, EPOLLOUT);
     }
@@ -391,7 +389,7 @@ bool Connection::checkTimeout() {
   _closeAfterResponse = true;
   Response::Writer w(_writeBuffer);
   ResponseDispatcher(w, _request, _location).sendError(Response::StatusGatewayTimeout);
-  stopCgi(true);
+  stopCgi();
   _state = StateSendingResponse;
   _reactor->modifyHandler(this, EPOLLOUT);
   return false;
@@ -441,7 +439,7 @@ int Connection::handleRead(){
     char buf[MAX];
     ssize_t n = recv(_fd, buf, MAX - 1, MSG_DONTWAIT);
     if (n == 0) {
-      stopCgi(true);
+      stopCgi();
       logDisconnect(_session.listener, _session.client);
       return (_reactor->removeHandler(this, 0));
     }
@@ -453,7 +451,7 @@ int Connection::handleRead(){
 	char buf[MAX];
 	ssize_t n = recv(_fd, buf, MAX - 1, MSG_DONTWAIT);
 	if (n == 0){ // client disconnected
-    stopCgi(true);
+    stopCgi();
 		logDisconnect(_session.listener, _session.client);
 		return (_reactor->removeHandler(this, 0));
 	}
@@ -512,7 +510,7 @@ int Connection::handleWrite() {
 
 	if (_writeBuffer.empty()) {
 		if (_closeAfterResponse) {
-			stopCgi(true);
+			stopCgi();
       logDisconnect(_session.listener, _session.client);
 			return _reactor->removeHandler(this, 0);
 		}
@@ -529,7 +527,7 @@ int Connection::handleWrite() {
 		_writeBuffer.erase(0, sent);
 	if (_writeBuffer.empty()) {
 		if (_closeAfterResponse) {
-      stopCgi(true);
+      stopCgi();
 			logDisconnect(_session.listener, _session.client);
 			return _reactor->removeHandler(this, 0);
 		}
