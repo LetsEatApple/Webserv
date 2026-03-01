@@ -72,7 +72,6 @@ private:
 
   bool startCgi();
   void stopCgi(bool killChild);
-  bool flushRequestBodyChunksToCgiBuffer();
   bool closeCgiInputIfDone();
   bool buildHttpResponseFromCgi();
 

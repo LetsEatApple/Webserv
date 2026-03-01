@@ -11,8 +11,10 @@
 /* ************************************************************************** */
 
 #include "handler.hpp"
+#include "Response.hpp"
 #include "reactor.hpp"
 #include "ResponseDispatcher.hpp"
+#include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/un.h>
 
@@ -38,12 +40,7 @@ Connection::~Connection() {
   _state = StateClosing;
   stopCgi(true);
 }
-/*
-static bool makeNonBlocking(int fd) {
-  int fl = fcntl(fd, F_GETFL, 0);
-  return (fl >= 0 && fcntl(fd, F_SETFL, fl | O_NONBLOCK) == 0);
-}
-*/
+
 static std::string dirNameOf(const std::string& p) {
   size_t pos = p.find_last_of('/');
   if (pos == std::string::npos) return ".";
@@ -73,7 +70,7 @@ struct AddHttpEnv {
 };
 
 bool Connection::startCgi() {
-  const std::string reqPath = _request.getPath(); // /perl/perl.cgi
+  const std::string reqPath = _request.getPath();
 
   std::string script;
   std::string pathInfo;
@@ -109,22 +106,15 @@ bool Connection::startCgi() {
 
   int inPipe[2] = {-1, -1};
   int outPipe[2] = {-1, -1};
-  //if (pipe(inPipe) != 0 || pipe(outPipe) != 0) {
-  if (socketpair(AF_UNIX, SOCK_STREAM, 0, inPipe) != 0
-    || socketpair(AF_UNIX, SOCK_STREAM, 0, outPipe) != 0) {
+  if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, inPipe) != 0
+    || socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, outPipe) != 0) {
     if (inPipe[0] != -1) close(inPipe[0]);
   if (inPipe[1] != -1) close(inPipe[1]);
     if (outPipe[0] != -1) close(outPipe[0]);
     if (outPipe[1] != -1) close(outPipe[1]);
     return false;
   }
-/*
-  if (!makeNonBlocking(inPipe[1]) || !makeNonBlocking(outPipe[0])) {
-    close(inPipe[0]); close(inPipe[1]);
-    close(outPipe[0]); close(outPipe[1]);
-    return false;
-  }
-*/
+  
   pid_t pid = fork();
   if (pid < 0) {
     close(inPipe[0]); close(inPipe[1]);
@@ -149,9 +139,6 @@ bool Connection::startCgi() {
     dup2(outPipe[1], STDOUT_FILENO);
     dup2(outPipe[1], STDERR_FILENO);
 
-    close(inPipe[0]); close(inPipe[1]);
-    close(outPipe[0]); close(outPipe[1]);
-
     const std::string cwd = dirNameOf(scriptFileName);
     if (chdir(cwd.c_str()) != 0) _exit(126);
 
@@ -169,6 +156,7 @@ bool Connection::startCgi() {
     addEnv(envStore, "DOCUMENT_ROOT", documentRoot);
     addEnv(envStore, "REQUEST_URI", _request.getTarget());
     addEnv(envStore, "SERVER_NAME", _request.getHost());
+    //TODO: addEnv(envStore, "SERVER_PORT");
     addEnv(envStore, "REDIRECT_STATUS", "200");
     if (requestMethod == "POST") {
       addEnv(envStore, "CONTENT_LENGTH", cl.str());
@@ -294,7 +282,7 @@ bool Connection::buildHttpResponseFromCgi() {
     size_t sep = _cgiOutBuffer.find("\r\n\r\n");
     size_t sepLen = 4;
 
-    // Perl CGI uses \n\n as separator TODO:
+    // Perl CGI uses \n\n as separator
     if (sep == std::string::npos) {
         sep = _cgiOutBuffer.find("\n\n");
         sepLen = 2;
@@ -303,27 +291,11 @@ bool Connection::buildHttpResponseFromCgi() {
     if (sep == std::string::npos)
       return false;
 
-    // No CGI headers: treat entire output as body TODO: should be an error?
-    //if (sep == std::string::npos) {
-    //    Response::Writer w(_writeBuffer);
-    //    w.writeStatusLine(Response::StatusOk);
-    //    Headers h = Response::getDefaultHeaders(_cgiOutBuffer.size());
-    //    h.set("Connection", "close");
-    //    w.writeHeaders(h);
-    //    w.writeBody(_cgiOutBuffer.c_str(), _cgiOutBuffer.size());
-    //    return true;
-    //}
-
     std::string rawHeaders = _cgiOutBuffer.substr(0, sep);
     std::string body = _cgiOutBuffer.substr(sep + sepLen);
 
-    //std::cerr << "TOTAL CGI OUT SIZE: " << _cgiOutBuffer.size() << std::endl;
-    //std::cerr << "SEP POSITION: " << sep << std::endl;
-    //std::cerr << "BODY SIZE: " << body.size() << std::endl;
-
     int status = 200;
     Headers cgiHeaders;
-    //bool hasContentLength = false;
     bool hasContentType = false;
 
     std::istringstream hs(rawHeaders);
@@ -349,7 +321,6 @@ bool Connection::buildHttpResponseFromCgi() {
             continue;
         }
         if (name == "Content-Length" || name == "content-length")
-            //hasContentLength = true;
             continue;
         if (name == "Content-Type")
             hasContentType = true;
@@ -367,12 +338,8 @@ bool Connection::buildHttpResponseFromCgi() {
     if (!hasContentType)
         cgiHeaders.set("Content-Type", "text/html");
 
-    //cgiHeaders.forEach(pr);
-
     w.writeHeaders(cgiHeaders);
-
     w.writeBody(body.c_str(), body.size());
-    //std::cerr << "WRITE BUFFER SIZE: " << _writeBuffer.size() << std::endl;
     return true;
 }
 
@@ -381,37 +348,38 @@ int Connection::onCgiWritable() {
 
     if (!_cgiInBuffer.empty()) {
       ssize_t n = send(_cgiInFd, _cgiInBuffer.c_str(), _cgiInBuffer.size(), MSG_DONTWAIT);
-       // ssize_t n = write(_cgiInFd, _cgiInBuffer.c_str(), _cgiInBuffer.size());
-        if (n > 0)
-            _cgiInBuffer.erase(0, static_cast<size_t>(n));
-        else
-            return true;
+      if (n > 0)
+        _cgiInBuffer.erase(0, static_cast<size_t>(n));
+      else
+        return true;
     }
 
     return closeCgiInputIfDone();
 }
 
 int Connection::onCgiReadable() {
-    if (!_isCgi || _cgiOutFd < 0) return true;
+  if (!_isCgi || _cgiOutFd < 0) return true;
 
-    char buf[MAX];
-      ssize_t n = recv(_cgiOutFd, buf, sizeof(buf), MSG_DONTWAIT);
- //   ssize_t n = read(_cgiOutFd, buf, sizeof(buf));
+  char buf[MAX];
+  for (;;) {
+    ssize_t n = recv(_cgiOutFd, buf, sizeof(buf), MSG_DONTWAIT);
     if (n > 0) {
-        _cgiOutBuffer.append(buf, static_cast<size_t>(n));
-        return true;
+      _cgiOutBuffer.append(buf, static_cast<size_t>(n));
+      continue;
     }
     if (n == 0) {
-        if (!buildHttpResponseFromCgi()) {
-            _closeAfterResponse = true;
-            Response::Writer w(_writeBuffer);
-            ResponseDispatcher(w, _request, _location).sendError(Response::StatusBadGateway);
-        }
-        stopCgi(false);
-        _state = StateSendingResponse;
-        return _reactor->modifyHandler(this, EPOLLOUT);
+      if (!buildHttpResponseFromCgi()) {
+        _closeAfterResponse = true;
+        Response::Writer w(_writeBuffer);
+        ResponseDispatcher(w, _request, _location).sendError(Response::StatusBadGateway);
+      }
+      stopCgi(true);
+      _state = StateSendingResponse;
+      return _reactor->modifyHandler(this, EPOLLOUT);
     }
-    return true;
+    break;
+  }
+  return true;
 }
 
 bool Connection::checkTimeout() {
@@ -422,7 +390,7 @@ bool Connection::checkTimeout() {
   logInfo("CGI timeout after ", str(CGI_TIMEOUT_SEC).append("s - killing process"));
   _closeAfterResponse = true;
   Response::Writer w(_writeBuffer);
-  ResponseDispatcher(w, _request, _location).sendError(Response::StatusBadGateway);
+  ResponseDispatcher(w, _request, _location).sendError(Response::StatusGatewayTimeout);
   stopCgi(true);
   _state = StateSendingResponse;
   _reactor->modifyHandler(this, EPOLLOUT);
