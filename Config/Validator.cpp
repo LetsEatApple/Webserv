@@ -93,7 +93,7 @@ static void validateServerName(const Directive &d, ContextType ctx,
   vs.has_listen = true;
 }
 
-static void validateLimitExept(const Directive &d, ContextType ctx,
+static void validateLimitExcept(const Directive &d, ContextType ctx,
                                ValidationState &vs) {
   if (vs.has_limit_exept)
     throw std::runtime_error(
@@ -197,7 +197,7 @@ static void validateDirective(const Directive &d, ContextType ctx,
     validateAlias(d, ctx, vs);
     break;
   case DIR_LIMIT_EXCEPT:
-    validateLimitExept(d, ctx, vs);
+    validateLimitExcept(d, ctx, vs);
     break;
   case DIR_AUTOINDEX:
     validateAutoindex(d, vs);
