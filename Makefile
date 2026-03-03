@@ -25,7 +25,8 @@ Config/src/Config.cpp \
 Config/src/Lexer.cpp \
 Config/src/Parser.cpp \
 Config/src/Utils.cpp \
-Config/src/Validator.cpp \
+Config/src/BlockValidators.cpp \
+Config/src/DirectiveValidators.cpp \
 Http/request/Headers.cpp \
 Http/request/Request.cpp \
 Http/response/Response.cpp \

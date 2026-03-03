@@ -11,7 +11,8 @@ add_library(config_lib STATIC
 		src/Lexer.cpp
 		src/Parser.cpp
 		src/Utils.cpp
-		src/Validator.cpp
+		src/BlockValidators.cpp
+		src/DirectiveValidators.cpp
 
 		includes/AST.hpp
 		includes/Config.hpp
@@ -21,6 +22,7 @@ add_library(config_lib STATIC
 		includes/Token.hpp
 		includes/Utils.hpp
 		includes/Validator.hpp
+		includes/DirectiveValidators.hpp
 )
 
 target_include_directories(config_lib PUBLIC includes)
