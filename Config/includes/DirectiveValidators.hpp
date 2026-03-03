@@ -6,7 +6,7 @@
 #define WEBSERV_DIRECTIVEVALIDATORS_HPP
 
 #include "AST.hpp"
-#include "Validator.hpp"
+#include "BlockValidators.hpp"
 
 namespace validator
 {

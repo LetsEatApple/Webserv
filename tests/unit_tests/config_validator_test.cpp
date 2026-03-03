@@ -1,6 +1,6 @@
 #include "AST.hpp"
 #include "Config.hpp"
-#include "Validator.hpp"
+#include "BlockValidators.hpp"
 #include "catch2/catch_test_macros.hpp"
 #include <cstddef>
 #include <iostream>

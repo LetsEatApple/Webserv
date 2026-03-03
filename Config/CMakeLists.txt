@@ -21,7 +21,7 @@ add_library(config_lib STATIC
 		includes/Parser.hpp
 		includes/Token.hpp
 		includes/Utils.hpp
-		includes/Validator.hpp
+		includes/BlockValidators.hpp
 		includes/DirectiveValidators.hpp
 )
 

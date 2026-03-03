@@ -1,10 +1,10 @@
 #include "Config.hpp"
-#include "../includes/AST.hpp"
-#include "../includes/Debug.hpp"
-#include "../includes/Lexer.hpp"
-#include "../includes/Parser.hpp"
-#include "../includes/Utils.hpp"
-#include "../includes/Validator.hpp"
+#include "AST.hpp"
+#include "Debug.hpp"
+#include "Lexer.hpp"
+#include "Parser.hpp"
+#include "Utils.hpp"
+#include "BlockValidators.hpp"
 #include <algorithm>
 #include <cerrno>
 #include <cstddef>
