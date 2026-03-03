@@ -21,11 +21,11 @@ Reactor/reactor.cpp \
 Reactor/server.cpp \
 Reactor/Logger.cpp \
 Reactor/routing.cpp \
-Config/Config.cpp \
-Config/Lexer.cpp \
-Config/Parser.cpp \
-Config/Utils.cpp \
-Config/Validator.cpp \
+Config/src/Config.cpp \
+Config/src/Lexer.cpp \
+Config/src/Parser.cpp \
+Config/src/Utils.cpp \
+Config/src/Validator.cpp \
 Http/request/Headers.cpp \
 Http/request/Request.cpp \
 Http/response/Response.cpp \
@@ -35,7 +35,7 @@ Http/response/MimeTypes.cpp \
 CPP = c++
 CPPFLAGS = -std=c++98 -Wall -Werror -Wextra
 INCLUDES = \
--I./Config \
+-I./Config/includes \
 -I./Reactor \
 -I./Http \
 -I./Http/request \

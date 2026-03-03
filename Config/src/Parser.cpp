@@ -1,8 +1,8 @@
-#include "Parser.hpp"
-#include "AST.hpp"
-#include "Lexer.hpp"
-#include "Token.hpp"
-#include "Utils.hpp"
+#include "../includes/Parser.hpp"
+#include "../includes/AST.hpp"
+#include "../includes/Lexer.hpp"
+#include "../includes/Token.hpp"
+#include "../includes/Utils.hpp"
 #include <sstream>
 #include <stdexcept>
 #include <string>

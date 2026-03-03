@@ -1,6 +1,6 @@
-#include "Validator.hpp"
-#include "AST.hpp"
-#include "Utils.hpp"
+#include "../includes/Validator.hpp"
+#include "../includes/AST.hpp"
+#include "../includes/Utils.hpp"
 #include <cstdlib>
 #include <iostream>
 #include <stddef.h>
