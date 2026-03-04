@@ -13,6 +13,7 @@ add_library(config_lib STATIC
 		src/Utils.cpp
 		src/BlockValidators.cpp
 		src/DirectiveValidators.cpp
+		src/ValidationHelpers.cpp
 
 		includes/AST.hpp
 		includes/Config.hpp
@@ -23,6 +24,7 @@ add_library(config_lib STATIC
 		includes/Utils.hpp
 		includes/BlockValidators.hpp
 		includes/DirectiveValidators.hpp
+		includes/ValidationHelpers.hpp
 )
 
 target_include_directories(config_lib PUBLIC includes)

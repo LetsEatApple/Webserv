@@ -4,13 +4,14 @@
 #include "AST.hpp"
 
 namespace validator {
-enum ContextType { CTX_HTTP, CTX_SERVER, CTX_LOCATION };
+typedef unsigned int ContextMask;
+enum ContextType { CTX_HTTP = 1 << 0, CTX_SERVER = 1 << 1, CTX_LOCATION = 1 << 2 };
 enum DirectiveType {
   DIR_LISTEN,
   DIR_SERVER_NAME,
   DIR_CLIENT_MAX_BODY_SIZE,
-  DIR_ERROR_PAGE,
   DIR_LIMIT_EXCEPT,
+  DIR_ERROR_PAGE,
   DIR_ALIAS,
   DIR_AUTOINDEX,
   DIR_INDEX,
@@ -20,20 +21,21 @@ enum DirectiveType {
   DIR_UNKNOWN,
 };
 
-struct ValidationState {
-  bool has_client_max_body_size;
-  bool has_server;
-  bool has_location;
-  bool has_listen;
-  bool has_limit_exept;
-  bool has_server_name;
-  bool has_error_page;
-  bool has_alias;
-  bool has_autoindex;
-  bool has_index;
-  bool has_return;
-  bool has_upload;
-  bool has_cgi;
+typedef unsigned int ValidationMask;
+enum ValidationFlag {
+	HAS_CLIENT_MAX_BODY_SIZE = 1 << 0,
+	HAS_SERVER = 1 << 1,
+	HAS_LOCATION = 1 << 2,
+	HAS_LISTEN = 1 << 3,
+	HAS_LIMIT_EXCEPT = 1 << 4,
+  HAS_SERVER_NAME = 1 << 5,
+	HAS_ERROR_PAGE = 1 << 6,
+	HAS_ALIAS = 1 << 7,
+  HAS_AUTOINDEX = 1 << 8,
+	HAS_INDEX = 1 << 9,
+	HAS_RETURN = 1 << 10,
+	HAS_UPLOAD = 1 << 11,
+	HAS_CGI = 1 << 12
 };
 
 void validate(const Block &http);

@@ -10,17 +10,17 @@
 
 namespace validator
 {
-    void validateErrorPage(const Directive& d, ValidationState& vs);
-    void validateClientMaxBodySize(const Directive& d, ValidationState& vs);
-    void validateListen(const Directive& d, ContextType ctx, ValidationState& vs);
-    void validateServerName(const Directive& d, ContextType ctx, ValidationState& vs);
-    void validateLimitExcept(const Directive& d, ContextType ctx, ValidationState& vs);
-    void validateReturn(const Directive& d, ContextType ctx, ValidationState& vs);
-    void validateCGI(const Directive& d, ContextType ctx, ValidationState& vs);
-    void validateAlias(const Directive& d, ContextType ctx, ValidationState& vs);
-    void validateAutoindex(const Directive& d, ValidationState& vs);
-    void validateIndex(const Directive& d, ValidationState& vs);
-    void validateUpload(const Directive& d, ValidationState& vs);
+    void validateErrorPage(const Directive& d, ValidationMask &seen);
+    void validateClientMaxBodySize(const Directive& d, ValidationMask &seen);
+    void validateListen(const Directive& d, ContextType ctx, ValidationMask &seen);
+    void validateServerName(const Directive& d, ContextType ctx, ValidationMask &seen);
+    void validateLimitExcept(const Directive& d, ContextType ctx, ValidationMask &seen);
+    void validateReturn(const Directive& d, ContextType ctx, ValidationMask &seen);
+    void validateCGI(const Directive& d, ContextType ctx, ValidationMask &seen);
+    void validateAlias(const Directive& d, ContextType ctx, ValidationMask &seen);
+    void validateAutoindex(const Directive& d, ValidationMask &seen);
+    void validateIndex(const Directive& d, ValidationMask &seen);
+    void validateUpload(const Directive& d, ValidationMask &seen);
 } // namespace validator
 
 #endif //WEBSERV_DIRECTIVEVALIDATORS_HPP

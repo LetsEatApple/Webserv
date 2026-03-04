@@ -3,140 +3,95 @@
 //
 
 #include "DirectiveValidators.hpp"
-#include "Utils.hpp"
-#include <stdexcept>
+
+#include <iostream>
+
+#include "ValidationHelpers.hpp"
 
 namespace validator
 {
-    void validateErrorPage(const Directive& d, ValidationState& vs)
+    void validateErrorPage(const Directive& d, ValidationMask &seen)
     {
-        if (d.args.size() < 2)
-            throw std::runtime_error(utils::errorMsg(
-                "Expected at least 2 arguments for '" + d.name + "' directive",
-                d.line));
-        vs.has_error_page = true;
+        seen |= HAS_ERROR_PAGE;
+        requireAtLeastArgs(d, 2);
     }
 
-    void validateClientMaxBodySize(const Directive& d, ValidationState& vs)
+    void validateClientMaxBodySize(const Directive& d, ValidationMask &seen)
     {
-        if (vs.has_client_max_body_size)
-            throw std::runtime_error(
-                utils::errorMsg("Duplicate '" + d.name + "' directive", d.line));
-        if (d.args.size() != 1)
-            throw std::runtime_error(utils::errorMsg(
-                "Expected exactly 1 argument for '" + d.name + "' directive", d.line));
-        vs.has_client_max_body_size = true;
+        rejectDuplicate(HAS_CLIENT_MAX_BODY_SIZE, seen, d);
+        seen |= HAS_CLIENT_MAX_BODY_SIZE;
+        requireExactArgs(d, 1);
     }
 
-    void validateListen(const Directive& d, ContextType ctx,
-                               ValidationState& vs)
+    void validateListen(const Directive& d, const ContextType ctx,
+                               ValidationMask &seen)
     {
-        if (ctx != CTX_SERVER)
-            throw std::runtime_error(utils::errorMsg(
-                "'" + d.name + "' directive is not allowed here", d.line));
-        if (d.args.size() != 1)
-            throw std::runtime_error(utils::errorMsg(
-                "Expected exactly 1 argument for '" + d.name + "' directive", d.line));
-        vs.has_listen = true;
+        seen |= HAS_LISTEN;
+        requireContext(d, ctx, CTX_SERVER);
+        requireExactArgs(d, 1);
     }
 
-    void validateServerName(const Directive& d, ContextType ctx,
-                            ValidationState& vs)
+    void validateServerName(const Directive& d, const ContextType ctx,
+                            ValidationMask &seen)
     {
-        if (ctx != CTX_SERVER)
-            throw std::runtime_error(utils::errorMsg(
-                "'" + d.name + "' directive is not allowed here", d.line));
-        if (d.args.empty())
-            throw std::runtime_error(utils::errorMsg(
-                "Expected at least 1 argument for '" + d.name + "' directive", d.line));
-        vs.has_listen = true;
+        seen |= HAS_SERVER_NAME;
+        requireContext(d, ctx, CTX_SERVER);
+        std::cout << d.args.size();
+        requireAtLeastArgs(d, 1);
     }
 
-    void validateLimitExcept(const Directive& d, ContextType ctx,
-                             ValidationState& vs)
+    void validateLimitExcept(const Directive& d, const ContextType ctx,
+                             ValidationMask &seen)
     {
-        if (vs.has_limit_exept)
-            throw std::runtime_error(
-                utils::errorMsg("Duplicate '" + d.name + "' directive", d.line));
-        if (ctx != CTX_LOCATION)
-            throw std::runtime_error(utils::errorMsg(
-                "'" + d.name + "' directive is not allowed here", d.line));
-        if (d.args.empty() || d.args.size() > 3)
-            throw std::runtime_error(utils::errorMsg(
-                "Expected between 1 and 3 arguments for '" + d.name + "' directive",
-                d.line));
-        vs.has_limit_exept = true;
+        rejectDuplicate(HAS_LIMIT_EXCEPT, seen, d);
+        seen |= HAS_LIMIT_EXCEPT;
+        requireContext(d, ctx, CTX_LOCATION);
+        requireArgsRange(d, 1, 3);
     }
 
-    void validateReturn(const Directive& d, ContextType ctx,
-                        ValidationState& vs)
+    void validateReturn(const Directive& d, const ContextType ctx,
+                        ValidationMask &seen)
     {
-        if (ctx != CTX_SERVER && ctx != CTX_LOCATION)
-            throw std::runtime_error(utils::errorMsg(
-                "'" + d.name + "' directive is not allowed here", d.line));
-        if (d.args.size() != 2)
-            throw std::runtime_error(utils::errorMsg(
-                "Expected exactly 2 arguments for '" + d.name + "' directive", d.line));
-        vs.has_return = true;
+        seen |= HAS_RETURN;
+        requireExactArgs(d, 2);
+        requireContext(d, ctx, CTX_SERVER | CTX_LOCATION);
     }
 
-    void validateCGI(const Directive& d, ContextType ctx,
-                     ValidationState& vs)
+    void validateCGI(const Directive& d, const ContextType ctx,
+                     ValidationMask &seen)
     {
-        if (ctx != CTX_SERVER && ctx != CTX_LOCATION)
-            throw std::runtime_error(utils::errorMsg(
-                "'" + d.name + "' directive is not allowed here", d.line));
-        if (d.args.size() != 2)
-            throw std::runtime_error(utils::errorMsg(
-                "Expected exactly 2 arguments for '" + d.name + "' directive", d.line));
-        vs.has_cgi = true;
+        seen |= HAS_CGI;
+        requireExactArgs(d, 2);
+        requireContext(d, ctx, CTX_SERVER | CTX_LOCATION);
     }
 
-    void validateAlias(const Directive& d, ContextType ctx,
-                       ValidationState& vs)
+    void validateAlias(const Directive& d, const ContextType ctx,
+                       ValidationMask &seen)
     {
-        if (vs.has_alias)
-            throw std::runtime_error(
-                utils::errorMsg("Duplicate '" + d.name + "' directive", d.line));
-        if (ctx != CTX_LOCATION)
-            throw std::runtime_error(utils::errorMsg(
-                "'" + d.name + "' directive is not allowed here", d.line));
-        if (d.args.size() != 1)
-            throw std::runtime_error(utils::errorMsg(
-                "Expected exactly 1 argument for '" + d.name + "' directive", d.line));
-        vs.has_alias = true;
+        rejectDuplicate(HAS_ALIAS, seen, d);
+        seen |= HAS_ALIAS;
+        requireExactArgs(d, 1);
+        requireContext(d, ctx, CTX_LOCATION);
     }
 
-    void validateAutoindex(const Directive& d, ValidationState& vs)
+    void validateAutoindex(const Directive& d, ValidationMask &seen)
     {
-        if (vs.has_autoindex)
-            throw std::runtime_error(
-                utils::errorMsg("Duplicate '" + d.name + "' directive", d.line));
-        if (d.args.size() != 1)
-            throw std::runtime_error(utils::errorMsg(
-                "Expected exactly 1 argument for '" + d.name + "' directive", d.line));
-        vs.has_autoindex = true;
+        rejectDuplicate(HAS_AUTOINDEX, seen, d);
+        seen |= HAS_AUTOINDEX;
+        requireExactArgs(d, 1);
     }
 
-    void validateIndex(const Directive& d, ValidationState& vs)
+    void validateIndex(const Directive& d, ValidationMask &seen)
     {
-        if (vs.has_index)
-            throw std::runtime_error(
-                utils::errorMsg("Duplicate '" + d.name + "' directive", d.line));
-        if (d.args.size() != 1)
-            throw std::runtime_error(utils::errorMsg(
-                "Expected exactly 1 argument for '" + d.name + "' directive", d.line));
-        vs.has_index = true;
+        rejectDuplicate(HAS_INDEX, seen, d);
+        seen |= HAS_INDEX;
+        requireExactArgs(d, 1);
     }
 
-    void validateUpload(const Directive& d, ValidationState& vs)
+    void validateUpload(const Directive& d, ValidationMask &seen)
     {
-        if (vs.has_upload)
-            throw std::runtime_error(
-                utils::errorMsg("Duplicate '" + d.name + "' directive", d.line));
-        if (d.args.size() != 1)
-            throw std::runtime_error(utils::errorMsg(
-                "Expected exactly 1 argument for '" + d.name + "' directive", d.line));
-        vs.has_upload = true;
+        rejectDuplicate(HAS_UPLOAD, seen, d);
+        seen |= HAS_UPLOAD;
+        requireExactArgs(d, 1);
     }
 } // namespace validator
