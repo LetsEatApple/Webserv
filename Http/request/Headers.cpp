@@ -99,7 +99,7 @@ Headers::HeaderParseResult Headers::parseHeader(const std::string& fieldLine) {
 
 std::string Headers::get(const std::string& name) const {
     std::string lowerName = toLower(name);
-    std::map<std::string, std::string>::const_iterator it = headers.find(lowerName);
+    std::multimap<std::string, std::string>::const_iterator it = headers.find(lowerName);
     if (it != headers.end()) {
         return it->second;
     }
@@ -108,17 +108,22 @@ std::string Headers::get(const std::string& name) const {
 
 void Headers::set(const std::string& name, const std::string& value) {
     std::string lowerName = toLower(name);
-    std::map<std::string, std::string>::iterator it = headers.find(lowerName);
+    std::multimap<std::string, std::string>::iterator it = headers.find(lowerName);
     if (it != headers.end()) {
         it->second = it->second + ", " + value;
     } else {
-        headers[lowerName] = value;
+        headers.insert(std::make_pair(lowerName, value));
     }
+}
+
+void Headers::add(const std::string& name, const std::string& value) {
+    headers.insert(std::make_pair(toLower(name), value));
 }
 
 void Headers::replace(const std::string& name, const std::string& value) {
     std::string lowerName = toLower(name);
-    headers[lowerName] = value;
+    headers.erase(lowerName);
+    headers.insert(std::make_pair(lowerName, value));
 }
 
 void Headers::remove(const std::string& name) {

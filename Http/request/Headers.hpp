@@ -10,6 +10,7 @@ public:
 
     std::string get(const std::string& name) const;
     void set(const std::string& name, const std::string& value);
+    void add(const std::string& name, const std::string& value);
     void replace(const std::string& name, const std::string& value);
     void remove(const std::string& name);
     void clear();
@@ -34,7 +35,7 @@ public:
     ParseResult parse(const std::string& data);
 
 private:
-    std::map<std::string, std::string> headers;
+    std::multimap<std::string, std::string> headers;
 
     static std::string toLower(const std::string& str);
     static std::string trim(const std::string& str);
