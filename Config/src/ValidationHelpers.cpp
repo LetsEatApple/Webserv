@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <Utils.hpp>
 
-void validator::rejectDuplicate(const ValidationFlag &flag, const ValidationMask &seen, const Directive& d)
+void validator::rejectDuplicate(const ValidationFlag& flag, const ValidationMask& seen, const Directive& d)
 {
     if (flag & seen)
         throw std::runtime_error(

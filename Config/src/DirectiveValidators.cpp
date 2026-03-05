@@ -3,20 +3,17 @@
 //
 
 #include "DirectiveValidators.hpp"
-
-#include <iostream>
-
 #include "ValidationHelpers.hpp"
 
 namespace validator
 {
-    void validateErrorPage(const Directive& d, ValidationMask &seen)
+    void validateErrorPage(const Directive& d, ValidationMask& seen)
     {
         seen |= HAS_ERROR_PAGE;
         requireAtLeastArgs(d, 2);
     }
 
-    void validateClientMaxBodySize(const Directive& d, ValidationMask &seen)
+    void validateClientMaxBodySize(const Directive& d, ValidationMask& seen)
     {
         rejectDuplicate(HAS_CLIENT_MAX_BODY_SIZE, seen, d);
         seen |= HAS_CLIENT_MAX_BODY_SIZE;
@@ -24,7 +21,7 @@ namespace validator
     }
 
     void validateListen(const Directive& d, const ContextType ctx,
-                               ValidationMask &seen)
+                        ValidationMask& seen)
     {
         seen |= HAS_LISTEN;
         requireContext(d, ctx, CTX_SERVER);
@@ -32,16 +29,15 @@ namespace validator
     }
 
     void validateServerName(const Directive& d, const ContextType ctx,
-                            ValidationMask &seen)
+                            ValidationMask& seen)
     {
         seen |= HAS_SERVER_NAME;
         requireContext(d, ctx, CTX_SERVER);
-        std::cout << d.args.size();
         requireAtLeastArgs(d, 1);
     }
 
     void validateLimitExcept(const Directive& d, const ContextType ctx,
-                             ValidationMask &seen)
+                             ValidationMask& seen)
     {
         rejectDuplicate(HAS_LIMIT_EXCEPT, seen, d);
         seen |= HAS_LIMIT_EXCEPT;
@@ -50,7 +46,7 @@ namespace validator
     }
 
     void validateReturn(const Directive& d, const ContextType ctx,
-                        ValidationMask &seen)
+                        ValidationMask& seen)
     {
         seen |= HAS_RETURN;
         requireExactArgs(d, 2);
@@ -58,7 +54,7 @@ namespace validator
     }
 
     void validateCGI(const Directive& d, const ContextType ctx,
-                     ValidationMask &seen)
+                     ValidationMask& seen)
     {
         seen |= HAS_CGI;
         requireExactArgs(d, 2);
@@ -66,7 +62,7 @@ namespace validator
     }
 
     void validateAlias(const Directive& d, const ContextType ctx,
-                       ValidationMask &seen)
+                       ValidationMask& seen)
     {
         rejectDuplicate(HAS_ALIAS, seen, d);
         seen |= HAS_ALIAS;
@@ -74,21 +70,21 @@ namespace validator
         requireContext(d, ctx, CTX_LOCATION);
     }
 
-    void validateAutoindex(const Directive& d, ValidationMask &seen)
+    void validateAutoindex(const Directive& d, ValidationMask& seen)
     {
         rejectDuplicate(HAS_AUTOINDEX, seen, d);
         seen |= HAS_AUTOINDEX;
         requireExactArgs(d, 1);
     }
 
-    void validateIndex(const Directive& d, ValidationMask &seen)
+    void validateIndex(const Directive& d, ValidationMask& seen)
     {
         rejectDuplicate(HAS_INDEX, seen, d);
         seen |= HAS_INDEX;
         requireExactArgs(d, 1);
     }
 
-    void validateUpload(const Directive& d, ValidationMask &seen)
+    void validateUpload(const Directive& d, ValidationMask& seen)
     {
         rejectDuplicate(HAS_UPLOAD, seen, d);
         seen |= HAS_UPLOAD;

@@ -2,13 +2,13 @@
 #include <sstream>
 
 namespace utils {
-const std::string errorMsg(std::string const &message, size_t line) {
+std::string errorMsg(std::string const &message, const size_t line) {
   std::stringstream err;
   err << message << " at line " << line;
   return err.str();
 }
 
-const std::string toString(size_t val) {
+std::string toString(const size_t val) {
   std::stringstream str;
   str << val;
   return str.str();
@@ -23,4 +23,15 @@ bool isNumber(const std::string &s) {
   return true;
 }
 
+  std::string validatePath(std::string const &path, std::string const& name, const std::size_t line) {
+  if (path.empty() || path[0] != '/')
+    throw std::runtime_error(
+        utils::errorMsg("Unexpected value '" + path + "' in '" + name + "' directive", line));
+
+  std::string normalized = path;
+  if (normalized.size() > 1 && normalized[normalized.size() - 1] == '/')
+    normalized = normalized.substr(0, normalized.size() - 1);
+
+  return normalized;
+}
 } // namespace utils

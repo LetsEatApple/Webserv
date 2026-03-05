@@ -1,14 +1,11 @@
-#include "BlockValidators.hpp"
-#include "AST.hpp"
-#include "Utils.hpp"
-#include "DirectiveValidators.hpp"
-#include <iostream>
 #include <stdexcept>
+#include "AST.hpp"
+#include "BlockValidators.hpp"
+#include "DirectiveValidators.hpp"
+#include "Utils.hpp"
 
 namespace validator
 {
-    static void validateBlock(const Block& b, ContextType ctx);
-
     static DirectiveType directiveType(const std::string& name)
     {
         if (name == "client_max_body_size")
@@ -37,10 +34,10 @@ namespace validator
             return DIR_UNKNOWN;
     }
 
-    static void validateDirective(const Directive& d, ContextType ctx,
-                                  ValidationMask &seen)
+    static void validateDirective(const Directive& d, const ContextType ctx,
+                                  ValidationMask& seen)
     {
-        DirectiveType dir = directiveType(d.name);
+        const DirectiveType dir = directiveType(d.name);
         switch (dir)
         {
         case DIR_ERROR_PAGE:
@@ -79,48 +76,8 @@ namespace validator
         case DIR_UNKNOWN:
             throw std::runtime_error(
                 utils::errorMsg("Unknown directive '" + d.name + "'", d.line));
-        default:
-            return;
         }
     };
-
-    static void validateHTTP(const Block& b)
-    {
-        ValidationMask seen = 0;
-
-        for (size_t i = 0; i < b.directives.size(); ++i)
-            validateDirective(b.directives[i], CTX_HTTP, seen);
-
-        for (size_t i = 0; i < b.blocks.size(); ++i)
-        {
-            if (b.blocks[i].name != "server")
-                throw std::runtime_error(utils::errorMsg(
-                    "'" + b.blocks[i].name + "' directive is not allowed here",
-                    b.blocks[i].line));
-            seen |= HAS_SERVER;
-            validateBlock(b.blocks[i], CTX_SERVER);
-        }
-        if (!(seen & HAS_SERVER))
-            throw std::runtime_error(
-                utils::errorMsg("Expected 'server' directive at top level", b.line));
-    }
-
-    static void validateServer(const Block& b)
-    {
-        ValidationMask seen = 0;
-
-        for (size_t i = 0; i < b.directives.size(); ++i)
-            validateDirective(b.directives[i], CTX_SERVER, seen);
-
-        for (size_t i = 0; i < b.blocks.size(); ++i)
-        {
-            if (b.blocks[i].name != "location")
-                throw std::runtime_error(utils::errorMsg(
-                    "'" + b.blocks[i].name + "' directive is not allowed here",
-                    b.blocks[i].line));
-            validateBlock(b.blocks[i], CTX_LOCATION);
-        }
-    }
 
     static void validateLocation(const Block& b)
     {
@@ -136,29 +93,48 @@ namespace validator
                 "'" + b.blocks[0].name + "' is not allowed here", b.line));
     }
 
-    static void validateBlock(const Block& b, ContextType ctx)
+    static void validateServer(const Block& b)
     {
-        switch (ctx)
+        ValidationMask seen = 0;
+
+        for (size_t i = 0; i < b.directives.size(); ++i)
+            validateDirective(b.directives[i], CTX_SERVER, seen);
+
+        for (size_t i = 0; i < b.blocks.size(); ++i)
         {
-        case CTX_HTTP:
-            validateHTTP(b);
-            break;
-        case CTX_SERVER:
-            validateServer(b);
-            break;
-        case CTX_LOCATION:
-            validateLocation(b);
-            break;
-        default:
-            throw std::runtime_error(
-                utils::errorMsg("Unexpected context type", b.line));
+            if (b.blocks[i].name != "location")
+                throw std::runtime_error(utils::errorMsg(
+                    "'" + b.blocks[i].name + "' directive is not allowed here",
+                    b.blocks[i].line));
+            validateLocation(b.blocks[i]);
         }
+    }
+
+    static void validateHTTP(const Block& b)
+    {
+        ValidationMask seen = 0;
+
+        for (size_t i = 0; i < b.directives.size(); ++i)
+            validateDirective(b.directives[i], CTX_HTTP, seen);
+
+        for (size_t i = 0; i < b.blocks.size(); ++i)
+        {
+            if (b.blocks[i].name != "server")
+                throw std::runtime_error(utils::errorMsg(
+                    "'" + b.blocks[i].name + "' directive is not allowed here",
+                    b.blocks[i].line));
+            seen |= HAS_SERVER;
+            validateServer(b.blocks[i]);
+        }
+        if (!(seen & HAS_SERVER))
+            throw std::runtime_error(
+                utils::errorMsg("Expected 'server' directive at top level", b.line));
     }
 
     void validate(const Block& http)
     {
         if (http.name != "http")
             throw std::runtime_error(utils::errorMsg("Unexpected root context name '" + http.name + "'", http.line));
-        validateBlock(http, CTX_HTTP);
+        validateHTTP(http);
     }
 } // namespace validator

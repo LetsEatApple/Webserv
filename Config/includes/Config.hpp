@@ -3,7 +3,6 @@
 
 #include <cstddef>
 #include <map>
-#include <ostream>
 #include <set>
 #include <stdint.h>
 #include <string>
@@ -33,9 +32,6 @@ typedef std::pair<std::string, uint16_t> ListenerKey;
 typedef std::map<ListenerKey, std::vector<Server> > Listeners;
 
 Listeners buildConfig(const std::string &path);
-std::ostream &operator<<(std::ostream &out, Location const &l);
-std::ostream &operator<<(std::ostream &out, Server const &l);
-std::ostream &operator<<(std::ostream &out, Listeners const &l);
 } // namespace config
 
 #endif // !CONFIG_HPP

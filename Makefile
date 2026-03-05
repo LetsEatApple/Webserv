@@ -28,6 +28,9 @@ Config/src/Utils.cpp \
 Config/src/BlockValidators.cpp \
 Config/src/DirectiveValidators.cpp \
 Config/src/ValidationHelpers.cpp \
+Config/src/ListenParser.cpp \
+Config/src/ConfigPrinter.cpp \
+Config/src/DirectiveApplier.cpp \
 Http/request/Headers.cpp \
 Http/request/Request.cpp \
 Http/response/Response.cpp \

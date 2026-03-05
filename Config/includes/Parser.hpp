@@ -6,19 +6,21 @@
 #include "Token.hpp"
 #include <string>
 #include <vector>
-class Parser {
+
+class Parser
+{
 public:
-  Parser(Lexer &lexer);
-  Block parse();
+    explicit Parser(Lexer& lexer);
+    Block parse();
 
 private:
-  Lexer &_lexer;
-  token::Token _current;
+    Lexer& _lexer;
+    token::Token _current;
 
-  void advance();
-  Block parseBlock(const std::string &name,
-                   const std::vector<std::string> &args);
-  void parseBlockBody(Block &block);
+    void advance();
+    Block parseBlock(const std::string& name,
+                     const std::vector<std::string>& args);
+    void parseBlockBody(Block& block);
 };
 
 #endif // !PARSER_HPP

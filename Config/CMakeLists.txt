@@ -6,7 +6,7 @@ project(config_lib
 		LANGUAGES CXX
 )
 
-add_library(config_lib STATIC
+set(CONFIG_SOURCES
 		src/Config.cpp
 		src/Lexer.cpp
 		src/Parser.cpp
@@ -14,18 +14,11 @@ add_library(config_lib STATIC
 		src/BlockValidators.cpp
 		src/DirectiveValidators.cpp
 		src/ValidationHelpers.cpp
-
-		includes/AST.hpp
-		includes/Config.hpp
-		includes/Debug.hpp
-		includes/Lexer.hpp
-		includes/Parser.hpp
-		includes/Token.hpp
-		includes/Utils.hpp
-		includes/BlockValidators.hpp
-		includes/DirectiveValidators.hpp
-		includes/ValidationHelpers.hpp
+		src/ListenParser.cpp
+		src/ConfigPrinter.cpp
+		src/DirectiveApplier.cpp
 )
+add_library(${CONFIG_LIBRARY} STATIC ${CONFIG_SOURCES})
 
-target_include_directories(config_lib PUBLIC includes)
-target_compile_features(config_lib PUBLIC cxx_std_98)
+target_include_directories(${CONFIG_LIBRARY} PUBLIC includes)
+target_compile_features(${CONFIG_LIBRARY} PUBLIC cxx_std_98)
