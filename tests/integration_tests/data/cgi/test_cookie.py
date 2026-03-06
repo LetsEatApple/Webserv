@@ -14,7 +14,7 @@ if cookie_header:
 visit_count = int(cookies.get("visit_count", "0")) + 1
 
 print(f"Set-Cookie: visit_count={visit_count}; Path=/; Max-Age=3600")
-print(f"Set-Cookie: last_cgi=cookie_test; Path=/; HttpOnly")
+print(f"Set-Cookie: last_cgi=test_cookie; Path=/; HttpOnly")
 print("Content-Type: text/html")
 print()
 print("<html><body>")

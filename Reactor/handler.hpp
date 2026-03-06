@@ -19,8 +19,6 @@
 #include "Response.hpp"
 #include "server.hpp"
 #include "routing.hpp"
-#include <ctime>
-
 
 class Reactor;
 class Connection;

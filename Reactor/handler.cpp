@@ -11,6 +11,8 @@
 /* ************************************************************************** */
 
 #include "handler.hpp"
+
+#include <algorithm>
 #include "Response.hpp"
 #include "reactor.hpp"
 #include "ResponseDispatcher.hpp"
@@ -18,7 +20,13 @@
 #include <sys/wait.h>
 #include <sys/un.h>
 
-CgiFdHandler::CgiFdHandler(int fd, Connection* owner, Kind kind) : EventHandler(fd), _owner(owner),
+static std::string toLower(const std::string& str) {
+	std::string result = str;
+	std::transform(result.begin(), result.end(), result.begin(), static_cast<int(*)(int)>(std::tolower));
+	return result;
+}
+
+CgiFdHandler::CgiFdHandler(const int fd, Connection* owner, const Kind kind) : EventHandler(fd), _owner(owner),
   _kind(kind) {}
 
 CgiFdHandler::~CgiFdHandler() {
@@ -313,15 +321,23 @@ bool Connection::buildHttpResponseFromCgi() {
         while (!value.empty() && (value[0] == ' ' || value[0] == '\t'))
             value.erase(0, 1);
 
-        if (name == "Status") {
-            status = std::atoi(value.c_str());
-            if (status <= 0) status = 200;
+        if (toLower(name) == "status") {
+        	char *end;
+        	const long s = std::strtol(value.c_str(), &end, 10);
+            if (s > 0)
+            	status = static_cast<int>(s);
             continue;
         }
-        if (name == "Content-Length" || name == "content-length")
+        if (toLower(name) == "content-length")
             continue;
-        if (name == "Content-Type")
+        if (toLower(name) == "content-type")
             hasContentType = true;
+
+    	if (toLower(name) == "set-cookie")
+    	{
+    		cgiHeaders.add(name, value);
+    		continue;
+    	}
 
         cgiHeaders.set(name, value);
     }
