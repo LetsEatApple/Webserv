@@ -1,9 +1,16 @@
 #include "ResponseDispatcher.hpp"
+
+#include <algorithm>
+
 #include "MimeTypes.hpp"
 #include "Response.hpp"
 #include <sys/stat.h>
+#include <dirent.h>
+#include <cstring>
+#include <sstream>
 #include <cstdio>
 #include <fstream>
+#include <iomanip>
 
 static bool hasPathTraversal(const std::string& path) {
 	if (path.find("/..") != std::string::npos)
@@ -78,6 +85,151 @@ int ResponseDispatcher::serveReturn() {
 	return code;
 }
 
+static bool dirEntryCmp(const ResponseDispatcher::dirEntry &entry1, const ResponseDispatcher::dirEntry &entry2)
+{
+	return strcmp(entry1.name.c_str(), entry2.name.c_str()) <= 0;
+}
+
+static std::string htmlEscape(std::string src)
+{
+	std::ostringstream os;
+
+	for (std::string::const_iterator i = src.begin(); i != src.end(); ++i)
+	{
+		const std::string::value_type c = *i;
+
+		switch (c)
+		{
+		case '<':
+			os << "&lt;";
+			break;
+		case '>':
+			os << "&gt;";
+			break;
+		case '&':
+			os << "&amp;";
+			break;
+		case '"':
+			os << "&quot;";
+			break;
+		case '\'':
+			os << "&apos;";
+			break;
+		default:
+			os << c;
+		}
+	}
+
+	return os.str();
+}
+
+static std::string encode(std::string src)
+{
+	std::ostringstream os;
+	os.fill('0');
+	os << std::hex;
+
+	for (std::string::const_iterator i = src.begin(); i != src.end(); ++i)
+	{
+		const std::string::value_type c = *i;
+
+		if (std::isalnum(c) || c == '_' || c == '-' || c == '.' || c == '~' || c == '/')
+		{
+			os << c;
+			continue;
+		}
+
+		os << std::uppercase;
+		os << "%" << std::setw(2) << static_cast<int>(static_cast<unsigned char>(c));
+		os << std::nouppercase;
+	}
+
+	return os.str();
+}
+
+int ResponseDispatcher::serveAutoindex(const std::string &fsPath, const std::string &reqPath, const std::string &reqMethod)
+{
+	DIR *dir = opendir(fsPath.c_str());
+	if (!dir)
+		return sendError(Response::StatusForbidden);
+
+	std::ostringstream html;
+	html << "<html>\n<head><title>Index of " + htmlEscape(reqPath) + "</title></head>\n";
+	html << "<body>\n<h1>Index of " + htmlEscape(reqPath) + "</h1><hr><pre><a href=\"../\">../</a>\n";
+
+	std::vector<dirEntry> dir_entries;
+	std::vector<dirEntry> file_entries;
+	dirent* dp;
+	while ((dp = readdir(dir)) != NULL) {
+		std::string name = dp->d_name;
+		if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
+			continue;
+		struct stat st = {};
+		stat((fsPath + name).c_str(), &st);
+		if (S_ISDIR(st.st_mode))
+		{
+			name += "/";
+			dirEntry entry = {name, st.st_mtime, st.st_size};
+			dir_entries.push_back(entry);
+		} else
+		{
+			dirEntry entry = {name, st.st_mtime, st.st_size};
+			file_entries.push_back(entry);
+		}
+	}
+	closedir(dir);
+	std::sort(dir_entries.begin(), dir_entries.end(), dirEntryCmp);
+	std::sort(file_entries.begin(), file_entries.end(), dirEntryCmp);
+
+	for (std::vector<dirEntry>::const_iterator it = dir_entries.begin(); it != dir_entries.end(); ++it)
+	{
+
+		if (it->name.size() > 50)
+		{
+			std::string shortName = it->name.substr(0, 47);
+			html << "<a href=\"" + encode(it->name) + "\">" + htmlEscape(shortName)  + "..&gt;</a>";
+		}
+		else
+		{
+			html << "<a href=\"" + encode(it->name) + "\">" + htmlEscape(it->name) + "</a>";
+			html << std::setw(50 - it->name.size()) << " ";
+		}
+		char buf[18];
+		strftime(buf, 18, "%d-%b-%Y %H:%M", localtime(&it->mod_time));
+		html << " " << buf;
+		html << std::setw(20) << "-" << "\n";
+	}
+
+	for (std::vector<dirEntry>::const_iterator it = file_entries.begin(); it != file_entries.end(); ++it)
+	{
+
+		if (it->name.size() > 50)
+		{
+			std::string shortName = it->name.substr(0, 47);
+			html << "<a href=\"" + encode(it->name) + "\">" + htmlEscape(shortName) + "..&gt;</a>";
+		}
+		else
+		{
+			html << "<a href=\"" + encode(it->name) + "\">" + htmlEscape(it->name) + "</a>";
+			html << std::setw(50 - it->name.size()) << " ";
+		}
+		char buf[18];
+		strftime(buf, 18, "%d-%b-%Y %H:%M", localtime(&it->mod_time));
+		html << " " << buf;
+		html << std::setw(20) << it->size << "\n";
+	}
+
+	html << "</pre><hr></body>\n</html>\n";
+	const std::string htmlStr = html.str();
+	_w.writeStatusLine(Response::StatusOk);
+	Headers h = Response::getDefaultHeaders(htmlStr.size());
+	h.set("Content-Type", "text/html");
+	_w.writeHeaders(h);
+	if (reqMethod != "HEAD")
+		_w.writeBody(htmlStr.c_str(), htmlStr.size());
+	return 200;
+}
+
 int ResponseDispatcher::serveFile() {
 	// 1. resolve filesystem path from alias + request path
     std::string fsPath = resolvePath(_loc, _req.getPath());
@@ -99,12 +251,12 @@ int ResponseDispatcher::serveFile() {
 			if (stat(indexPath.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
 				fsPath = indexPath;
 			} else if (_loc.autoindex) {
-				return sendError(Response::StatusForbidden);
+				return serveAutoindex(fsPath, _req.getPath(), _req.getMethod());
 			} else {
 				return sendError(Response::StatusNotFound);
 			}
 		} else if (_loc.autoindex) {
-			return sendError(Response::StatusForbidden);
+			return serveAutoindex(fsPath, _req.getPath(), _req.getMethod());
 		} else {
 			return sendError(Response::StatusNotFound);
 		}
@@ -138,4 +290,3 @@ int ResponseDispatcher::serveDelete() {
 	_w.writeHeaders(Response::getDefaultHeaders(0));
 	return 204;
 }
-

@@ -1,6 +1,8 @@
 #ifndef RESPONSE_DISPATCHER_HPP
 #define RESPONSE_DISPATCHER_HPP
 
+#include <ctime>
+
 #include "Response.hpp"
 #include "Request.hpp"
 #include "Config.hpp"
@@ -14,6 +16,14 @@ public:
 	int serveFile();
 	int serveDelete();
 	int sendError(Response::StatusCode code);
+	int serveAutoindex(const std::string &fsPath, const std::string &reqPath, const std::string &reqMethod);
+
+	struct dirEntry
+	{
+		std::string name;
+		time_t mod_time;
+		long int size;
+	};
 
 private:
 	Response::Writer&		_w;
