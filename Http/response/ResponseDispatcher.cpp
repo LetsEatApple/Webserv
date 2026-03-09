@@ -253,12 +253,12 @@ int ResponseDispatcher::serveFile() {
 			} else if (_loc.autoindex) {
 				return serveAutoindex(fsPath, _req.getPath(), _req.getMethod());
 			} else {
-				return sendError(Response::StatusNotFound);
+				return sendError(Response::StatusForbidden);
 			}
 		} else if (_loc.autoindex) {
 			return serveAutoindex(fsPath, _req.getPath(), _req.getMethod());
 		} else {
-			return sendError(Response::StatusNotFound);
+			return sendError(Response::StatusForbidden);
 		}
 	}
 	// 4. regular file -> read, write status 200 + Content-Type from getMimeType()
