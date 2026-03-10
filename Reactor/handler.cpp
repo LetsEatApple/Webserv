@@ -40,6 +40,7 @@ int CgiFdHandler::handleWrite() { return (_kind == CGI_IN) ? _owner->onCgiWritab
 Connection::Connection(const SessionInfo &session) : EventHandler(session.client.socket), _session(session),
                                                      _location(),
                                                      _routed(false), _closeAfterResponse(false),
+                                                     _headerBytes(0),
 _state(StateReadingHeaders), _isCgi(false), _cgiPid(-1), _cgiInFd(-1), _cgiOutFd(-1), _cgiInClosed(false), _cgiInBuffer(), _cgiOutBuffer(),
 _cgiInHandler(NULL), _cgiOutHandler(NULL), _cgiStartTime(0) {
 }
@@ -475,6 +476,15 @@ int Connection::handleRead(){
 		_readBuffer.append(buf, n);
 	else if (_readBuffer.empty()) // Error occured and buffer empty, epoll decides what to do
 		return false;
+	if (_state == StateReadingHeaders)
+		_headerBytes += (n > 0) ? n : 0;
+	if (_state == StateReadingHeaders && _headerBytes > MAX_HEADER_SIZE) {
+		_closeAfterResponse = true;
+		Response::Writer w(_writeBuffer);
+		ResponseDispatcher(w, _request, _location).sendError(Response::StatusBadRequest);
+		_state = StateSendingResponse;
+		return _reactor->modifyHandler(this, EPOLLOUT);
+	}
 	const ProcessResult result = processRequest();
 
 	switch (result){
@@ -524,40 +534,27 @@ int Connection::handleRead(){
 
 int Connection::handleWrite() {
 
-	if (_writeBuffer.empty()) {
-		if (_closeAfterResponse) {
-			stopCgi();
-      logDisconnect(_session.listener, _session.client);
-			return _reactor->removeHandler(this, 0);
-		}
-		_request.reset();
-		_routed = false;
-    _state = StateReadingHeaders;
-		if (!_readBuffer.empty())
-			return handleRead();
-		return (_reactor->modifyHandler(this, EPOLLIN));
+	if (!_writeBuffer.empty()) {
+		const ssize_t sent = send(_fd, _writeBuffer.c_str(), _writeBuffer.length(), MSG_DONTWAIT);
+		if (sent > 0)
+			_writeBuffer.erase(0, sent);
+		else if (sent < 0)
+			return false;
 	}
-
-	const ssize_t sent = send(_fd, _writeBuffer.c_str(), _writeBuffer.length(), MSG_DONTWAIT);
-	if (sent > 0)
-		_writeBuffer.erase(0, sent);
-	if (_writeBuffer.empty()) {
-		if (_closeAfterResponse) {
-      stopCgi();
-			logDisconnect(_session.listener, _session.client);
-			return _reactor->removeHandler(this, 0);
-		}
-		_request.reset();
-		_routed = false;
-    _state = StateReadingHeaders;
-		if (!_readBuffer.empty())
-			return handleRead();
-		return (_reactor->modifyHandler(this, EPOLLIN));
+	if (!_writeBuffer.empty())
+		return true;
+	if (_closeAfterResponse) {
+		stopCgi();
+		logDisconnect(_session.listener, _session.client);
+		return _reactor->removeHandler(this, 0);
 	}
-	if (sent < 0)
-		return false; // decision up to epoll; Wait for epoll to report EPOLLERR / EPOLLHUP
-
-	return true;
+	_request.reset();
+	_routed = false;
+	_headerBytes = 0;
+	_state = StateReadingHeaders;
+	if (!_readBuffer.empty())
+		return handleRead();
+	return _reactor->modifyHandler(this, EPOLLIN);
 }
 
 // ACCEPT HANDLER

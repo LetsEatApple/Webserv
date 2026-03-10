@@ -54,6 +54,7 @@ private:
 	config::Location		_location;
 	bool					_routed;
 	bool					_closeAfterResponse;
+	size_t					_headerBytes;
 
   ConnState _state;
   bool _isCgi;

@@ -36,6 +36,7 @@
 # define SET 1
 # define GET 0
 # define CGI_TIMEOUT_SEC 1000
+# define MAX_HEADER_SIZE 8192
 
 int	error(const std::string& err, int errno_on);
 
