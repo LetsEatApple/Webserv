@@ -1,10 +1,9 @@
 - writer never sends chunked responses
 - especially a problem when serveFile reads the entire file into memory:
   - We need streaming read and send chunks
-- timeout handling — a client that connects and sends nothing holds a slot forever.
 - missing: File upload
-- missing: cookies/sessions
-- problem: CGI hangs on large requests
-- clean up SessionInfo, first prevent deep copies of the configuration for every client
-- write documentation of the architecture
+- test: cookies/sessions
+- check if still a problem: CGI hangs on large requests
+- (clean up SessionInfo, first prevent deep copies of the configuration for every client)
+- (write documentation of the architecture)
 - logger checks errno - should we remove this in for the evaluation?

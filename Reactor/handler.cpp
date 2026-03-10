@@ -40,7 +40,7 @@ int CgiFdHandler::handleWrite() { return (_kind == CGI_IN) ? _owner->onCgiWritab
 Connection::Connection(const SessionInfo &session) : EventHandler(session.client.socket), _session(session),
                                                      _location(),
                                                      _routed(false), _closeAfterResponse(false),
-                                                     _headerBytes(0),
+                                                     _headerBytes(0), _lastActivity(std::time(NULL)),
 _state(StateReadingHeaders), _isCgi(false), _cgiPid(-1), _cgiInFd(-1), _cgiOutFd(-1), _cgiInClosed(false), _cgiInBuffer(), _cgiOutBuffer(),
 _cgiInHandler(NULL), _cgiOutHandler(NULL), _cgiStartTime(0) {
 }
@@ -398,17 +398,29 @@ int Connection::onCgiReadable() {
 }
 
 bool Connection::checkTimeout() {
-  if (_state != StateCgiRunning || _cgiStartTime == 0)
+  std::time_t now = std::time(NULL);
+  if (_state == StateCgiRunning && _cgiStartTime > 0
+      && now - _cgiStartTime >= CGI_TIMEOUT_SEC) {
+    logInfo("CGI timeout after ", str(CGI_TIMEOUT_SEC).append("s - killing process"));
+    _closeAfterResponse = true;
+    Response::Writer w(_writeBuffer);
+    ResponseDispatcher(w, _request, _location).sendError(Response::StatusGatewayTimeout);
+    stopCgi();
+    _state = StateSendingResponse;
+    _reactor->modifyHandler(this, EPOLLOUT);
     return false;
-  if (time(NULL) - _cgiStartTime < CGI_TIMEOUT_SEC)
+  }
+  if (_state == StateSendingResponse)
     return false;
-  logInfo("CGI timeout after ", str(CGI_TIMEOUT_SEC).append("s - killing process"));
-  _closeAfterResponse = true;
-  Response::Writer w(_writeBuffer);
-  ResponseDispatcher(w, _request, _location).sendError(Response::StatusGatewayTimeout);
-  stopCgi();
-  _state = StateSendingResponse;
-  _reactor->modifyHandler(this, EPOLLOUT);
+  if (now - _lastActivity >= CLIENT_TIMEOUT_SEC) {
+    logInfo("Client timeout after ", str(CLIENT_TIMEOUT_SEC).append("s of inactivity"));
+    _closeAfterResponse = true;
+    Response::Writer w(_writeBuffer);
+    ResponseDispatcher(w, _request, _location).sendError(Response::StatusRequestTimeout);
+    _state = StateSendingResponse;
+    _reactor->modifyHandler(this, EPOLLOUT);
+    return false;
+  }
   return false;
 }
 
@@ -472,9 +484,10 @@ int Connection::handleRead(){
 		logDisconnect(_session.listener, _session.client);
 		return (_reactor->removeHandler(this, 0));
 	}
-	if (n > 0)
+	if (n > 0) {
 		_readBuffer.append(buf, n);
-	else if (_readBuffer.empty()) // Error occured and buffer empty, epoll decides what to do
+		_lastActivity = std::time(NULL);
+	} else if (_readBuffer.empty()) // Error occured and buffer empty, epoll decides what to do
 		return false;
 	if (_state == StateReadingHeaders)
 		_headerBytes += (n > 0) ? n : 0;

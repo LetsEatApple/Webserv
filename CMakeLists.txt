@@ -16,6 +16,7 @@ add_compile_options(-Wall -Wextra -Werror)
 
 option(ENABLE_TESTING "Enable Unit Testing Build" ON)
 option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" ON)
+set(CLIENT_TIMEOUT_SEC "" CACHE STRING "Override client timeout in seconds (default: 60)")
 
 if(ENABLE_SANITIZERS)
     add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
@@ -52,6 +53,10 @@ set(CONFIG_LIBRARY config_lib)
 add_subdirectory(Http)
 add_subdirectory(Reactor)
 add_subdirectory(Config)
+
+if(CLIENT_TIMEOUT_SEC)
+    add_compile_definitions(CLIENT_TIMEOUT_SEC=${CLIENT_TIMEOUT_SEC})
+endif()
 
 add_executable(webserv main.cpp)
 target_link_libraries(webserv ${REACTOR_LIBRARY} ${CONFIG_LIBRARY})

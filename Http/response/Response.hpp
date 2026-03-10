@@ -16,6 +16,7 @@ namespace Response {
         StatusForbidden = 403,
         StatusNotFound = 404,
         StatusMethodNotAllowed = 405,
+        StatusRequestTimeout = 408,
         StatusPayloadTooLarge = 413,
         StatusInternalServerError = 500,
         StatusNotImplemented = 501,

@@ -48,6 +48,7 @@ const char* Response::statusCodeToLine(StatusCode code) {
         case StatusForbidden:         return "HTTP/1.1 403 Forbidden\r\n";
         case StatusNotFound:          return "HTTP/1.1 404 Not Found\r\n";
         case StatusMethodNotAllowed:  return "HTTP/1.1 405 Method Not Allowed\r\n";
+        case StatusRequestTimeout:   return "HTTP/1.1 408 Request Timeout\r\n";
         case StatusPayloadTooLarge:  return "HTTP/1.1 413 Payload Too Large\r\n";
         case StatusInternalServerError: return "HTTP/1.1 500 Internal Server Error\r\n";
         case StatusNotImplemented:    return "HTTP/1.1 501 Not Implemented\r\n"; 
@@ -69,6 +70,7 @@ Response::StatusCode Response::intToStatusCode(int code) {
         case 403: return StatusForbidden;
         case 404: return StatusNotFound;
         case 405: return StatusMethodNotAllowed;
+        case 408: return StatusRequestTimeout;
         case 413: return StatusPayloadTooLarge;
         case 500: return StatusInternalServerError;
         default:  return StatusNotImplemented;

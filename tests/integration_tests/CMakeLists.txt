@@ -28,12 +28,27 @@ add_test(NAME integration_concurrency
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
-#[[
+
+add_test(NAME integration_header_limit
+    COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/test_header_limit.py
+        --build-dir ${CMAKE_BINARY_DIR}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+add_test(NAME integration_idle_timeout
+    COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/test_idle_timeout.py
+        --build-dir ${CMAKE_BINARY_DIR}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+set_tests_properties(integration_idle_timeout PROPERTIES
+    ENVIRONMENT "CLIENT_TIMEOUT_SEC=${CLIENT_TIMEOUT_SEC}"
+)
+
 add_test(NAME integration_cgi_zombie
     COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/test_cgi_zombie.py
         --build-dir ${CMAKE_BINARY_DIR}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-)#]]
+)
 
 execute_process(
         COMMAND pip show requests

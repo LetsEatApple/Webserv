@@ -55,6 +55,7 @@ private:
 	bool					_routed;
 	bool					_closeAfterResponse;
 	size_t					_headerBytes;
+	std::time_t				_lastActivity;
 
   ConnState _state;
   bool _isCgi;
