@@ -1,5 +1,6 @@
 set(REACTOR_SOURCES
         AEventHandler.cpp
+        Cgi.cpp
         handler.cpp
         Logger.cpp
         reactor.cpp

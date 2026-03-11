@@ -19,21 +19,9 @@
 #include "Response.hpp"
 #include "server.hpp"
 #include "routing.hpp"
+#include "Cgi.hpp"
 
 class Reactor;
-class Connection;
-
-class CgiFdHandler : public EventHandler {
-public:
-  enum Kind { CGI_IN, CGI_OUT };
-  CgiFdHandler(int fd, Connection *owner, Kind kind);
-  ~CgiFdHandler();
-  int handleRead();
-  int handleWrite();
-private:
-  Connection *_owner;
-  Kind _kind;
-};
 
 enum ConnState {
   StateReadingHeaders,
@@ -58,23 +46,9 @@ private:
 	std::time_t				_lastActivity;
 
   ConnState _state;
-  bool _isCgi;
-  pid_t _cgiPid;
-  int _cgiInFd;
-  int _cgiOutFd;
-  bool _cgiInClosed;
+  CgiProcess* _cgi;
 
-  std::string _cgiInBuffer;
-  std::string _cgiOutBuffer;
-  CgiFdHandler* _cgiInHandler;
-  CgiFdHandler* _cgiOutHandler;
-  std::time_t    _cgiStartTime;
-
-  bool startCgi();
   void stopCgi();
-  bool closeCgiInputIfDone();
-  bool buildHttpResponseFromCgi();
-
 	ProcessResult	processRequest();
 public:
 	Connection(const SessionInfo &session);
@@ -82,9 +56,14 @@ public:
 	int	handleRead();
 	int	handleWrite();
   bool checkTimeout();
-  int onCgiWritable();
-  int onCgiReadable();
-  void onCgiHandlerClosed(CgiFdHandler::Kind kind);
+
+  const Request& request() const;
+  const config::Location& location() const;
+  std::string& writeBuffer();
+  Reactor* reactor();
+  ConnState state() const;
+  void setState(ConnState s);
+  void setCloseAfterResponse(bool v);
 };
 
 // handling listening sockets
