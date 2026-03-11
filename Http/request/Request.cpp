@@ -7,7 +7,7 @@ const char* const Request::ERROR_MALFORMED_REQUEST_LINE = "malformed request-lin
 const char* const Request::ERROR_REQUEST_IN_ERROR_STATE = "request in error state";
 const char* const Request::SEPARATOR = "\r\n";
 
-Request::Request() : state(ParserState::Init), chunkedRemaining(0), maxBodySize(0) {}
+Request::Request() : bodyBytesReceived(0), state(ParserState::Init), chunkedRemaining(0), maxBodySize(0) {}
 
 void Request::reset() {
 	requestLine.method.clear();
@@ -17,6 +17,7 @@ void Request::reset() {
 	requestLine.httpVersion.clear();
 	headers.clear();
 	body.clear();
+	bodyBytesReceived = 0;
 	state = ParserState::Init;
 	chunkedRemaining = 0;
 	maxBodySize = 0;
@@ -61,6 +62,12 @@ const Headers& Request::getHeaders() const {
 
 const std::string& Request::getBody() const {
     return body;
+}
+
+std::string Request::drainBody() {
+    std::string tmp = body;
+    body.clear();
+    return tmp;
 }
 
 bool Request::hasBody() const {
@@ -233,14 +240,15 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
             }
 
             case ParserState::Body: {
-                int length = std::atoi(headers.get("content-length").c_str());
-                int bodyLen = static_cast<int>(body.size());
-                int dataLen = static_cast<int>(currentData.size());
-                int remaining = (length - bodyLen < dataLen) ? (length - bodyLen) : dataLen;
-                body += currentData.substr(0, remaining);
-                totalRead += remaining;
+                size_t length = static_cast<size_t>(std::atoi(headers.get("content-length").c_str()));
+                size_t dataLen = currentData.size();
+                size_t remaining = length - bodyBytesReceived;
+                size_t toConsume = (remaining < dataLen) ? remaining : dataLen;
+                body += currentData.substr(0, toConsume);
+                totalRead += static_cast<int>(toConsume);
+                bodyBytesReceived += toConsume;
 
-                if (static_cast<int>(body.size()) == length) {
+                if (bodyBytesReceived == length) {
                     state = ParserState::Done;
                 }
                 return totalRead;
@@ -263,7 +271,7 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
                 if (chunkSize == 0) {
                     state = ParserState::ChunkedDone;
                 }
-				else if (maxBodySize > 0 && body.size() + chunkSize > maxBodySize) {
+				else if (maxBodySize > 0 && bodyBytesReceived + chunkSize > maxBodySize) {
 					errorMsg = "Payload Too Large";
 					state = ParserState::Error;
 					return -1;
@@ -284,6 +292,7 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
                 body += currentData.substr(0, toConsume);
                 totalRead += toConsume;
                 chunkedRemaining -= toConsume;
+                bodyBytesReceived += static_cast<size_t>(toConsume);
                 if (chunkedRemaining == 0) {
                     state = ParserState::ChunkedTrailer;
                 }

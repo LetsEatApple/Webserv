@@ -43,6 +43,7 @@ public:
     const std::string&	getHttpVersion() const;
     const ::Headers&	getHeaders() const;
     const std::string&	getBody() const;
+    std::string			drainBody();
     void	setMaxBodySize(size_t size);
     void	reset();
 
@@ -76,6 +77,7 @@ private:
     RequestLine requestLine;
     ::Headers headers;
     std::string body;
+    size_t bodyBytesReceived;
     ParserState::State state;
     int chunkedRemaining;
 	size_t maxBodySize;

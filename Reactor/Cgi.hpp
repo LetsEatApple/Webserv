@@ -32,6 +32,10 @@ public:
 
   bool isRunning() const;
   std::time_t startTime() const;
+  bool headersSent() const;
+  void resumeRead();
+  void feedBody(const std::string& chunk);
+  void notifyBodyComplete();
 
 private:
   Connection& _conn;
@@ -39,12 +43,19 @@ private:
   int _inFd;
   int _outFd;
   bool _inClosed;
+  bool _headersSent;
+  bool _outPaused;
+  bool _bodyComplete;
+  bool _clientPaused;
   std::string _inBuffer;
   std::string _outBuffer;
   CgiFdHandler* _inHandler;
   CgiFdHandler* _outHandler;
   std::time_t _startTime;
 
-  bool closeInputIfDone();
-  bool buildHttpResponse();
+  void closeInputIfDone();
+  bool trySendCgiHeaders();
+  void pauseRead();
+  void pauseClientRead();
+  void resumeClientRead();
 };

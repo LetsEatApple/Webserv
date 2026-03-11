@@ -30,6 +30,14 @@ Connection::~Connection() {
   stopCgi();
 }
 
+int Connection::sendErrorAndClose(Response::StatusCode code) {
+  _closeAfterResponse = true;
+  Response::Writer w(_writeBuffer);
+  ResponseDispatcher(w, _request, _location).sendError(code);
+  _state = StateSendingResponse;
+  return _reactor->modifyHandler(this, EPOLLOUT);
+}
+
 void Connection::stopCgi() {
   if (_cgi) {
     _cgi->stop();
@@ -46,28 +54,28 @@ ConnState Connection::state() const { return _state; }
 void Connection::setState(ConnState s) { _state = s; }
 void Connection::setCloseAfterResponse(bool v) { _closeAfterResponse = v; }
 
+uint16_t Connection::serverPort() const {
+  struct sockaddr_in addr;
+  socklen_t len = sizeof(addr);
+  if (getsockname(_fd, reinterpret_cast<struct sockaddr*>(&addr), &len) == 0)
+    return ntohs(addr.sin_port);
+  return 0;
+}
+
 bool Connection::checkTimeout() {
   std::time_t now = std::time(NULL);
-  if (_state == StateCgiRunning && _cgi && _cgi->startTime() > 0
+  if ((_state == StateCgiRunning || _state == StateCgiStreaming) && _cgi && _cgi->startTime() > 0
       && now - _cgi->startTime() >= CGI_TIMEOUT_SEC) {
     logInfo("CGI timeout after ", str(CGI_TIMEOUT_SEC).append("s - killing process"));
-    _closeAfterResponse = true;
-    Response::Writer w(_writeBuffer);
-    ResponseDispatcher(w, _request, _location).sendError(Response::StatusGatewayTimeout);
     stopCgi();
-    _state = StateSendingResponse;
-    _reactor->modifyHandler(this, EPOLLOUT);
+    sendErrorAndClose(Response::StatusGatewayTimeout);
     return false;
   }
   if (_state == StateSendingResponse)
     return false;
   if (now - _lastActivity >= CLIENT_TIMEOUT_SEC) {
     logInfo("Client timeout after ", str(CLIENT_TIMEOUT_SEC).append("s of inactivity"));
-    _closeAfterResponse = true;
-    Response::Writer w(_writeBuffer);
-    ResponseDispatcher(w, _request, _location).sendError(Response::StatusRequestTimeout);
-    _state = StateSendingResponse;
-    _reactor->modifyHandler(this, EPOLLOUT);
+    sendErrorAndClose(Response::StatusRequestTimeout);
     return false;
   }
   return false;
@@ -88,6 +96,16 @@ ProcessResult Connection::processRequest(){
 		if (_request.checkState(ParserState::Body)
 			&& _request.getContentLen() > _location.client_max_body_size)
 			return PayloadTooLarge;
+		if (!isMethodAllowed(_request.getMethod(), _location.limit_except))
+			return MethodNotAllowed;
+		if (isCGI(_request.getPath(), _location.cgi)) {
+			_cgi = new CgiProcess(*this);
+			if (!_cgi->start()) {
+				stopCgi();
+				return RequestError;
+			}
+			_state = StateCgiRunning;
+		}
 		if (!_readBuffer.empty() && !_request.done()){
 			consumed = _request.parse(_readBuffer, errorMsg);
 			if (consumed < 0)
@@ -96,20 +114,13 @@ ProcessResult Connection::processRequest(){
 				_readBuffer.erase(0, consumed);
 		}
 	}
+	if (_cgi && !_request.getBody().empty())
+		_cgi->feedBody(_request.drainBody());
 	if (_request.done()) {
-		if (_routed && !isMethodAllowed(_request.getMethod(), _location.limit_except))
-			return MethodNotAllowed;
-		if (!_cgi && _routed && isCGI(_request.getPath(), _location.cgi)) {
-			_cgi = new CgiProcess(*this);
-			if (!_cgi->start()) {
-				stopCgi();
-				return RequestError;
-			}
-			_state = StateCgiRunning;
+		if (_cgi) {
+			_cgi->notifyBodyComplete();
 			return NeedMoreData;
 		}
-		if (_cgi)
-			return NeedMoreData;
 		return RequestDone;
 	}
 	return NeedMoreData;
@@ -117,7 +128,7 @@ ProcessResult Connection::processRequest(){
 
 int Connection::handleRead(){
 
-  if (_state == StateCgiRunning) {
+  if (_state == StateCgiRunning || _state == StateCgiStreaming) {
     char buf[MAX];
     ssize_t n = recv(_fd, buf, MAX - 1, MSG_DONTWAIT);
     if (n == 0) {
@@ -125,8 +136,24 @@ int Connection::handleRead(){
       logDisconnect(_session.listener, _session.client);
       return (_reactor->removeHandler(this, 0));
     }
-    if (n > 0)
-      _readBuffer.append(buf, n);
+    if (n > 0) {
+      _lastActivity = std::time(NULL);
+      if (!_request.done()) {
+        _readBuffer.append(buf, n);
+        std::string errorMsg;
+        int consumed = _request.parse(_readBuffer, errorMsg);
+        if (consumed < 0) {
+          stopCgi();
+          return sendErrorAndClose(Response::StatusBadRequest);
+        }
+        if (consumed > 0)
+          _readBuffer.erase(0, consumed);
+        if (_cgi && !_request.getBody().empty())
+          _cgi->feedBody(_request.drainBody());
+        if (_request.done() && _cgi)
+          _cgi->notifyBodyComplete();
+      }
+    }
     return true;
   }
 
@@ -144,45 +171,23 @@ int Connection::handleRead(){
 		return false;
 	if (_state == StateReadingHeaders)
 		_headerBytes += (n > 0) ? n : 0;
-	if (_state == StateReadingHeaders && _headerBytes > MAX_HEADER_SIZE) {
-		_closeAfterResponse = true;
-		Response::Writer w(_writeBuffer);
-		ResponseDispatcher(w, _request, _location).sendError(Response::StatusBadRequest);
-		_state = StateSendingResponse;
-		return _reactor->modifyHandler(this, EPOLLOUT);
-	}
+	if (_state == StateReadingHeaders && _headerBytes > MAX_HEADER_SIZE)
+		return sendErrorAndClose(Response::StatusBadRequest);
 	const ProcessResult result = processRequest();
 
 	switch (result){
-		case RequestError: {
-			_closeAfterResponse = true;
-			Response::Writer w(_writeBuffer);
-			ResponseDispatcher(w, _request, _location).sendError(Response::StatusBadRequest);
-			_state = StateSendingResponse;
-      return _reactor->modifyHandler(this, EPOLLOUT);
-		}
-		case PayloadTooLarge: {
-			_closeAfterResponse = true;
-			Response::Writer w(_writeBuffer);
-			ResponseDispatcher(w, _request, _location).sendError(Response::StatusPayloadTooLarge);
-			_state = StateSendingResponse;
-			return _reactor->modifyHandler(this, EPOLLOUT);
-		}
+		case RequestError:
+			return sendErrorAndClose(Response::StatusBadRequest);
+		case PayloadTooLarge:
+			return sendErrorAndClose(Response::StatusPayloadTooLarge);
+		case MethodNotAllowed:
+			return sendErrorAndClose(Response::StatusMethodNotAllowed);
 		case RequestDone: {
 			Response::Writer w(_writeBuffer);
-			if (_request.error()) {
-				_closeAfterResponse = true;
-				ResponseDispatcher(w, _request, _location).sendError(Response::StatusBadRequest);
-			} else {
-				logRequest(_session.listener, _session.client, _request, _location.path);
-				ResponseDispatcher(w, _request, _location).serve();
-			}
-			_state = StateSendingResponse;
-			return _reactor->modifyHandler(this, EPOLLOUT);
-		}
-		case MethodNotAllowed: {
-			Response::Writer w(_writeBuffer);
-			ResponseDispatcher(w, _request, _location).sendError(Response::StatusMethodNotAllowed);
+			if (_request.error())
+				return sendErrorAndClose(Response::StatusBadRequest);
+			logRequest(_session.listener, _session.client, _request, _location.path);
+			ResponseDispatcher(w, _request, _location).serve();
 			_state = StateSendingResponse;
 			return _reactor->modifyHandler(this, EPOLLOUT);
 		}
@@ -206,6 +211,15 @@ int Connection::handleWrite() {
 			_writeBuffer.erase(0, sent);
 		else if (sent < 0)
 			return false;
+	}
+	if (_state == StateCgiStreaming) {
+		if (_cgi && _writeBuffer.size() < MAX_CGI_BUFFER)
+			_cgi->resumeRead();
+		if (_cgi && _cgi->isRunning()) {
+			if (_writeBuffer.empty())
+				return _reactor->modifyHandler(this, EPOLLIN);
+			return true;
+		}
 	}
 	if (!_writeBuffer.empty())
 		return true;

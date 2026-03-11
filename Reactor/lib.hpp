@@ -37,6 +37,7 @@
 # define GET 0
 # define CGI_TIMEOUT_SEC 1000
 # define MAX_HEADER_SIZE 8192
+# define MAX_CGI_BUFFER 65536
 # ifndef CLIENT_TIMEOUT_SEC
 #  define CLIENT_TIMEOUT_SEC 60
 # endif

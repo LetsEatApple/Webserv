@@ -82,5 +82,27 @@ def test_cgi_nonexistent_script():
         os.unlink(conf)
 
 
+def test_cgi_path_info():
+    conf = write_config()
+    proc = start_server(conf)
+    try:
+        # PATH_INFO should be the part after the script name
+        status, headers, body = request(8094, "/cgi_env.py/extra/path?foo=bar")
+        assert status == 200, f"Expected 200, got {status}"
+        assert "PATH_INFO=/extra/path" in body, f"Expected PATH_INFO=/extra/path in:\n{body}"
+        assert "SCRIPT_NAME=/cgi_env.py" in body, f"Expected SCRIPT_NAME=/cgi_env.py in:\n{body}"
+        print("PASS: PATH_INFO is only the part after script name")
+
+        # No extra path -> PATH_INFO should be empty
+        status, headers, body = request(8094, "/cgi_env.py?foo=bar")
+        assert "PATH_INFO=" in body, f"Missing PATH_INFO in:\n{body}"
+        lines = [l for l in body.split("\n") if l.startswith("PATH_INFO=")]
+        assert lines[0] == "PATH_INFO=", f"Expected empty PATH_INFO, got: {lines[0]}"
+        print("PASS: PATH_INFO is empty when no extra path")
+    finally:
+        stop_server(proc)
+        os.unlink(conf)
+
+
 if __name__ == "__main__":
-    run_tests([test_cgi_python, test_cgi_perl, test_cgi_nonexistent_script])
+    run_tests([test_cgi_python, test_cgi_perl, test_cgi_nonexistent_script, test_cgi_path_info])

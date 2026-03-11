@@ -61,8 +61,36 @@ struct AddHttpEnv {
   }
 };
 
+static bool findCgiScript(const std::string& path,
+                          const std::map<std::string, std::string>& cgi,
+                          std::string& script,
+                          std::string& interpreter,
+                          std::string& pathInfo) {
+  for (size_t pos = 0; pos < path.size();) {
+    size_t dot = path.find('.', pos);
+    if (dot == std::string::npos) return false;
+    size_t extEnd = path.find('/', dot);
+    if (extEnd == std::string::npos) extEnd = path.size();
+    std::string ext = path.substr(dot, extEnd - dot);
+    std::map<std::string, std::string>::const_iterator it = cgi.find(ext);
+    if (it != cgi.end()) {
+      interpreter = it->second;
+      size_t slash = path.rfind('/', dot);
+      script = (slash == std::string::npos)
+        ? path.substr(0, extEnd)
+        : path.substr(slash, extEnd - slash);
+      pathInfo = (extEnd < path.size()) ? path.substr(extEnd) : "";
+      return true;
+    }
+    pos = extEnd;
+  }
+  return false;
+}
+
 CgiProcess::CgiProcess(Connection& conn)
   : _conn(conn), _pid(-1), _inFd(-1), _outFd(-1), _inClosed(false),
+    _headersSent(false), _outPaused(false), _bodyComplete(false),
+    _clientPaused(false),
     _inHandler(NULL), _outHandler(NULL), _startTime(0) {}
 
 CgiProcess::~CgiProcess() {
@@ -71,43 +99,15 @@ CgiProcess::~CgiProcess() {
 
 bool CgiProcess::isRunning() const { return _pid > 0; }
 std::time_t CgiProcess::startTime() const { return _startTime; }
+bool CgiProcess::headersSent() const { return _headersSent; }
 
 bool CgiProcess::start() {
   const Request& req = _conn.request();
   const config::Location& loc = _conn.location();
-  const std::string reqPath = req.getPath();
 
-  std::string script;
-  std::string pathInfo;
-  std::string ext;
-  {
-    size_t searchFrom = 0;
-    bool found = false;
-    while (searchFrom < reqPath.size()) {
-      size_t dot = reqPath.find('.', searchFrom);
-      if (dot == std::string::npos) break;
-      size_t extEnd = reqPath.find('/', dot);
-      if (extEnd == std::string::npos) extEnd = reqPath.size();
-      std::string candidate = reqPath.substr(dot, extEnd - dot);
-      if (loc.cgi.find(candidate) != loc.cgi.end()) {
-        ext = candidate;
-        size_t prev_slash = reqPath.rfind('/', dot);
-        if (prev_slash == std::string::npos)
-          script = reqPath.substr(0, extEnd);
-        else
-          script = reqPath.substr(prev_slash, extEnd);
-        pathInfo = reqPath;
-        found = true;
-        break;
-      }
-      searchFrom = extEnd;
-    }
-    if (!found) return false;
-  }
-
-  std::map<std::string, std::string>::const_iterator it = loc.cgi.find(ext);
-  if (it == loc.cgi.end()) return false;
-  const std::string interpreter = it->second;
+  std::string scriptName, interpreter, pathInfo;
+  if (!findCgiScript(req.getPath(), loc.cgi, scriptName, interpreter, pathInfo))
+    return false;
 
   int inPipe[2] = {-1, -1};
   int outPipe[2] = {-1, -1};
@@ -127,8 +127,7 @@ bool CgiProcess::start() {
     return false;
   }
 
-  const std::string scriptFileName = loc.alias + script;
-  const std::string scriptName = script;
+  const std::string scriptFileName = loc.alias + scriptName;
   const std::string queryString = req.getQuery();
   const std::string requestMethod = req.getMethod();
   const std::string protocolVersion =
@@ -138,8 +137,7 @@ bool CgiProcess::start() {
   const std::string pathTranslated =
     pathInfo.empty() ? "" : loc.alias + pathInfo;
 
-  std::ostringstream cl;
-  cl << req.getBody().size();
+  const std::string contentLenHeader = req.getHeaders().get("content-length");
 
   if (pid == 0) {
     dup2(inPipe[0], STDIN_FILENO);
@@ -163,14 +161,14 @@ bool CgiProcess::start() {
     addEnv(envStore, "DOCUMENT_ROOT", documentRoot);
     addEnv(envStore, "REQUEST_URI", req.getTarget());
     addEnv(envStore, "SERVER_NAME", req.getHost());
-    //TODO: addEnv(envStore, "SERVER_PORT");
+    { std::ostringstream sp; sp << _conn.serverPort();
+      addEnv(envStore, "SERVER_PORT", sp.str()); }
     addEnv(envStore, "REDIRECT_STATUS", "200");
-    if (requestMethod == "POST") {
-      addEnv(envStore, "CONTENT_LENGTH", cl.str());
-      std::string contentType = req.getHeaders().get("content-type");
+    if (!contentLenHeader.empty())
+      addEnv(envStore, "CONTENT_LENGTH", contentLenHeader);
+    { std::string contentType = req.getHeaders().get("content-type");
       if (!contentType.empty())
-        addEnv(envStore, "CONTENT_TYPE", contentType);
-    }
+        addEnv(envStore, "CONTENT_TYPE", contentType); }
 
     const Headers& hdrs = req.getHeaders();
     hdrs.forEach(AddHttpEnv(envStore));
@@ -197,7 +195,8 @@ bool CgiProcess::start() {
   _inFd = inPipe[1];
   _outFd = outPipe[0];
   _inClosed = false;
-  _inBuffer = req.getBody();
+  _bodyComplete = false;
+  _clientPaused = false;
   _outBuffer.clear();
 
   _inHandler = new CgiFdHandler(_inFd, this, CgiFdHandler::CGI_IN);
@@ -211,9 +210,6 @@ bool CgiProcess::start() {
     stop();
     return false;
   }
-
-  if (_inBuffer.empty())
-    closeInputIfDone();
 
   _startTime = std::time(NULL);
   return true;
@@ -247,9 +243,10 @@ void CgiProcess::stop() {
   _outBuffer.clear();
 }
 
-bool CgiProcess::closeInputIfDone() {
-  if (_inClosed) return true;
-  if (!_inBuffer.empty()) return true;
+void CgiProcess::closeInputIfDone() {
+  if (_inClosed) return;
+  if (!_inBuffer.empty()) return;
+  if (!_bodyComplete) return;
 
   if (_inHandler) {
     _conn.reactor()->removeHandler(_inHandler, 0);
@@ -259,7 +256,6 @@ bool CgiProcess::closeInputIfDone() {
     _inFd = -1;
   }
   _inClosed = true;
-  return true;
 }
 
 void CgiProcess::onHandlerClosed(CgiFdHandler::Kind kind) {
@@ -274,7 +270,7 @@ void CgiProcess::onHandlerClosed(CgiFdHandler::Kind kind) {
   }
 }
 
-bool CgiProcess::buildHttpResponse() {
+bool CgiProcess::trySendCgiHeaders() {
   size_t sep = _outBuffer.find("\r\n\r\n");
   size_t sepLen = 4;
 
@@ -287,7 +283,7 @@ bool CgiProcess::buildHttpResponse() {
     return false;
 
   std::string rawHeaders = _outBuffer.substr(0, sep);
-  std::string body = _outBuffer.substr(sep + sepLen);
+  _outBuffer.erase(0, sep + sepLen);
 
   int status = 200;
   Headers cgiHeaders;
@@ -330,19 +326,52 @@ bool CgiProcess::buildHttpResponse() {
     cgiHeaders.set(name, value);
   }
 
-  Response::StatusCode code = Response::intToStatusCode(status);
-  Response::Writer w(_conn.writeBuffer());
-  w.writeStatusLine(code);
-
-  std::ostringstream oss;
-  oss << body.size();
-  cgiHeaders.set("Content-Length", oss.str());
+  cgiHeaders.set("Transfer-Encoding", "chunked");
   if (!hasContentType)
     cgiHeaders.set("Content-Type", "text/html");
 
+  Response::StatusCode code = Response::intToStatusCode(status);
+  Response::Writer w(_conn.writeBuffer());
+  w.writeStatusLine(code);
   w.writeHeaders(cgiHeaders);
-  w.writeBody(body.c_str(), body.size());
+
+  _headersSent = true;
   return true;
+}
+
+void CgiProcess::pauseRead() {
+  if (_outPaused || !_outHandler || _outFd < 0) return;
+  _conn.reactor()->modifyHandler(_outHandler, 0);
+  _outPaused = true;
+}
+
+void CgiProcess::resumeRead() {
+  if (!_outPaused || !_outHandler || _outFd < 0) return;
+  _conn.reactor()->modifyHandler(_outHandler, EPOLLIN);
+  _outPaused = false;
+}
+
+void CgiProcess::feedBody(const std::string& chunk) {
+  _inBuffer += chunk;
+  if (_inBuffer.size() > MAX_CGI_BUFFER)
+    pauseClientRead();
+}
+
+void CgiProcess::notifyBodyComplete() {
+  _bodyComplete = true;
+  closeInputIfDone();
+}
+
+void CgiProcess::pauseClientRead() {
+  if (_clientPaused) return;
+  _conn.reactor()->modifyHandler(&_conn, 0);
+  _clientPaused = true;
+}
+
+void CgiProcess::resumeClientRead() {
+  if (!_clientPaused) return;
+  _conn.reactor()->modifyHandler(&_conn, EPOLLIN);
+  _clientPaused = false;
 }
 
 int CgiProcess::onWritable() {
@@ -356,7 +385,10 @@ int CgiProcess::onWritable() {
       return true;
   }
 
-  return closeInputIfDone();
+  if (_clientPaused && _inBuffer.size() < MAX_CGI_BUFFER)
+    resumeClientRead();
+  closeInputIfDone();
+  return true;
 }
 
 int CgiProcess::onReadable() {
@@ -366,15 +398,37 @@ int CgiProcess::onReadable() {
   for (;;) {
     ssize_t n = recv(_outFd, buf, sizeof(buf), MSG_DONTWAIT);
     if (n > 0) {
-      _outBuffer.append(buf, static_cast<size_t>(n));
+      if (!_headersSent) {
+        _outBuffer.append(buf, static_cast<size_t>(n));
+        if (trySendCgiHeaders()) {
+          if (!_outBuffer.empty()) {
+            Response::Writer w(_conn.writeBuffer());
+            w.writeChunkedBody(_outBuffer.c_str(), _outBuffer.size());
+            _outBuffer.clear();
+          }
+          _conn.setState(StateCgiStreaming);
+          _conn.reactor()->modifyHandler(&_conn, EPOLLIN | EPOLLOUT);
+        }
+      } else {
+        Response::Writer w(_conn.writeBuffer());
+        w.writeChunkedBody(buf, static_cast<size_t>(n));
+        _conn.reactor()->modifyHandler(&_conn, EPOLLIN | EPOLLOUT);
+      }
+      if (_headersSent && _conn.writeBuffer().size() > MAX_CGI_BUFFER) {
+        pauseRead();
+        return true;
+      }
       continue;
     }
     if (n == 0) {
-      if (!buildHttpResponse()) {
+      if (!_headersSent) {
         _conn.setCloseAfterResponse(true);
         Response::Writer w(_conn.writeBuffer());
         ResponseDispatcher(w, _conn.request(), _conn.location())
           .sendError(Response::StatusBadGateway);
+      } else {
+        Response::Writer w(_conn.writeBuffer());
+        w.writeChunkedBodyDone();
       }
       stop();
       _conn.setState(StateSendingResponse);

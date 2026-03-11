@@ -27,6 +27,7 @@ enum ConnState {
   StateReadingHeaders,
   StateReadingBody,
   StateCgiRunning,
+  StateCgiStreaming,
   StateSendingResponse,
   StateClosing
 };
@@ -49,6 +50,7 @@ private:
   CgiProcess* _cgi;
 
   void stopCgi();
+  int sendErrorAndClose(Response::StatusCode code);
 	ProcessResult	processRequest();
 public:
 	Connection(const SessionInfo &session);
@@ -64,6 +66,7 @@ public:
   ConnState state() const;
   void setState(ConnState s);
   void setCloseAfterResponse(bool v);
+  uint16_t serverPort() const;
 };
 
 // handling listening sockets
