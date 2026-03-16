@@ -38,6 +38,7 @@ class Connection : public EventHandler{
 private:
 	Request					_request;
 	std::string				_readBuffer;
+	size_t					_readOffset;
 	std::string				_writeBuffer;
 	SessionInfo				_session;
 	config::Location		_location;
@@ -51,6 +52,7 @@ private:
   CgiProcess* _cgi;
 
   void stopCgi();
+  void compactReadBuffer();
   int sendErrorAndClose(Response::StatusCode code);
 	ProcessResult	processRequest();
 public:

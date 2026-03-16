@@ -18,7 +18,8 @@
 #include <sys/socket.h>
 
 //	CONNECTION HANDLER
-Connection::Connection(const SessionInfo &session) : EventHandler(session.client.socket), _session(session),
+Connection::Connection(const SessionInfo &session) : EventHandler(session.client.socket),
+                                                     _readOffset(0), _session(session),
                                                      _location(), _writeOffset(0),
                                                      _routed(false), _closeAfterResponse(false),
                                                      _headerBytes(0), _lastActivity(std::time(NULL)),
@@ -93,13 +94,22 @@ bool Connection::checkTimeout() {
   return false;
 }
 
+void Connection::compactReadBuffer() {
+	if (_readOffset >= MAX) {
+		_readBuffer.erase(0, _readOffset);
+		_readOffset = 0;
+	}
+}
+
 ProcessResult Connection::processRequest(){
 	std::string errorMsg;
-	int consumed = _request.parse(_readBuffer, errorMsg);
+	int consumed = _request.parse(_readBuffer.substr(_readOffset), errorMsg);
 	if (consumed < 0)
 		return (errorMsg == "Payload Too Large") ? PayloadTooLarge : RequestError;
-	if (consumed > 0)
-		_readBuffer.erase(0, consumed);
+	if (consumed > 0) {
+		_readOffset += consumed;
+		compactReadBuffer();
+	}
 	if (_request.headersDone() && !_routed){
 		if (!findLocation(_session.vhosts, _request, _location))
 			return RequestError;
@@ -118,12 +128,14 @@ ProcessResult Connection::processRequest(){
 			}
 			_state = StateCgiRunning;
 		}
-		if (!_readBuffer.empty() && !_request.done()){
-			consumed = _request.parse(_readBuffer, errorMsg);
+		if (_readOffset < _readBuffer.size() && !_request.done()){
+			consumed = _request.parse(_readBuffer.substr(_readOffset), errorMsg);
 			if (consumed < 0)
 				return (errorMsg == "Payload Too Large") ? PayloadTooLarge : RequestError;
-			if (consumed > 0)
-				_readBuffer.erase(0, consumed);
+			if (consumed > 0) {
+				_readOffset += consumed;
+				compactReadBuffer();
+			}
 		}
 	}
 	if (_cgi && !_request.getBody().empty())
@@ -153,14 +165,16 @@ int Connection::handleRead(){
       if (!_request.done()) {
         _readBuffer.append(buf, n);
         std::string errorMsg;
-        int consumed = _request.parse(_readBuffer, errorMsg);
+        int consumed = _request.parse(_readBuffer.substr(_readOffset), errorMsg);
         if (consumed < 0) {
           stopCgi();
           return sendErrorAndClose(errorMsg == "Payload Too Large"
             ? Response::StatusPayloadTooLarge : Response::StatusBadRequest);
         }
-        if (consumed > 0)
-          _readBuffer.erase(0, consumed);
+        if (consumed > 0) {
+          _readOffset += consumed;
+          compactReadBuffer();
+        }
         if (_cgi && !_request.getBody().empty())
           _cgi->feedBody(_request.drainBody());
         if (_request.done() && _cgi)
@@ -180,7 +194,7 @@ int Connection::handleRead(){
 	if (n > 0) {
 		_readBuffer.append(buf, n);
 		_lastActivity = std::time(NULL);
-	} else if (_readBuffer.empty()) // Error occured and buffer empty, epoll decides what to do
+	} else if (_readOffset >= _readBuffer.size()) // Error occured and buffer empty, epoll decides what to do
 		return false;
 	if (_state == StateReadingHeaders)
 		_headerBytes += (n > 0) ? n : 0;
@@ -253,7 +267,7 @@ int Connection::handleWrite() {
 	_routed = false;
 	_headerBytes = 0;
 	_state = StateReadingHeaders;
-	if (!_readBuffer.empty())
+	if (_readOffset < _readBuffer.size())
 		return handleRead();
 	return _reactor->modifyHandler(this, EPOLLIN);
 }
