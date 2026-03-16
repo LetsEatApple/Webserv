@@ -48,6 +48,7 @@ private:
   bool _bodyComplete;
   bool _clientPaused;
   std::string _inBuffer;
+  size_t _inOffset;
   std::string _outBuffer;
   CgiFdHandler* _inHandler;
   CgiFdHandler* _outHandler;

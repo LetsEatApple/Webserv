@@ -90,7 +90,7 @@ static bool findCgiScript(const std::string& path,
 CgiProcess::CgiProcess(Connection& conn)
   : _conn(conn), _pid(-1), _inFd(-1), _outFd(-1), _inClosed(false),
     _headersSent(false), _outPaused(false), _bodyComplete(false),
-    _clientPaused(false),
+    _clientPaused(false), _inOffset(0),
     _inHandler(NULL), _outHandler(NULL), _startTime(0) {}
 
 CgiProcess::~CgiProcess() {
@@ -239,12 +239,13 @@ void CgiProcess::stop() {
   }
   _inClosed = true;
   _inBuffer.clear();
+  _inOffset = 0;
   _outBuffer.clear();
 }
 
 void CgiProcess::closeInputIfDone() {
   if (_inClosed) return;
-  if (!_inBuffer.empty()) return;
+  if (_inOffset < _inBuffer.size()) return;
   if (!_bodyComplete) return;
 
   if (_inHandler) {
@@ -352,7 +353,7 @@ void CgiProcess::resumeRead() {
 
 void CgiProcess::feedBody(const std::string& chunk) {
   _inBuffer += chunk;
-  if (_inBuffer.size() > MAX_CGI_BUFFER)
+  if (_inBuffer.size() - _inOffset > MAX_CGI_BUFFER)
     pauseClientRead();
 }
 
@@ -376,15 +377,20 @@ void CgiProcess::resumeClientRead() {
 int CgiProcess::onWritable() {
   if (_inFd < 0) return true;
 
-  if (!_inBuffer.empty()) {
-    ssize_t n = send(_inFd, _inBuffer.c_str(), _inBuffer.size(), MSG_DONTWAIT);
-    if (n > 0)
-      _inBuffer.erase(0, static_cast<size_t>(n));
-    else
+  if (_inOffset < _inBuffer.size()) {
+    ssize_t n = send(_inFd, _inBuffer.c_str() + _inOffset,
+                     _inBuffer.size() - _inOffset, MSG_DONTWAIT);
+    if (n > 0) {
+      _inOffset += static_cast<size_t>(n);
+      if (_inOffset >= _inBuffer.size()) {
+        _inBuffer.clear();
+        _inOffset = 0;
+      }
+    } else
       return true;
   }
 
-  if (_clientPaused && _inBuffer.size() < MAX_CGI_BUFFER)
+  if (_clientPaused && _inBuffer.size() - _inOffset < MAX_CGI_BUFFER)
     resumeClientRead();
   closeInputIfDone();
   return true;
