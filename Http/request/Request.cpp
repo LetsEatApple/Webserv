@@ -189,6 +189,10 @@ int Request::parseRequestLine(const std::string& buffer,
     return bytesRead;
 }
 
+int Request::parse(const std::string& data, size_t offset, std::string& errorMsg) {
+    return parse(data.substr(offset), errorMsg);
+}
+
 int Request::parse(const std::string& data, std::string& errorMsg) {
     int totalRead = 0;
 

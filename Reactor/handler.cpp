@@ -103,7 +103,7 @@ void Connection::compactReadBuffer() {
 
 ProcessResult Connection::processRequest(){
 	std::string errorMsg;
-	int consumed = _request.parse(_readBuffer.substr(_readOffset), errorMsg);
+	int consumed = _request.parse(_readBuffer, _readOffset, errorMsg);
 	if (consumed < 0)
 		return (errorMsg == "Payload Too Large") ? PayloadTooLarge : RequestError;
 	if (consumed > 0) {
@@ -129,7 +129,7 @@ ProcessResult Connection::processRequest(){
 			_state = StateCgiRunning;
 		}
 		if (_readOffset < _readBuffer.size() && !_request.done()){
-			consumed = _request.parse(_readBuffer.substr(_readOffset), errorMsg);
+			consumed = _request.parse(_readBuffer, _readOffset, errorMsg);
 			if (consumed < 0)
 				return (errorMsg == "Payload Too Large") ? PayloadTooLarge : RequestError;
 			if (consumed > 0) {
@@ -165,7 +165,7 @@ int Connection::handleRead(){
       if (!_request.done()) {
         _readBuffer.append(buf, n);
         std::string errorMsg;
-        int consumed = _request.parse(_readBuffer.substr(_readOffset), errorMsg);
+        int consumed = _request.parse(_readBuffer, _readOffset, errorMsg);
         if (consumed < 0) {
           stopCgi();
           return sendErrorAndClose(errorMsg == "Payload Too Large"

@@ -58,6 +58,7 @@ public:
     // Returns number of bytes consumed, or -1 on error
     // Sets errorMsg if provided and an error occurs
     int parse(const std::string& data, std::string& errorMsg);
+    int parse(const std::string& data, size_t offset, std::string& errorMsg);
 
 	// Check if parsing header is complete
 	bool headersDone() const;
