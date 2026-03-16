@@ -220,6 +220,63 @@ def test_chunked_body_too_large_413():
         os.unlink(conf)
 
 
+def test_large_post_body_not_rejected_as_header():
+    """POST with body > 8KB must not be rejected by the header size limit.
+
+    Regression: when recv buffer (MAX) > MAX_HEADER_SIZE, a single recv
+    could contain both headers and body data. The _headerBytes counter
+    included body bytes, falsely triggering a 400 for any POST > 8KB.
+    """
+    conf = write_config()
+    proc = start_server(conf)
+    try:
+        # 16KB body — well over the 8KB header limit but valid
+        body = "X" * 16384
+        status, _, resp_body = request(PORT, "/cgi_post.py", method="POST",
+                                       body=body,
+                                       headers={"Content-Type": "text/plain"})
+        assert status == 200, f"Expected 200 for 16KB POST body, got {status}"
+        assert "received: " in resp_body, f"CGI didn't echo body: {resp_body[:100]}"
+        print("PASS: 16KB POST body not rejected by header limit")
+
+    finally:
+        stop_server(proc)
+        os.unlink(conf)
+
+
+def test_large_post_body_keepalive():
+    """POST with body > 8KB followed by GET on the same connection.
+
+    Regression: same _headerBytes bug would close the connection with 400,
+    breaking keep-alive for all subsequent requests.
+    """
+    conf = write_config()
+    proc = start_server(conf)
+    try:
+        conn = http.client.HTTPConnection("127.0.0.1", PORT, timeout=5)
+
+        # POST 16KB to CGI
+        body = "Y" * 16384
+        conn.request("POST", "/cgi_post.py", body=body,
+                     headers={"Content-Type": "text/plain"})
+        r1 = conn.getresponse()
+        r1.read()
+        assert r1.status == 200, f"16KB POST: expected 200, got {r1.status}"
+
+        # GET on same connection should work
+        conn.request("GET", "/hello.txt")
+        r2 = conn.getresponse()
+        r2.read()
+        assert r2.status == 200, f"GET after 16KB POST: expected 200, got {r2.status}"
+
+        conn.close()
+        print("PASS: 16KB POST then GET on same connection works")
+
+    finally:
+        stop_server(proc)
+        os.unlink(conf)
+
+
 setup()
 
 if __name__ == "__main__":
@@ -230,4 +287,6 @@ if __name__ == "__main__":
         test_non_cgi_post_returns_204,
         test_post_body_too_large_413,
         test_chunked_body_too_large_413,
+        test_large_post_body_not_rejected_as_header,
+        test_large_post_body_keepalive,
     ])

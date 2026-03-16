@@ -22,7 +22,7 @@ Connection::Connection(const SessionInfo &session) : EventHandler(session.client
                                                      _readOffset(0), _session(session),
                                                      _location(), _writeOffset(0),
                                                      _routed(false), _closeAfterResponse(false),
-                                                     _headerBytes(0), _lastActivity(std::time(NULL)),
+                                                     _lastActivity(std::time(NULL)),
 _state(StateReadingHeaders), _cgi(NULL), _fileFd(-1), _fileRemaining(0) {
 }
 
@@ -205,9 +205,9 @@ int Connection::handleRead(){
 		_lastActivity = std::time(NULL);
 	} else if (_readOffset >= _readBuffer.size()) // Error occured and buffer empty, epoll decides what to do
 		return false;
-	if (_state == StateReadingHeaders)
-		_headerBytes += (n > 0) ? n : 0;
-	if (_state == StateReadingHeaders && _headerBytes > MAX_HEADER_SIZE)
+	if (_state == StateReadingHeaders && !_request.headersDone()
+		&& _readBuffer.size() > MAX_HEADER_SIZE
+		&& _readBuffer.find("\r\n\r\n") == std::string::npos)
 		return sendErrorAndClose(Response::StatusBadRequest);
 	const ProcessResult result = processRequest();
 
@@ -310,7 +310,6 @@ int Connection::handleWrite() {
 	_writeOffset = 0;
 	_request.reset();
 	_routed = false;
-	_headerBytes = 0;
 	_state = StateReadingHeaders;
 	if (_readOffset < _readBuffer.size())
 		return handleRead();

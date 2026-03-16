@@ -11,7 +11,7 @@
 class ResponseDispatcher {
 public:
 	ResponseDispatcher(Response::Writer& w, const Request& req, const config::Location& loc);
-h	int serve(int* fileFd = 0, size_t* fileSize = 0);
+	int serve(int* fileFd = 0, size_t* fileSize = 0);
 	int serveReturn();
 	int serveFile(int* fileFd, size_t* fileSize);
 	int serveDelete();
