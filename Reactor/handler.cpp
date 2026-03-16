@@ -23,12 +23,16 @@ Connection::Connection(const SessionInfo &session) : EventHandler(session.client
                                                      _location(), _writeOffset(0),
                                                      _routed(false), _closeAfterResponse(false),
                                                      _headerBytes(0), _lastActivity(std::time(NULL)),
-_state(StateReadingHeaders), _cgi(NULL) {
+_state(StateReadingHeaders), _cgi(NULL), _fileFd(-1), _fileRemaining(0) {
 }
 
 Connection::~Connection() {
   _state = StateClosing;
   stopCgi();
+  if (_fileFd >= 0) {
+    close(_fileFd);
+    _fileFd = -1;
+  }
 }
 
 int Connection::sendErrorAndClose(Response::StatusCode code) {
@@ -66,6 +70,11 @@ Reactor* Connection::reactor() { return _reactor; }
 ConnState Connection::state() const { return _state; }
 void Connection::setState(ConnState s) { _state = s; }
 void Connection::setCloseAfterResponse(bool v) { _closeAfterResponse = v; }
+
+void Connection::setFileResponse(int fd, size_t size) {
+  _fileFd = fd;
+  _fileRemaining = size;
+}
 
 uint16_t Connection::serverPort() const {
   struct sockaddr_in addr;
@@ -214,7 +223,11 @@ int Connection::handleRead(){
 			if (_request.error())
 				return sendErrorAndClose(Response::StatusBadRequest);
 			logRequest(_session.listener, _session.client, _request, _location.path);
-			ResponseDispatcher(w, _request, _location).serve();
+			int fileFd = -1;
+			size_t fileSize = 0;
+			ResponseDispatcher(w, _request, _location).serve(&fileFd, &fileSize);
+			if (fileFd >= 0)
+				setFileResponse(fileFd, fileSize);
 			_state = StateSendingResponse;
 			return _reactor->modifyHandler(this, EPOLLOUT);
 		}
@@ -248,6 +261,33 @@ int Connection::handleWrite() {
 		else
 			break;
 	}
+	if (_fileFd >= 0 && writeEmpty()) {
+		char buf[MAX];
+		while (_fileRemaining > 0) {
+			size_t toRead = _fileRemaining < MAX ? _fileRemaining : MAX;
+			ssize_t nr = read(_fileFd, buf, toRead);
+			if (nr <= 0) break;
+			_fileRemaining -= static_cast<size_t>(nr);
+			size_t off = 0;
+			while (off < static_cast<size_t>(nr)) {
+				ssize_t ns = send(_fd, buf + off, static_cast<size_t>(nr) - off, MSG_DONTWAIT);
+				if (ns > 0) {
+					off += static_cast<size_t>(ns);
+				} else if (ns < 0 && errno == EAGAIN) {
+					// Socket full — buffer the rest for next EPOLLOUT
+					_writeBuffer.append(buf + off, static_cast<size_t>(nr) - off);
+					_writeOffset = 0;
+					return true;
+				} else {
+					close(_fileFd);
+					_fileFd = -1;
+					return false;
+				}
+			}
+		}
+		close(_fileFd);
+		_fileFd = -1;
+	}
 	if (_state == StateCgiStreaming) {
 		if (_cgi && writePending() < MAX_CGI_BUFFER)
 			_cgi->resumeRead();
@@ -265,6 +305,7 @@ int Connection::handleWrite() {
 		return _reactor->removeHandler(this, 0);
 	}
 	stopCgi();
+	if (_fileFd >= 0) { close(_fileFd); _fileFd = -1; }
 	_writeBuffer.clear();
 	_writeOffset = 0;
 	_request.reset();

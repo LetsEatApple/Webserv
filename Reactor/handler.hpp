@@ -50,6 +50,8 @@ private:
 
   ConnState _state;
   CgiProcess* _cgi;
+  int _fileFd;
+  size_t _fileRemaining;
 
   void stopCgi();
   void compactReadBuffer();
@@ -71,6 +73,7 @@ public:
   ConnState state() const;
   void setState(ConnState s);
   void setCloseAfterResponse(bool v);
+  void setFileResponse(int fd, size_t size);
   uint16_t serverPort() const;
 };
 

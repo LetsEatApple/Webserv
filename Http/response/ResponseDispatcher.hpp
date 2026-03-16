@@ -11,9 +11,9 @@
 class ResponseDispatcher {
 public:
 	ResponseDispatcher(Response::Writer& w, const Request& req, const config::Location& loc);
-	int serve();
+h	int serve(int* fileFd = 0, size_t* fileSize = 0);
 	int serveReturn();
-	int serveFile();
+	int serveFile(int* fileFd, size_t* fileSize);
 	int serveDelete();
 	int sendError(Response::StatusCode code);
 	int serveAutoindex(const std::string &fsPath, const std::string &reqPath, const std::string &reqMethod);

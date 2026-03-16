@@ -5,6 +5,7 @@
 #include "MimeTypes.hpp"
 #include "Response.hpp"
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <dirent.h>
 #include <cstring>
 #include <sstream>
@@ -57,7 +58,7 @@ int ResponseDispatcher::sendError(Response::StatusCode code) {
 	return static_cast<int>(code);
 }
 
-int ResponseDispatcher::serve() {
+int ResponseDispatcher::serve(int* fileFd, size_t* fileSize) {
 	if (!_loc.ret.empty())
 		return serveReturn();
 	if (_req.getMethod() == "DELETE")
@@ -67,7 +68,7 @@ int ResponseDispatcher::serve() {
 		_w.writeHeaders(Response::getDefaultHeaders(0));
 		return 204;
 	}
-	return serveFile();
+	return serveFile(fileFd, fileSize);
 }
 
 int ResponseDispatcher::serveReturn() {
@@ -235,7 +236,7 @@ int ResponseDispatcher::serveAutoindex(const std::string &fsPath, const std::str
 	return 200;
 }
 
-int ResponseDispatcher::serveFile() {
+int ResponseDispatcher::serveFile(int* fileFd, size_t* fileSize) {
 	// 1. resolve filesystem path from alias + request path
     std::string fsPath = resolvePath(_loc, _req.getPath());
 	struct stat st;
@@ -270,21 +271,30 @@ int ResponseDispatcher::serveFile() {
 			return sendError(Response::StatusForbidden);
 		}
 	}
-	// 4. regular file -> read, write status 200 + Content-Type from getMimeType()
+	// 4. regular file -> write status 200 + Content-Type, stream body
+	_w.writeStatusLine(Response::StatusOk);
+	Headers h = Response::getDefaultHeaders(static_cast<int>(st.st_size));
+	h.replace("Content-Type", getMimeType(fsPath));
+	_w.writeHeaders(h);
+	// 5. HEAD -> same headers, skip body
+	if (_req.getMethod() == "HEAD")
+		return 200;
+	// 6. stream file body via Connection
+	if (fileFd && fileSize) {
+		int fd = open(fsPath.c_str(), O_RDONLY);
+		if (fd >= 0) {
+			*fileFd = fd;
+			*fileSize = static_cast<size_t>(st.st_size);
+			return 200;
+		}
+	}
+	// fallback: load into memory if no streaming support
 	std::ifstream file(fsPath.c_str(), std::ios::binary);
 	if (!file)
 		return sendError(Response::StatusInternalServerError);
 	std::string body((std::istreambuf_iterator<char>(file)),
 					  std::istreambuf_iterator<char>());
-
-	_w.writeStatusLine(Response::StatusOk);
-	Headers h = Response::getDefaultHeaders(body.size());
-	h.replace("Content-Type", getMimeType(fsPath));
-	_w.writeHeaders(h);
-	// 5. HEAD -> same headers, skip body
-	if (_req.getMethod() != "HEAD")
-		_w.writeBody(body.c_str(), body.size());
-	// 6. return the status code sent
+	_w.writeBody(body.c_str(), body.size());
 	return 200;
 }
 
