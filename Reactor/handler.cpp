@@ -34,6 +34,14 @@ int Connection::sendErrorAndClose(Response::StatusCode code) {
   _closeAfterResponse = true;
   Response::Writer w(_writeBuffer);
   ResponseDispatcher(w, _request, _location).sendError(code);
+  // Fix connection header: we're closing, not keeping alive
+  {
+    const std::string old_h = "connection: keep-alive\r\n";
+    const std::string new_h = "connection: close\r\n";
+    size_t pos = _writeBuffer.find(old_h);
+    if (pos != std::string::npos)
+      _writeBuffer.replace(pos, old_h.size(), new_h);
+  }
   _state = StateSendingResponse;
   return _reactor->modifyHandler(this, EPOLLOUT);
 }
@@ -71,7 +79,7 @@ bool Connection::checkTimeout() {
     sendErrorAndClose(Response::StatusGatewayTimeout);
     return false;
   }
-  if (_state == StateSendingResponse)
+  if (_state == StateSendingResponse || _state == StateCgiRunning || _state == StateCgiStreaming)
     return false;
   if (now - _lastActivity >= CLIENT_TIMEOUT_SEC) {
     logInfo("Client timeout after ", str(CLIENT_TIMEOUT_SEC).append("s of inactivity"));
@@ -85,7 +93,7 @@ ProcessResult Connection::processRequest(){
 	std::string errorMsg;
 	int consumed = _request.parse(_readBuffer, errorMsg);
 	if (consumed < 0)
-		return RequestError;
+		return (errorMsg == "Payload Too Large") ? PayloadTooLarge : RequestError;
 	if (consumed > 0)
 		_readBuffer.erase(0, consumed);
 	if (_request.headersDone() && !_routed){
@@ -109,7 +117,7 @@ ProcessResult Connection::processRequest(){
 		if (!_readBuffer.empty() && !_request.done()){
 			consumed = _request.parse(_readBuffer, errorMsg);
 			if (consumed < 0)
-				return RequestError;
+				return (errorMsg == "Payload Too Large") ? PayloadTooLarge : RequestError;
 			if (consumed > 0)
 				_readBuffer.erase(0, consumed);
 		}
@@ -144,7 +152,8 @@ int Connection::handleRead(){
         int consumed = _request.parse(_readBuffer, errorMsg);
         if (consumed < 0) {
           stopCgi();
-          return sendErrorAndClose(Response::StatusBadRequest);
+          return sendErrorAndClose(errorMsg == "Payload Too Large"
+            ? Response::StatusPayloadTooLarge : Response::StatusBadRequest);
         }
         if (consumed > 0)
           _readBuffer.erase(0, consumed);
