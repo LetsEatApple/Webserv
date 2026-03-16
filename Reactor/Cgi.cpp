@@ -358,8 +358,14 @@ void CgiProcess::resumeRead() {
   _outPaused = false;
 }
 
-void CgiProcess::feedBody(const std::string& chunk) {
-  _inBuffer += chunk;
+void CgiProcess::feedBody(std::string& body) {
+  if (_inOffset >= _inBuffer.size()) {
+    _inBuffer.swap(body);
+    _inOffset = 0;
+  } else {
+    _inBuffer += body;
+  }
+  body.clear();
   if (_inBuffer.size() - _inOffset > MAX_CGI_BUFFER)
     pauseClientRead();
 }

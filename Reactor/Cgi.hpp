@@ -34,7 +34,7 @@ public:
   std::time_t startTime() const;
   bool headersSent() const;
   void resumeRead();
-  void feedBody(const std::string& chunk);
+  void feedBody(std::string& body);
   void notifyBodyComplete();
 
 private:

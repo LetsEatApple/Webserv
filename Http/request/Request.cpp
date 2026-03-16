@@ -70,6 +70,10 @@ std::string Request::drainBody() {
     return tmp;
 }
 
+std::string& Request::bodyRef() {
+    return body;
+}
+
 bool Request::hasBody() const {
     std::string lengthStr = headers.get("content-length");
     if (lengthStr.empty()) {

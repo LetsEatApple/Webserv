@@ -139,7 +139,7 @@ ProcessResult Connection::processRequest(){
 		}
 	}
 	if (_cgi && !_request.getBody().empty())
-		_cgi->feedBody(_request.drainBody());
+		_cgi->feedBody(_request.bodyRef());
 	if (_request.done()) {
 		if (_cgi) {
 			_cgi->notifyBodyComplete();
@@ -176,7 +176,7 @@ int Connection::handleRead(){
           compactReadBuffer();
         }
         if (_cgi && !_request.getBody().empty())
-          _cgi->feedBody(_request.drainBody());
+          _cgi->feedBody(_request.bodyRef());
         if (_request.done() && _cgi)
           _cgi->notifyBodyComplete();
       }

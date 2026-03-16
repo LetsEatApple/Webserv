@@ -44,6 +44,7 @@ public:
     const ::Headers&	getHeaders() const;
     const std::string&	getBody() const;
     std::string			drainBody();
+    std::string&		bodyRef();
     void	setMaxBodySize(size_t size);
     void	reset();
 
