@@ -32,7 +32,7 @@
 #include "Logger.hpp"
 #include <ctime>
 
-# define MAX 1024
+# define MAX 65536
 # define SET 1
 # define GET 0
 # define CGI_TIMEOUT_SEC 1000

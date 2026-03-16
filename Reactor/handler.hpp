@@ -41,6 +41,7 @@ private:
 	std::string				_writeBuffer;
 	SessionInfo				_session;
 	config::Location		_location;
+	size_t					_writeOffset;
 	bool					_routed;
 	bool					_closeAfterResponse;
 	size_t					_headerBytes;
@@ -62,6 +63,8 @@ public:
   const Request& request() const;
   const config::Location& location() const;
   std::string& writeBuffer();
+  size_t writePending() const;
+  bool writeEmpty() const;
   Reactor* reactor();
   ConnState state() const;
   void setState(ConnState s);

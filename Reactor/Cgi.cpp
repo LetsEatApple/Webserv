@@ -413,7 +413,7 @@ int CgiProcess::onReadable() {
         w.writeChunkedBody(buf, static_cast<size_t>(n));
         _conn.reactor()->modifyHandler(&_conn, EPOLLIN | EPOLLOUT);
       }
-      if (_headersSent && _conn.writeBuffer().size() > MAX_CGI_BUFFER) {
+      if (_headersSent && _conn.writePending() > MAX_CGI_BUFFER) {
         pauseRead();
         return true;
       }

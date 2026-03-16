@@ -19,7 +19,7 @@
 
 //	CONNECTION HANDLER
 Connection::Connection(const SessionInfo &session) : EventHandler(session.client.socket), _session(session),
-                                                     _location(),
+                                                     _location(), _writeOffset(0),
                                                      _routed(false), _closeAfterResponse(false),
                                                      _headerBytes(0), _lastActivity(std::time(NULL)),
 _state(StateReadingHeaders), _cgi(NULL) {
@@ -32,6 +32,8 @@ Connection::~Connection() {
 
 int Connection::sendErrorAndClose(Response::StatusCode code) {
   _closeAfterResponse = true;
+  _writeBuffer.clear();
+  _writeOffset = 0;
   Response::Writer w(_writeBuffer);
   ResponseDispatcher(w, _request, _location).sendError(code);
   // Fix connection header: we're closing, not keeping alive
@@ -57,6 +59,8 @@ void Connection::stopCgi() {
 const Request& Connection::request() const { return _request; }
 const config::Location& Connection::location() const { return _location; }
 std::string& Connection::writeBuffer() { return _writeBuffer; }
+size_t Connection::writePending() const { return _writeBuffer.size() - _writeOffset; }
+bool Connection::writeEmpty() const { return _writeOffset >= _writeBuffer.size(); }
 Reactor* Connection::reactor() { return _reactor; }
 ConnState Connection::state() const { return _state; }
 void Connection::setState(ConnState s) { _state = s; }
@@ -214,23 +218,28 @@ int Connection::handleRead(){
 
 int Connection::handleWrite() {
 
-	if (!_writeBuffer.empty()) {
-		const ssize_t sent = send(_fd, _writeBuffer.c_str(), _writeBuffer.length(), MSG_DONTWAIT);
+	if (!writeEmpty()) {
+		const ssize_t sent = send(_fd, _writeBuffer.c_str() + _writeOffset,
+		                          writePending(), MSG_DONTWAIT);
 		if (sent > 0)
-			_writeBuffer.erase(0, sent);
+			_writeOffset += static_cast<size_t>(sent);
 		else if (sent < 0)
 			return false;
+		if (writeEmpty()) {
+			_writeBuffer.clear();
+			_writeOffset = 0;
+		}
 	}
 	if (_state == StateCgiStreaming) {
-		if (_cgi && _writeBuffer.size() < MAX_CGI_BUFFER)
+		if (_cgi && writePending() < MAX_CGI_BUFFER)
 			_cgi->resumeRead();
 		if (_cgi && _cgi->isRunning()) {
-			if (_writeBuffer.empty())
+			if (writeEmpty())
 				return _reactor->modifyHandler(this, EPOLLIN);
 			return true;
 		}
 	}
-	if (!_writeBuffer.empty())
+	if (!writeEmpty())
 		return true;
 	if (_closeAfterResponse) {
 		stopCgi();
@@ -238,6 +247,8 @@ int Connection::handleWrite() {
 		return _reactor->removeHandler(this, 0);
 	}
 	stopCgi();
+	_writeBuffer.clear();
+	_writeOffset = 0;
 	_request.reset();
 	_routed = false;
 	_headerBytes = 0;
