@@ -13,7 +13,7 @@ public:
 	ResponseDispatcher(Response::Writer& w, const Request& req, const config::Location& loc);
 	int serve(int* fileFd = 0, size_t* fileSize = 0);
 	int serveReturn();
-	int serveFile(int* fileFd, size_t* fileSize);
+	int serveFile(int* fileFd = 0, size_t* fileSize = 0);
 	int serveDelete();
 	int sendError(Response::StatusCode code);
 	int serveAutoindex(const std::string &fsPath, const std::string &reqPath, const std::string &reqMethod);

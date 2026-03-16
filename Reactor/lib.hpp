@@ -39,7 +39,7 @@
 # define MAX_HEADER_SIZE 8192
 # define MAX_CGI_BUFFER 65536
 # ifndef CLIENT_TIMEOUT_SEC
-#  define CLIENT_TIMEOUT_SEC 60
+#  define CLIENT_TIMEOUT_SEC 600
 # endif
 
 int	error(const std::string& err, int errno_on);

@@ -265,6 +265,7 @@ int ResponseDispatcher::serveFile(int* fileFd, size_t* fileSize) {
 		}
 		if (hasIndex) {
 			fsPath = dirPath + _loc.index;
+			stat(fsPath.c_str(), &st);
 		} else if (_loc.autoindex) {
 			return serveAutoindex(fsPath, _req.getPath(), _req.getMethod());
 		} else {

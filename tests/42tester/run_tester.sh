@@ -29,5 +29,5 @@ sleep infinity | ../../cmake-build-debug/webserv webserv_tester.conf &
 PID=$!
 sleep 1
 
-# Run tester
-./tester http://127.0.0.1:8080
+# Run tester (auto-press enter through prompts)
+yes '' | ./tester http://127.0.0.1:8080

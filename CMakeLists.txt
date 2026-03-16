@@ -14,8 +14,13 @@ endif()
 
 add_compile_options(-Wall -Wextra -Werror)
 
-option(ENABLE_TESTING "Enable Unit Testing Build" ON)
-option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" ON)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    option(ENABLE_TESTING "Enable Unit Testing Build" ON)
+    option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" ON)
+else()
+    option(ENABLE_TESTING "Enable Unit Testing Build" OFF)
+    option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+endif()
 set(CLIENT_TIMEOUT_SEC "" CACHE STRING "Override client timeout in seconds (default: 60)")
 
 if(ENABLE_SANITIZERS)
