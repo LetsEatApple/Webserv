@@ -119,6 +119,13 @@ bool CgiProcess::start() {
     if (outPipe[1] != -1) close(outPipe[1]);
     return false;
   }
+  {
+    int bufSz = 1024 * 1024;
+    setsockopt(inPipe[0], SOL_SOCKET, SO_RCVBUF, &bufSz, sizeof(bufSz));
+    setsockopt(inPipe[1], SOL_SOCKET, SO_SNDBUF, &bufSz, sizeof(bufSz));
+    setsockopt(outPipe[0], SOL_SOCKET, SO_RCVBUF, &bufSz, sizeof(bufSz));
+    setsockopt(outPipe[1], SOL_SOCKET, SO_SNDBUF, &bufSz, sizeof(bufSz));
+  }
 
   pid_t pid = fork();
   if (pid < 0) {

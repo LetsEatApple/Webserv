@@ -232,17 +232,21 @@ int Connection::handleRead(){
 
 int Connection::handleWrite() {
 
-	if (!writeEmpty()) {
+	while (!writeEmpty()) {
 		const ssize_t sent = send(_fd, _writeBuffer.c_str() + _writeOffset,
 		                          writePending(), MSG_DONTWAIT);
-		if (sent > 0)
+		if (sent > 0) {
 			_writeOffset += static_cast<size_t>(sent);
+			if (writeEmpty()) {
+				_writeBuffer.clear();
+				_writeOffset = 0;
+			}
+		} else if (sent < 0 && errno == EAGAIN)
+			break;
 		else if (sent < 0)
 			return false;
-		if (writeEmpty()) {
-			_writeBuffer.clear();
-			_writeOffset = 0;
-		}
+		else
+			break;
 	}
 	if (_state == StateCgiStreaming) {
 		if (_cgi && writePending() < MAX_CGI_BUFFER)
