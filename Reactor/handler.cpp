@@ -228,6 +228,7 @@ int Connection::handleWrite() {
 		logDisconnect(_session.listener, _session.client);
 		return _reactor->removeHandler(this, 0);
 	}
+	stopCgi();
 	_request.reset();
 	_routed = false;
 	_headerBytes = 0;

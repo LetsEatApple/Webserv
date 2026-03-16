@@ -9,7 +9,8 @@ import os
 import http.client
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-BUILD_DIR = None
+PROJECT_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIR))
+BUILD_DIR = os.environ.get("BUILD_DIR", os.path.join(PROJECT_ROOT, "cmake-build-debug"))
 TARGET = "webserv"
 
 

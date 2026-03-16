@@ -62,6 +62,11 @@ int ResponseDispatcher::serve() {
 		return serveReturn();
 	if (_req.getMethod() == "DELETE")
 		return serveDelete();
+	if (_req.getMethod() == "POST") {
+		_w.writeStatusLine(Response::StatusNoContent);
+		_w.writeHeaders(Response::getDefaultHeaders(0));
+		return 204;
+	}
 	return serveFile();
 }
 
@@ -239,22 +244,26 @@ int ResponseDispatcher::serveFile() {
 		return sendError(Response::StatusNotFound);
 	// 3. directory -> redirect 301 if missing trailing /, else try index, else autoindex, else 403
 	if (S_ISDIR(st.st_mode)) {
+		std::string dirPath = fsPath;
+		if (dirPath[dirPath.size() - 1] != '/')
+			dirPath += "/";
+		bool hasIndex = false;
+		if (!_loc.index.empty()) {
+			std::string indexPath = dirPath + _loc.index;
+			struct stat idxSt;
+			hasIndex = (stat(indexPath.c_str(), &idxSt) == 0 && S_ISREG(idxSt.st_mode));
+		}
 		if (fsPath[fsPath.size() - 1] != '/') {
+			if (!hasIndex && !_loc.autoindex)
+				return sendError(Response::StatusNotFound);
 			_w.writeStatusLine(Response::StatusMovedPermanently);
 			Headers h = Response::getDefaultHeaders(0);
 			h.set("location", _req.getPath() + "/");
 			_w.writeHeaders(h);
 			return 301;
 		}
-		if (!_loc.index.empty()) {
-			std::string indexPath = fsPath + _loc.index;
-			if (stat(indexPath.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
-				fsPath = indexPath;
-			} else if (_loc.autoindex) {
-				return serveAutoindex(fsPath, _req.getPath(), _req.getMethod());
-			} else {
-				return sendError(Response::StatusForbidden);
-			}
+		if (hasIndex) {
+			fsPath = dirPath + _loc.index;
 		} else if (_loc.autoindex) {
 			return serveAutoindex(fsPath, _req.getPath(), _req.getMethod());
 		} else {

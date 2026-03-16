@@ -154,10 +154,9 @@ bool CgiProcess::start() {
     addEnv(envStore, "SCRIPT_NAME", scriptName);
     addEnv(envStore, "SCRIPT_FILENAME", scriptFileName);
     addEnv(envStore, "QUERY_STRING", queryString);
-    if (!pathInfo.empty()) {
-      addEnv(envStore, "PATH_INFO", pathInfo);
+    addEnv(envStore, "PATH_INFO", req.getPath());
+    if (!pathInfo.empty())
       addEnv(envStore, "PATH_TRANSLATED", pathTranslated);
-    }
     addEnv(envStore, "DOCUMENT_ROOT", documentRoot);
     addEnv(envStore, "REQUEST_URI", req.getTarget());
     addEnv(envStore, "SERVER_NAME", req.getHost());
