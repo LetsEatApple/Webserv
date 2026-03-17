@@ -51,6 +51,8 @@ private:
   CgiProcess* _cgi;
   int _fileFd;
   size_t _fileRemaining;
+  bool _wantRead;
+  bool _wantWrite;
 
   void stopCgi();
   void compactReadBuffer();
@@ -73,6 +75,9 @@ public:
   void setState(ConnState s);
   void setCloseAfterResponse(bool v);
   void setFileResponse(int fd, size_t size);
+  void setWantRead(bool v)  { _wantRead = v; }
+  void setWantWrite(bool v) { _wantWrite = v; }
+  int updateEvents();
   uint16_t serverPort() const;
 };
 

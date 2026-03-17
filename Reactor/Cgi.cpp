@@ -377,16 +377,16 @@ void CgiProcess::notifyBodyComplete() {
 
 void CgiProcess::pauseClientRead() {
   if (_clientPaused) return;
-  uint32_t ev = _conn.writePending() > 0 ? EPOLLOUT : 0;
-  _conn.reactor()->modifyHandler(&_conn, ev);
   _clientPaused = true;
+  _conn.setWantRead(false);
+  _conn.updateEvents();
 }
 
 void CgiProcess::resumeClientRead() {
   if (!_clientPaused) return;
-  uint32_t ev = _conn.writePending() > 0 ? (EPOLLIN | EPOLLOUT) : EPOLLIN;
-  _conn.reactor()->modifyHandler(&_conn, ev);
   _clientPaused = false;
+  _conn.setWantRead(true);
+  _conn.updateEvents();
 }
 
 int CgiProcess::onWritable() {
@@ -408,6 +408,8 @@ int CgiProcess::onWritable() {
 
   if (_clientPaused && _inBuffer.size() - _inOffset < MAX_CGI_BUFFER)
     resumeClientRead();
+  if (_outPaused && _conn.writePending() < MAX_CGI_BUFFER)
+    resumeRead();
   closeInputIfDone();
   return true;
 }
@@ -428,12 +430,14 @@ int CgiProcess::onReadable() {
             _outBuffer.clear();
           }
           _conn.setState(StateCgiStreaming);
-          _conn.reactor()->modifyHandler(&_conn, EPOLLIN | EPOLLOUT);
         }
       } else {
         Response::Writer w(_conn.writeBuffer());
         w.writeChunkedBody(buf, static_cast<size_t>(n));
-        _conn.reactor()->modifyHandler(&_conn, EPOLLIN | EPOLLOUT);
+      }
+      if (_headersSent) {
+        _conn.setWantWrite(true);
+        _conn.updateEvents();
       }
       if (_headersSent && _conn.writePending() > MAX_CGI_BUFFER) {
         pauseRead();
@@ -453,7 +457,9 @@ int CgiProcess::onReadable() {
       }
       stop();
       _conn.setState(StateSendingResponse);
-      return _conn.reactor()->modifyHandler(&_conn, EPOLLOUT);
+      _conn.setWantRead(false);
+      _conn.setWantWrite(true);
+      return _conn.updateEvents();
     }
     break;
   }

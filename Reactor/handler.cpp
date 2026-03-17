@@ -23,7 +23,8 @@ Connection::Connection(const SessionInfo &session) : EventHandler(session.client
                                                      _location(), _writeOffset(0),
                                                      _routed(false), _closeAfterResponse(false),
                                                      _lastActivity(std::time(NULL)),
-_state(StateReadingHeaders), _cgi(NULL), _fileFd(-1), _fileRemaining(0) {
+_state(StateReadingHeaders), _cgi(NULL), _fileFd(-1), _fileRemaining(0),
+_wantRead(true), _wantWrite(false) {
 }
 
 Connection::~Connection() {
@@ -50,7 +51,9 @@ int Connection::sendErrorAndClose(Response::StatusCode code) {
       _writeBuffer.replace(pos, old_h.size(), new_h);
   }
   _state = StateSendingResponse;
-  return _reactor->modifyHandler(this, EPOLLOUT);
+  _wantRead = false;
+  _wantWrite = true;
+  return updateEvents();
 }
 
 void Connection::stopCgi() {
@@ -74,6 +77,13 @@ void Connection::setCloseAfterResponse(bool v) { _closeAfterResponse = v; }
 void Connection::setFileResponse(int fd, size_t size) {
   _fileFd = fd;
   _fileRemaining = size;
+}
+
+int Connection::updateEvents() {
+  uint32_t ev = 0;
+  if (_wantRead) ev |= EPOLLIN;
+  if (_wantWrite) ev |= EPOLLOUT;
+  return _reactor->modifyHandler(this, ev);
 }
 
 uint16_t Connection::serverPort() const {
@@ -229,7 +239,9 @@ int Connection::handleRead(){
 			if (fileFd >= 0)
 				setFileResponse(fileFd, fileSize);
 			_state = StateSendingResponse;
-			return _reactor->modifyHandler(this, EPOLLOUT);
+			_wantRead = false;
+			_wantWrite = true;
+			return updateEvents();
 		}
 		case NeedMoreData:
 			return true;
@@ -288,12 +300,14 @@ int Connection::handleWrite() {
 		close(_fileFd);
 		_fileFd = -1;
 	}
-	if (_state == StateCgiStreaming) {
+	if (_state == StateCgiStreaming || _state == StateCgiRunning) {
 		if (_cgi && writePending() < MAX_CGI_BUFFER)
 			_cgi->resumeRead();
 		if (_cgi && _cgi->isRunning()) {
-			if (writeEmpty())
-				return _reactor->modifyHandler(this, EPOLLIN);
+			if (writeEmpty()) {
+				_wantWrite = false;
+				return updateEvents();
+			}
 			return true;
 		}
 	}
@@ -311,9 +325,11 @@ int Connection::handleWrite() {
 	_request.reset();
 	_routed = false;
 	_state = StateReadingHeaders;
+	_wantRead = true;
+	_wantWrite = false;
 	if (_readOffset < _readBuffer.size())
 		return handleRead();
-	return _reactor->modifyHandler(this, EPOLLIN);
+	return updateEvents();
 }
 
 // ACCEPT HANDLER
@@ -332,14 +348,11 @@ int Acceptor::handleRead() {
 			break; // accept() may return -1 with EAGAIN if no connections are pending (not an error)
 		_session.client.portPair = IP_port(c_addr);
 		_session.client.socket = cfd;
-    /*
 		int flags = fcntl(cfd, F_GETFL, 0);
-		int ret = fcntl(cfd, F_SETFL, flags | O_NONBLOCK);
-		if (ret == -1 || flags == -1){
+		if (flags == -1 || fcntl(cfd, F_SETFL, flags | O_NONBLOCK) == -1){
 			close(cfd);
-			return false;
+			continue;
 		}
-    */
 		Connection* conn = new Connection(this->_session);
 		if (!_reactor->registerHandler(conn, EPOLLIN)) {
 			close(cfd);
