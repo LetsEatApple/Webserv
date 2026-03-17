@@ -190,20 +190,19 @@ int Request::parseRequestLine(const std::string& buffer,
 }
 
 int Request::parse(const std::string& data, size_t offset, std::string& errorMsg) {
-    return parse(data.substr(offset), errorMsg);
-}
-
-int Request::parse(const std::string& data, std::string& errorMsg) {
     int totalRead = 0;
+    size_t pos = offset;
+    const size_t dataSize = data.size();
 
     while (true) {
-        std::string currentData = data.substr(totalRead);
+        size_t remaining = dataSize - pos;
         switch (state) {
             case ParserState::Error:
                 errorMsg = ERROR_REQUEST_IN_ERROR_STATE;
                 return -1;
 
             case ParserState::Init: {
+                std::string currentData = data.substr(pos);
                 int n = parseRequestLine(currentData, requestLine, errorMsg);
                 if (n < 0) {
                     state = ParserState::Error;
@@ -213,11 +212,13 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
                     return 0; // Need more data
                 }
                 totalRead += n;
+                pos += n;
                 state = ParserState::Headers;
                 break;
             }
 
             case ParserState::Headers: {
+                std::string currentData = data.substr(pos);
                 ::Headers::ParseResult result = headers.parse(currentData);
                 if (!result.error.empty()) {
                     errorMsg = result.error;
@@ -228,6 +229,7 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
                     return totalRead; // Need more data
                 }
                 totalRead += result.bytesConsumed;
+                pos += result.bytesConsumed;
                 if (result.done) { // at this point headers are complete
 					std::string clStr = headers.get("content-length");
 					if (!clStr.empty() && std::atoi(clStr.c_str()) < 0) {
@@ -242,18 +244,18 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
                     } else {
                         state = ParserState::Done;
                     }
-					return totalRead; // instead of break return with totalRead for routing and to check content-length
+					return totalRead;
                 }
                 break;
             }
 
             case ParserState::Body: {
                 size_t length = static_cast<size_t>(std::atoi(headers.get("content-length").c_str()));
-                size_t dataLen = currentData.size();
-                size_t remaining = length - bodyBytesReceived;
-                size_t toConsume = (remaining < dataLen) ? remaining : dataLen;
-                body += currentData.substr(0, toConsume);
+                size_t bodyRemaining = length - bodyBytesReceived;
+                size_t toConsume = (bodyRemaining < remaining) ? bodyRemaining : remaining;
+                body.append(data, pos, toConsume);
                 totalRead += static_cast<int>(toConsume);
+                pos += toConsume;
                 bodyBytesReceived += toConsume;
 
                 if (bodyBytesReceived == length) {
@@ -263,11 +265,12 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
             }
 
             case ParserState::ChunkedSize: {
-                std::string::size_type idx = currentData.find(SEPARATOR);
+                std::string::size_type idx = data.find(SEPARATOR, pos);
                 if (idx == std::string::npos) {
                     return totalRead; // Need more data
                 }
-                std::string sizeStr = currentData.substr(0, idx);
+                size_t len = idx - pos;
+                std::string sizeStr = data.substr(pos, len);
                 char* end = NULL;
                 unsigned long chunkSize = std::strtoul(sizeStr.c_str(), &end, 16);
                 if (end == sizeStr.c_str() || *end != '\0') {
@@ -275,16 +278,16 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
                     state = ParserState::Error;
                     return -1;
                 }
-                totalRead += static_cast<int>(idx) + 2; // consume size line + \r\n
+                int consumed = static_cast<int>(len) + 2;
+                totalRead += consumed;
+                pos += consumed;
                 if (chunkSize == 0) {
                     state = ParserState::ChunkedDone;
-                }
-				else if (maxBodySize > 0 && bodyBytesReceived + chunkSize > maxBodySize) {
-					errorMsg = "Payload Too Large";
-					state = ParserState::Error;
-					return -1;
-				}
-				else {
+                } else if (maxBodySize > 0 && bodyBytesReceived + chunkSize > maxBodySize) {
+                    errorMsg = "Payload Too Large";
+                    state = ParserState::Error;
+                    return -1;
+                } else {
                     chunkedRemaining = static_cast<int>(chunkSize);
                     state = ParserState::ChunkedData;
                 }
@@ -292,13 +295,14 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
             }
 
             case ParserState::ChunkedData: {
-                int available = static_cast<int>(currentData.size());
-                if (available == 0) {
+                if (remaining == 0) {
                     return totalRead; // Need more data
                 }
+                int available = static_cast<int>(remaining);
                 int toConsume = (chunkedRemaining < available) ? chunkedRemaining : available;
-                body += currentData.substr(0, toConsume);
+                body.append(data, pos, toConsume);
                 totalRead += toConsume;
+                pos += toConsume;
                 chunkedRemaining -= toConsume;
                 bodyBytesReceived += static_cast<size_t>(toConsume);
                 if (chunkedRemaining == 0) {
@@ -308,19 +312,21 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
             }
 
             case ParserState::ChunkedTrailer: {
-                if (static_cast<int>(currentData.size()) < 2) {
+                if (remaining < 2) {
                     return totalRead; // Need more data
                 }
                 totalRead += 2; // consume \r\n after chunk data
+                pos += 2;
                 state = ParserState::ChunkedSize;
                 break;
             }
 
             case ParserState::ChunkedDone: {
-                if (static_cast<int>(currentData.size()) < 2) {
+                if (remaining < 2) {
                     return totalRead; // Need more data
                 }
                 totalRead += 2; // consume final \r\n
+                pos += 2;
                 state = ParserState::Done;
                 break;
             }
@@ -329,6 +335,10 @@ int Request::parse(const std::string& data, std::string& errorMsg) {
                 return totalRead;
         }
     }
+}
+
+int Request::parse(const std::string& data, std::string& errorMsg) {
+    return parse(data, 0, errorMsg);
 }
 
 Request* Request::requestFromSocket(int socketFd, std::string& errorMsg) {

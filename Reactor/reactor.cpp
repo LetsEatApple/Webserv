@@ -152,25 +152,15 @@ int Reactor::handleEvents(){
 
     if (ev & EPOLLIN)
       _handlers[fd]->handleRead();
-    else if (ev & EPOLLOUT) {
-      if (_handlers.find(fd) != _handlers.end())
-        _handlers[fd]->handleWrite();
-    }
     else if (ev & (EPOLLHUP | EPOLLERR)) {
       if (_handlers.find(fd) != _handlers.end())
-          _handlers[fd]->handleRead();
+        _handlers[fd]->handleRead();
     }
+    if ((ev & EPOLLOUT) && _handlers.find(fd) != _handlers.end())
+      _handlers[fd]->handleWrite();
 
     if ((ev & (EPOLLHUP | EPOLLERR)) && !(ev & EPOLLIN) && _handlers.find(fd) != _handlers.end())
       removeHandler(_handlers[fd], 0);
-    /*
-		if (_evlist[i].events & (EPOLLHUP | EPOLLERR))
-			removeHandler(_handlers[fd], 0);
-		else if (_evlist[i].events & EPOLLIN)
-			_handlers[fd]->handleRead();
-		else if (_evlist[i].events & EPOLLOUT)
-			_handlers[fd]->handleWrite();
-    */
 	}
   checkTimeouts();
 	return true;

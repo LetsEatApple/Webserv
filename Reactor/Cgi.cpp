@@ -377,20 +377,22 @@ void CgiProcess::notifyBodyComplete() {
 
 void CgiProcess::pauseClientRead() {
   if (_clientPaused) return;
-  _conn.reactor()->modifyHandler(&_conn, 0);
+  uint32_t ev = _conn.writePending() > 0 ? EPOLLOUT : 0;
+  _conn.reactor()->modifyHandler(&_conn, ev);
   _clientPaused = true;
 }
 
 void CgiProcess::resumeClientRead() {
   if (!_clientPaused) return;
-  _conn.reactor()->modifyHandler(&_conn, EPOLLIN);
+  uint32_t ev = _conn.writePending() > 0 ? (EPOLLIN | EPOLLOUT) : EPOLLIN;
+  _conn.reactor()->modifyHandler(&_conn, ev);
   _clientPaused = false;
 }
 
 int CgiProcess::onWritable() {
   if (_inFd < 0) return true;
 
-  if (_inOffset < _inBuffer.size()) {
+  while (_inOffset < _inBuffer.size()) {
     ssize_t n = send(_inFd, _inBuffer.c_str() + _inOffset,
                      _inBuffer.size() - _inOffset, MSG_DONTWAIT);
     if (n > 0) {
@@ -399,8 +401,9 @@ int CgiProcess::onWritable() {
         _inBuffer.clear();
         _inOffset = 0;
       }
-    } else
-      return true;
+    } else {
+      break;
+    }
   }
 
   if (_clientPaused && _inBuffer.size() - _inOffset < MAX_CGI_BUFFER)
