@@ -348,11 +348,6 @@ int Acceptor::handleRead() {
 			break; // accept() may return -1 with EAGAIN if no connections are pending (not an error)
 		_session.client.portPair = IP_port(c_addr);
 		_session.client.socket = cfd;
-		int flags = fcntl(cfd, F_GETFL, 0);
-		if (flags == -1 || fcntl(cfd, F_SETFL, flags | O_NONBLOCK) == -1){
-			close(cfd);
-			continue;
-		}
 		Connection* conn = new Connection(this->_session);
 		if (!_reactor->registerHandler(conn, EPOLLIN)) {
 			close(cfd);
