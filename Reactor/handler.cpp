@@ -266,12 +266,9 @@ int Connection::handleWrite() {
 				_writeBuffer.clear();
 				_writeOffset = 0;
 			}
-		} else if (sent < 0 && errno == EAGAIN)
+		} else {
 			break;
-		else if (sent < 0)
-			return false;
-		else
-			break;
+		}
 	}
 	if (_fileFd >= 0 && writeEmpty()) {
 		char buf[MAX];
@@ -285,15 +282,11 @@ int Connection::handleWrite() {
 				ssize_t ns = send(_fd, buf + off, static_cast<size_t>(nr) - off, MSG_DONTWAIT);
 				if (ns > 0) {
 					off += static_cast<size_t>(ns);
-				} else if (ns < 0 && errno == EAGAIN) {
-					// Socket full — buffer the rest for next EPOLLOUT
+				} else {
+					// Socket not ready — buffer the rest for next EPOLLOUT
 					_writeBuffer.append(buf + off, static_cast<size_t>(nr) - off);
 					_writeOffset = 0;
 					return true;
-				} else {
-					close(_fileFd);
-					_fileFd = -1;
-					return false;
 				}
 			}
 		}
