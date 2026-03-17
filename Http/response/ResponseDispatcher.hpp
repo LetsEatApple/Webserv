@@ -15,6 +15,7 @@ public:
 	int serveReturn();
 	int serveFile(int* fileFd = 0, size_t* fileSize = 0);
 	int serveDelete();
+	int serveUpload();
 	int sendError(Response::StatusCode code);
 	int serveAutoindex(const std::string &fsPath, const std::string &reqPath, const std::string &reqMethod);
 

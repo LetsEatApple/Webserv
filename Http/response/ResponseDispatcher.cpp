@@ -64,6 +64,8 @@ int ResponseDispatcher::serve(int* fileFd, size_t* fileSize) {
 	if (_req.getMethod() == "DELETE")
 		return serveDelete();
 	if (_req.getMethod() == "POST") {
+		if (!_loc.upload.empty())
+			return serveUpload();
 		_w.writeStatusLine(Response::StatusNoContent);
 		_w.writeHeaders(Response::getDefaultHeaders(0));
 		return 204;
@@ -296,6 +298,40 @@ int ResponseDispatcher::serveFile(int* fileFd, size_t* fileSize) {
 	std::string body((std::istreambuf_iterator<char>(file)),
 					  std::istreambuf_iterator<char>());
 	_w.writeBody(body.c_str(), body.size());
+	return 200;
+}
+
+int ResponseDispatcher::serveUpload() {
+	// Extract filename from the request path (last segment after /)
+	std::string path = _req.getPath();
+	size_t lastSlash = path.rfind('/');
+	std::string filename;
+	if (lastSlash != std::string::npos && lastSlash + 1 < path.size())
+		filename = path.substr(lastSlash + 1);
+	if (filename.empty() || hasPathTraversal(filename))
+		return sendError(Response::StatusBadRequest);
+
+	std::string uploadDir = _loc.upload;
+	if (uploadDir[uploadDir.size() - 1] != '/')
+		uploadDir += "/";
+
+	struct stat dirSt;
+	if (stat(uploadDir.c_str(), &dirSt) < 0 || !S_ISDIR(dirSt.st_mode))
+		return sendError(Response::StatusInternalServerError);
+
+	std::string filePath = uploadDir + filename;
+	std::ofstream out(filePath.c_str(), std::ios::binary);
+	if (!out)
+		return sendError(Response::StatusForbidden);
+
+	const std::string& body = _req.getBody();
+	out.write(body.c_str(), body.size());
+	out.close();
+
+	std::string resp = "File uploaded: " + filename + "\n";
+	_w.writeStatusLine(Response::StatusOk);
+	_w.writeHeaders(Response::getDefaultHeaders(resp.size()));
+	_w.writeBody(resp.c_str(), resp.size());
 	return 200;
 }
 

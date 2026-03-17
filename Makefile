@@ -21,6 +21,7 @@ Reactor/reactor.cpp \
 Reactor/server.cpp \
 Reactor/Logger.cpp \
 Reactor/routing.cpp \
+Reactor/Cgi.cpp \
 Config/src/Config.cpp \
 Config/src/Lexer.cpp \
 Config/src/Parser.cpp \
