@@ -68,3 +68,9 @@ add_test(NAME integration_cookies
         --build-dir ${CMAKE_BINARY_DIR}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
+
+add_test(NAME integration_upload
+        COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/test_upload.py
+        --build-dir ${CMAKE_BINARY_DIR}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)

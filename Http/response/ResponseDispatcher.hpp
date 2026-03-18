@@ -16,6 +16,7 @@ public:
 	int serveFile(int* fileFd = 0, size_t* fileSize = 0);
 	int serveDelete();
 	int serveUpload();
+	int serveMultipart(const std::string& boundary);
 	int sendError(Response::StatusCode code);
 	int serveAutoindex(const std::string &fsPath, const std::string &reqPath, const std::string &reqMethod);
 

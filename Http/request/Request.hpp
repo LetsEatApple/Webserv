@@ -48,6 +48,9 @@ public:
     void	setMaxBodySize(size_t size);
     void	reset();
 
+	// Check if Content-Type is multipart/form-data
+	bool isMultipart(std::string& boundary) const;
+	
     template <typename Func>
     void forEachHeader(Func func) const { headers.forEach(func); }
 
@@ -91,6 +94,8 @@ private:
 
     // Check if Transfer-Encoding is chunked
     bool isChunkedEncoding() const;
+
+	bool getBoundary(std::string& boundary) const;
 
     // Parse request line from buffer
     // Returns bytes consumed (0 if incomplete, -1 on error)

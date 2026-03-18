@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Test</title>
+</head>
+<body>
+<h1>Upload Files</h1>
+
+<form action="/upload" method="POST" enctype="multipart/form-data">
+    <p>
+        <label>Single file:</label>
+        <input type="file" name="file1">
+    </p>
+
+    <p>
+        <label>Multiple files:</label>
+        <input type="file" name="file2" multiple>
+    </p>
+
+    <p>
+        <label>Text field:</label>
+        <input type="text" name="username" value="test_user">
+    </p>
+
+    <button type="submit">Upload</button>
+</form>
+</body>
+</html>

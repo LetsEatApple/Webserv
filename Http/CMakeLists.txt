@@ -4,6 +4,7 @@ set(HTTP_SOURCES
         response/Response.cpp
         response/ResponseDispatcher.cpp
         response/MimeTypes.cpp
+		response/Multipart.cpp
 )
 
 add_library(${HTTP_LIBRARY} STATIC ${HTTP_SOURCES})

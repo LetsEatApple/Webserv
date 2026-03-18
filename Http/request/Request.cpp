@@ -87,6 +87,42 @@ bool Request::isChunkedEncoding() const {
     return headers.get("transfer-encoding") == "chunked";
 }
 
+bool Request::isMultipart(std::string& boundary) const {
+	const std::string ct = headers.get("content-type");
+	if (ct.find("multipart/form-data") == std::string::npos)
+		return false;
+	return getBoundary(boundary);
+}
+
+bool Request::getBoundary(std::string& boundary) const {
+	std::string ct = headers.get("content-type");
+
+	std::string lower = ct;
+	for (std::size_t i = 0; i < lower.size(); ++i)
+		lower[i] = std::tolower(lower[i]);
+
+	const std::string key = "boundary=";
+	const std::size_t pos = lower.find(key);
+	if (pos == std::string::npos)
+		return false;
+
+	const std::size_t start = pos + key.size();
+	const std::size_t end = ct.find(';', start);
+
+	// from original string
+	boundary = ct.substr(start, end - start);
+
+	while (!boundary.empty() && (boundary[0] == ' ' || boundary[0] == '\t'))
+		boundary.erase(0, 1);
+	while (!boundary.empty() && (boundary[boundary.size() - 1] == ' ' || boundary[boundary.size() - 1] == '\t'))
+		boundary.erase(boundary.size() - 1);
+
+	if (boundary.size() >= 2 && boundary[0] == '"' && boundary[boundary.size() - 1] == '"')
+		boundary = boundary.substr(1, boundary.size() - 2);
+
+	return !boundary.empty();
+}
+
 bool Request::headersDone() const{
 	return (state > ParserState::Headers);
 }

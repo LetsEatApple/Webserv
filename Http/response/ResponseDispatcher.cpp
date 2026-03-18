@@ -3,7 +3,9 @@
 #include <algorithm>
 
 #include "MimeTypes.hpp"
+#include "Multipart.hpp"
 #include "Response.hpp"
+#include <string>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
@@ -58,14 +60,33 @@ int ResponseDispatcher::sendError(Response::StatusCode code) {
 	return static_cast<int>(code);
 }
 
+int ResponseDispatcher::serveMultipart(const std::string& boundary) {
+	Multipart parser(_req.getBody(), boundary, _loc.upload);
+	if (!parser.parse())
+		return sendError(Response::StatusBadRequest);
+	std::ostringstream resp;
+	resp << "Files uploaded successfully\n";
+	for (std::size_t i = 0; i < parser.getUploadedFiles().size(); ++i)
+		resp << "- " << parser.getUploadedFiles()[i] << "\n";
+	const std::string respStr = resp.str();
+	_w.writeStatusLine(Response::StatusOk);
+	_w.writeHeaders(Response::getDefaultHeaders(static_cast<int>(respStr.size())));
+	_w.writeBody(respStr.c_str(), respStr.size());
+	return 200;
+}
+
 int ResponseDispatcher::serve(int* fileFd, size_t* fileSize) {
 	if (!_loc.ret.empty())
 		return serveReturn();
 	if (_req.getMethod() == "DELETE")
 		return serveDelete();
 	if (_req.getMethod() == "POST") {
-		if (!_loc.upload.empty())
+		if (!_loc.upload.empty()) {
+			std::string boundary;
+			if (_req.isMultipart(boundary))
+				return serveMultipart(boundary);
 			return serveUpload();
+		}
 		_w.writeStatusLine(Response::StatusNoContent);
 		_w.writeHeaders(Response::getDefaultHeaders(0));
 		return 204;

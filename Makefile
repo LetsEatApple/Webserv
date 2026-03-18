@@ -37,6 +37,7 @@ Http/request/Request.cpp \
 Http/response/Response.cpp \
 Http/response/ResponseDispatcher.cpp \
 Http/response/MimeTypes.cpp \
+Http/response/Multipart.cpp
 
 CPP = c++
 CPPFLAGS = -std=c++98 -Wall -Werror -Wextra
