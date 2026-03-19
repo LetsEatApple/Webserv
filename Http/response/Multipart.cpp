@@ -4,9 +4,7 @@
 #include <string>
 
 Multipart::Multipart(const std::string& body, const std::string& boundary, const std::string& uploadDir):
-    _body(body), _boundary("--" + boundary), _uploadDir(uploadDir), _uploadedFiles() {
-    if (!_uploadDir.empty() && _uploadDir.size() - 1 != '/')
-        _uploadDir += '/';
+    _body(body), _boundary("--" + boundary), _uploadDir(uploadDir), _uploadedFiles(), _fields(0) {
 }
 
 void Multipart::addUploadedFile(const std::string& filename)
@@ -17,6 +15,10 @@ void Multipart::addUploadedFile(const std::string& filename)
 const std::vector<std::string>& Multipart::getUploadedFiles() const
 {
     return _uploadedFiles;
+}
+
+unsigned int Multipart::getFields() const {
+	return _fields;
 }
 
 bool Multipart::parse() {
@@ -71,8 +73,10 @@ bool Multipart::handlePart(const std::string& part)
             }
         }
     }
-    if (filename.empty())
+    if (filename.empty()) {
+		_fields++;
         return true;
+	}
     if (filename.find('/') != std::string::npos || filename.find("..") != std::string::npos)
         return false;
     std::ofstream out((_uploadDir + filename).c_str(), std::ios::binary);
@@ -80,6 +84,7 @@ bool Multipart::handlePart(const std::string& part)
         return false;
     out.write(body.c_str(), static_cast<std::streamsize>(body.size()));
     out.close();
+	_fields++;
     addUploadedFile(filename);
     return true;
 }

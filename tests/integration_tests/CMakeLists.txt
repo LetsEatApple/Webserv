@@ -74,3 +74,9 @@ add_test(NAME integration_upload
         --build-dir ${CMAKE_BINARY_DIR}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
+
+add_test(NAME integration_multipart
+        COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/test_multipart.py
+        --build-dir ${CMAKE_BINARY_DIR}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)

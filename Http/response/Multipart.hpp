@@ -10,11 +10,13 @@ class Multipart {
 		bool parse();
 		void addUploadedFile(const std::string& filename);
 		const std::vector<std::string>& getUploadedFiles() const;
+		unsigned int getFields() const;
 	private:
 		std::string _body;
 		std::string _boundary;
 		std::string _uploadDir;
 		std::vector<std::string> _uploadedFiles;
+		unsigned int _fields;
 
 		bool handlePart(const std::string& part);
 };

@@ -222,93 +222,6 @@ def test_upload_bad_directory():
         os.unlink(conf)
         shutil.rmtree(upload_dir)
 
-def test_upload_multipart():
-    """POST multipart/form-data with multiple files."""
-    upload_dir = make_dirs()
-    conf = write_config(upload_dir)
-    proc = start_server(conf)
-    try:
-        boundary = "----WebServBoundary1234"
-        body = (
-            f"--{boundary}\r\n"
-            "Content-Disposition: form-data; name=\"file1\"; filename=\"one.txt\"\r\n"
-            "Content-Type: text/plain\r\n\r\n"
-            "Hello One\n"
-            f"--{boundary}\r\n"
-            "Content-Disposition: form-data; name=\"file2\"; filename=\"two.txt\"\r\n"
-            "Content-Type: text/plain\r\n\r\n"
-            "Hello Two\n"
-            f"--{boundary}--\r\n"
-        )
-
-        headers = {
-            "Content-Type": f"multipart/form-data; boundary={boundary}"
-        }
-
-        status, _, resp = request(PORT, "/", method="POST", body=body, headers=headers)
-        assert status == 200, f"Multipart upload: expected 200, got {status}"
-        assert "one.txt" in resp and "two.txt" in resp, f"Response missing filenames: {resp}"
-
-        for fname, content in [("one.txt", "Hello One\n"), ("two.txt", "Hello Two\n")]:
-            path = os.path.join(upload_dir, fname)
-            assert os.path.exists(path), f"{fname} not found"
-            with open(path) as f:
-                assert f.read() == content, f"{fname} content mismatch"
-
-        print("PASS: multipart upload with multiple files")
-    finally:
-        stop_server(proc)
-        os.unlink(conf)
-        shutil.rmtree(upload_dir)
-
-def test_upload_multipart_binary():
-    """POST multipart/form-data with multiple binary files."""
-    upload_dir = make_dirs()
-    conf = write_config(upload_dir)
-    proc = start_server(conf)
-    try:
-        boundary = "----WebServBinaryBoundary1234"
-
-        # Create some binary content
-        binary1 = bytes(range(128))         # first 128 bytes
-        binary2 = bytes(range(128, 256))    # next 128 bytes
-
-        # Construct the multipart body
-        body = (
-                f"--{boundary}\r\n"
-                "Content-Disposition: form-data; name=\"bin1\"; filename=\"b1.bin\"\r\n"
-                "Content-Type: application/octet-stream\r\n\r\n"
-                + binary1.decode('latin1') + "\r\n"
-                f"--{boundary}\r\n"
-                "Content-Disposition: form-data; name=\"bin2\"; filename=\"b2.bin\"\r\n"
-                "Content-Type: application/octet-stream\r\n\r\n"
-                + binary2.decode('latin1') + "\r\n"
-                f"--{boundary}--\r\n"
-        )
-
-        headers = {
-            "Content-Type": f"multipart/form-data; boundary={boundary}"
-        }
-
-        # Send request
-        status, _, resp = request(PORT, "/", method="POST", body=body, headers=headers)
-        assert status == 200, f"Multipart binary upload: expected 200, got {status}"
-        assert "b1.bin" in resp and "b2.bin" in resp, f"Response missing filenames: {resp}"
-
-        # Verify binary files on disk
-        for fname, data in [("b1.bin", binary1), ("b2.bin", binary2)]:
-            path = os.path.join(upload_dir, fname)
-            assert os.path.exists(path), f"{fname} not found"
-            with open(path, "rb") as f:
-                saved = f.read()
-            assert saved == data, f"{fname} binary content mismatch"
-
-        print("PASS: multipart binary upload with multiple files")
-    finally:
-        stop_server(proc)
-        os.unlink(conf)
-        shutil.rmtree(upload_dir)
-
 if __name__ == "__main__":
     run_tests([
         test_upload_and_retrieve,
@@ -319,6 +232,4 @@ if __name__ == "__main__":
         test_upload_path_traversal,
         test_upload_no_directive,
         test_upload_bad_directory,
-        test_upload_multipart,
-        test_upload_multipart_binary,
     ])

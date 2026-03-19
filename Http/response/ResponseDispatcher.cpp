@@ -61,11 +61,20 @@ int ResponseDispatcher::sendError(Response::StatusCode code) {
 }
 
 int ResponseDispatcher::serveMultipart(const std::string& boundary) {
-	Multipart parser(_req.getBody(), boundary, _loc.upload);
+	std::string uploadDir = _loc.upload;
+	if (uploadDir.empty() || uploadDir[uploadDir.size() - 1] != '/')
+		uploadDir += "/";
+
+	struct stat dirSt;
+	if (stat(uploadDir.c_str(), &dirSt) < 0 || !S_ISDIR(dirSt.st_mode))
+		return sendError(Response::StatusInternalServerError);
+
+	Multipart parser(_req.getBody(), boundary, uploadDir);
 	if (!parser.parse())
 		return sendError(Response::StatusBadRequest);
 	std::ostringstream resp;
-	resp << "Files uploaded successfully\n";
+	resp <<	"Fields received: " << parser.getFields() << "\n";
+	resp << "Files uploaded successfully: " << parser.getUploadedFiles().size() << "\n";
 	for (std::size_t i = 0; i < parser.getUploadedFiles().size(); ++i)
 		resp << "- " << parser.getUploadedFiles()[i] << "\n";
 	const std::string respStr = resp.str();
