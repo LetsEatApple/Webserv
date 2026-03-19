@@ -1,0 +1,9 @@
+.idea/
+cmake-build-debug/
+build/
+tests/integration_tests/__pycache__/
+.cache/
+obj/
+.DS_Store
+compile_commands.json
+webserv
