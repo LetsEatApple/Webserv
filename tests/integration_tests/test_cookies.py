@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""
-Test cookie support in webserv.
+"""Integration test for cookies
 
-Usage:
-    python3 tests/test_cookies.py [host] [port]
-
-Defaults to localhost:8080
+    - test_no_cookies: get initial cookie for the first request
+    - test_cookies_sent_back: a series of requests, where value inside a cookie
+      is increased each time
+    - test_custom_cookies:
 """
 
 import os
@@ -35,7 +34,7 @@ def test_no_cookies():
     conf = write_config()
     proc = start_server(conf)
     try:
-        r = requests.get(f"http://127.0.0.1:{port}/test_cookie.py", allow_redirects=False)
+        r = requests.get(f"http://127.0.0.1:{port}/cookie_tester.py", allow_redirects=False)
         assert r.status_code == 200, f"Expected 200, got {r.status_code}"
 
         assert "visit_count" in r.cookies, f"No visit_count cookie, got {dict(r.cookies)}"
@@ -51,7 +50,7 @@ def test_cookies_sent_back():
     try:
         session = requests.Session()
         for i in range(1, 4):
-            r = session.get(f"http://127.0.0.1:{port}/test_cookie.py", allow_redirects=False)
+            r = session.get(f"http://127.0.0.1:{port}/cookie_tester.py", allow_redirects=False)
             assert r.status_code == 200, f"Expected 200, got {r.status_code}"
 
             assert "visit_count" in r.cookies, f"No visit_count cookie, got {dict(r.cookies)}"
@@ -66,7 +65,7 @@ def test_custom_cookies():
 
     try:
         cookies = dict(my_key="my_value; visit_count=41")
-        r = requests.get(f"http://127.0.0.1:{port}/test_cookie.py", cookies=cookies, allow_redirects=False)
+        r = requests.get(f"http://127.0.0.1:{port}/cookie_tester.py", cookies=cookies, allow_redirects=False)
         assert r.status_code == 200, f"Expected 200, got {r.status_code}"
         assert "my_key=my_value" in r.text, \
             f"Custom cookie not forwarded to CGI, body: {r.text.strip()[:200]}"
