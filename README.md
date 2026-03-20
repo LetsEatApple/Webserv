@@ -39,4 +39,9 @@ siege -b http://localhost:8000/ # runs the test with NO DELAY for throughput ben
 siege -c 50 -t 30s http://localhost:8000/ # 50 concurrent users for 30 sec
 ```
 ## Resources
+- [RFC 9110 - HTTP Semantics](https://datatracker.ietf.org/doc/html/rfc9110)
+- [RFC 9112 - HTTP/1.1](https://datatracker.ietf.org/doc/html/rfc9112)
+- [RFC 6265 - HTTP State Management Mechanism](https://datatracker.ietf.org/doc/html/rfc6265)
+- [RFC 3875 - The Common Gateway Interface (CGI) Version 1.1](https://datatracker.ietf.org/doc/html/rfc3875)
+- [RFC 7578 - Returning Values from Forms: multipart/form-data](https://datatracker.ietf.org/doc/html/rfc7578)
 - [nginx documentation](https://nginx.org/en/docs/)
