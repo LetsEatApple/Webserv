@@ -29,7 +29,7 @@ void Lexer::skipWhitespaceAndComments()
         int c = get();
         if (c == EOF)
             return;
-        if (std::isspace(c))
+        if (std::isspace(static_cast<unsigned char>(c)))
             continue;
         if (c == '#')
         {
@@ -85,7 +85,7 @@ token::Token Lexer::next()
         return tok;
     }
 
-    while (c != EOF && !std::isspace(c) && c != '{' && c != '}' && c != ';')
+    while (c != EOF && !std::isspace(static_cast<unsigned char>(c)) && c != '{' && c != '}' && c != ';')
     {
         word += static_cast<char>(c);
         c = get();

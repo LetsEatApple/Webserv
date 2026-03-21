@@ -171,7 +171,7 @@ static std::string encode(std::string src)
 	{
 		const std::string::value_type c = *i;
 
-		if (std::isalnum(c) || c == '_' || c == '-' || c == '.' || c == '~' || c == '/')
+		if (std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-' || c == '.' || c == '~' || c == '/')
 		{
 			os << c;
 			continue;
