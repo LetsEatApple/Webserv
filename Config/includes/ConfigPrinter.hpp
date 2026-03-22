@@ -7,8 +7,8 @@
 
 namespace config
 {
-    std::ostream& operator<<(std::ostream& out, Location const& l);
-    std::ostream& operator<<(std::ostream& out, Server const& s);
-    std::ostream& operator<<(std::ostream& out, Listeners const& l);
+	std::ostream& operator<<(std::ostream& out, Location const& l);
+	std::ostream& operator<<(std::ostream& out, Server const& s);
+	std::ostream& operator<<(std::ostream& out, Listeners const& l);
 } // namespace config
 #endif // !CONFIGPRINTER_HPP

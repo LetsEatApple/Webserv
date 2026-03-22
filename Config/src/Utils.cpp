@@ -16,21 +16,22 @@ std::string toString(const size_t val) {
 
 bool isNumber(const std::string &s) {
   if (s.empty())
-    return false;
+	return false;
   for (size_t i = 0; i < s.size(); ++i)
-    if (!std::isdigit(s[i]))
-      return false;
+	if (!std::isdigit(s[i]))
+	  return false;
   return true;
 }
 
-  std::string validatePath(std::string const &path, std::string const& name, const std::size_t line) {
+  std::string validatePath(std::string const &path,
+	  std::string const& name, const std::size_t line) {
   if (path.empty() || path[0] != '/')
-    throw std::runtime_error(
-        utils::errorMsg("Unexpected value '" + path + "' in '" + name + "' directive", line));
+	throw std::runtime_error(
+		utils::errorMsg("Unexpected value '" + path + "' in '" + name + "' directive", line));
 
   std::string normalized = path;
   if (normalized.size() > 1 && normalized[normalized.size() - 1] == '/')
-    normalized = normalized.substr(0, normalized.size() - 1);
+	normalized = normalized.substr(0, normalized.size() - 1);
 
   return normalized;
 }

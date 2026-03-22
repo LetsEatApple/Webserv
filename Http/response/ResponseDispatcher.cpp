@@ -34,7 +34,8 @@ static bool isRedirect(const int code) {
 	return code == 301 || code == 302 || code == 307 || code == 308;
 }
 
-ResponseDispatcher::ResponseDispatcher(Response::Writer& w, const Request& req, const config::Location& loc)
+ResponseDispatcher::ResponseDispatcher(Response::Writer& w,
+	const Request& req, const config::Location& loc)
 	: _w(w), _req(req), _loc(loc) {}
 
 int ResponseDispatcher::sendError(Response::StatusCode code) const
@@ -127,7 +128,8 @@ int ResponseDispatcher::serveReturn() const
 	return code;
 }
 
-static bool dirEntryCmp(const ResponseDispatcher::dirEntry &entry1, const ResponseDispatcher::dirEntry &entry2)
+static bool dirEntryCmp(const ResponseDispatcher::dirEntry &entry1,
+	const ResponseDispatcher::dirEntry &entry2)
 {
 	return strcmp(entry1.name.c_str(), entry2.name.c_str()) <= 0;
 }
@@ -175,7 +177,9 @@ static std::string encode(std::string src)
 	{
 		const std::string::value_type c = *i;
 
-		if (std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-' || c == '.' || c == '~' || c == '/')
+		if (std::isalnum(static_cast<unsigned char>(c))
+			|| c == '_' || c == '-' || c == '.'
+			|| c == '~' || c == '/')
 		{
 			os << c;
 			continue;
@@ -189,7 +193,9 @@ static std::string encode(std::string src)
 	return os.str();
 }
 
-int ResponseDispatcher::serveAutoindex(const std::string &fsPath, const std::string &reqPath, const std::string &reqMethod) const
+int ResponseDispatcher::serveAutoindex(const std::string &fsPath,
+	const std::string &reqPath,
+	const std::string &reqMethod) const
 {
 	DIR *dir = opendir(fsPath.c_str());
 	if (!dir)
@@ -242,7 +248,8 @@ int ResponseDispatcher::serveAutoindex(const std::string &fsPath, const std::str
 		html << std::setw(20) << "-" << "\n";
 	}
 
-	for (std::vector<dirEntry>::const_iterator it = file_entries.begin(); it != file_entries.end(); ++it)
+	for (std::vector<dirEntry>::const_iterator it = file_entries.begin();
+		it != file_entries.end(); ++it)
 	{
 
 		if (it->name.size() > 50)
@@ -275,9 +282,9 @@ int ResponseDispatcher::serveAutoindex(const std::string &fsPath, const std::str
 int ResponseDispatcher::serveFile(int* fileFd, size_t* fileSize) const
 {
 	// 1. resolve filesystem path from alias + request path
-    std::string fsPath = resolvePath(_loc, _req.getPath());
+	std::string fsPath = resolvePath(_loc, _req.getPath());
 	struct stat st = {};
-    // 2. stat() the path (not found -> 404)
+	// 2. stat() the path (not found -> 404)
 	if (stat(fsPath.c_str(), &st) < 0 || st.st_size < 0)
 		return sendError(Response::StatusNotFound);
 	// 3. directory -> redirect 301 if missing trailing /, else try index, else autoindex, else 403

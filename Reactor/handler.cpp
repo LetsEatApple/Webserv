@@ -25,10 +25,10 @@
 
 //	CONNECTION HANDLER
 Connection::Connection(const SessionInfo &session) : EventHandler(session.client.socket),
-                                                     _readOffset(0), _session(session),
-                                                     _location(), _writeOffset(0),
-                                                     _routed(false), _closeAfterResponse(false),
-                                                     _lastActivity(std::time(NULL)),
+													 _readOffset(0), _session(session),
+													 _location(), _writeOffset(0),
+													 _routed(false), _closeAfterResponse(false),
+													 _lastActivity(std::time(NULL)),
 _state(StateReadingHeaders), _cgi(NULL), _fileFd(-1), _fileRemaining(0),
 _wantRead(true), _wantWrite(false) {
 }
@@ -37,8 +37,8 @@ Connection::~Connection() {
   _state = StateClosing;
   stopCgi();
   if (_fileFd >= 0) {
-    close(_fileFd);
-    _fileFd = -1;
+	close(_fileFd);
+	_fileFd = -1;
   }
 }
 
@@ -50,11 +50,11 @@ int Connection::sendErrorAndClose(const Response::StatusCode code) {
   (void)ResponseDispatcher(w, _request, _location).sendError(code);
   // Fix connection header: we're closing, not keeping alive
   {
-    const std::string old_h = "connection: keep-alive\r\n";
-    const std::string new_h = "connection: close\r\n";
-    const size_t pos = _writeBuffer.find(old_h);
-    if (pos != std::string::npos)
-      _writeBuffer.replace(pos, old_h.size(), new_h);
+	const std::string old_h = "connection: keep-alive\r\n";
+	const std::string new_h = "connection: close\r\n";
+	const size_t pos = _writeBuffer.find(old_h);
+	if (pos != std::string::npos)
+	  _writeBuffer.replace(pos, old_h.size(), new_h);
   }
   _state = StateSendingResponse;
   _wantRead = false;
@@ -64,9 +64,9 @@ int Connection::sendErrorAndClose(const Response::StatusCode code) {
 
 void Connection::stopCgi() {
   if (_cgi) {
-    _cgi->stop();
-    delete _cgi;
-    _cgi = NULL;
+	_cgi->stop();
+	delete _cgi;
+	_cgi = NULL;
   }
 }
 
@@ -97,25 +97,25 @@ uint16_t Connection::serverPort() const {
   struct sockaddr_in addr = {};
   socklen_t len = sizeof(addr);
   if (getsockname(_fd, reinterpret_cast<struct sockaddr*>(&addr), &len) == 0)
-    return ntohs(addr.sin_port);
+	return ntohs(addr.sin_port);
   return 0;
 }
 
 bool Connection::checkTimeout() {
   const std::time_t now = std::time(NULL);
   if ((_state == StateCgiRunning || _state == StateCgiStreaming) && _cgi && _cgi->startTime() > 0
-      && now - _cgi->startTime() >= CGI_TIMEOUT_SEC) {
-    logInfo("CGI timeout after ", str(CGI_TIMEOUT_SEC).append("s - killing process"));
-    stopCgi();
-    sendErrorAndClose(Response::StatusGatewayTimeout);
-    return false;
+	  && now - _cgi->startTime() >= CGI_TIMEOUT_SEC) {
+	logInfo("CGI timeout after ", str(CGI_TIMEOUT_SEC).append("s - killing process"));
+	stopCgi();
+	sendErrorAndClose(Response::StatusGatewayTimeout);
+	return false;
   }
   if (_state == StateSendingResponse || _state == StateCgiRunning || _state == StateCgiStreaming)
-    return false;
+	return false;
   if (now - _lastActivity >= CLIENT_TIMEOUT_SEC) {
-    logInfo("Client timeout after ", str(CLIENT_TIMEOUT_SEC).append("s of inactivity"));
-    sendErrorAndClose(Response::StatusRequestTimeout);
-    return false;
+	logInfo("Client timeout after ", str(CLIENT_TIMEOUT_SEC).append("s of inactivity"));
+	sendErrorAndClose(Response::StatusRequestTimeout);
+	return false;
   }
   return false;
 }
@@ -218,7 +218,8 @@ int Connection::handleRead(){
 		if (n > 0) {
 			_readBuffer.append(buf, static_cast<std::size_t>(n));
 			_lastActivity = std::time(NULL);
-		} else if (_readOffset >= _readBuffer.size()) // Error occurred and buffer empty, epoll decides what to do
+		// Error occurred and buffer empty, epoll decides what to do
+		} else if (_readOffset >= _readBuffer.size())
 			return false;
 		if (_state == StateReadingHeaders && !_request.headersDone()
 			&& _readBuffer.size() > MAX_HEADER_SIZE
@@ -256,7 +257,9 @@ int Connection::handleRead(){
 }
 
 
-// if send returns 0 -> dead connection remove socket, if -1 -> error but do not decide anything here just wait for epoll to tell what's wrong
+// if send returns 0 -> dead connection remove socket,
+// if -1 -> error but do not decide anything here
+// just wait for epoll to tell what's wrong
 // if (n < 0) {
 // Do nothing here
  // epoll will report EPOLLERR / EPOLLHUP if it's fatal
@@ -265,7 +268,7 @@ int Connection::handleWrite() {
 
 	while (!writeEmpty()) {
 		const ssize_t sent = send(_fd, _writeBuffer.c_str() + _writeOffset,
-		                          writePending(), MSG_DONTWAIT);
+								  writePending(), MSG_DONTWAIT);
 		if (sent > 0) {
 			_writeOffset += static_cast<size_t>(sent);
 			if (writeEmpty()) {
@@ -332,7 +335,9 @@ int Connection::handleWrite() {
 }
 
 // ACCEPT HANDLER
-Acceptor::Acceptor(const SessionInfo &session) : EventHandler(session.listener.socket), _session(session) {}
+Acceptor::Acceptor(const SessionInfo &session)
+	: EventHandler(session.listener.socket),
+	  _session(session) {}
 
 int Acceptor::handleRead() {
 	sockaddr_in c_addr = {};

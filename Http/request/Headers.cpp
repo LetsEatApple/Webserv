@@ -10,152 +10,154 @@ Headers::Headers() {}
 void Headers::clear() { headers.clear(); }
 
 std::string Headers::toLower(const std::string& str) {
-    std::string result = str;
-    std::transform(result.begin(), result.end(), result.begin(), static_cast<int(*)(int)>(std::tolower));
-    return result;
+	std::string result = str;
+	std::transform(result.begin(), result.end(),
+		result.begin(),
+		static_cast<int(*)(int)>(std::tolower));
+	return result;
 }
 
 std::string Headers::trim(const std::string& str) {
-    if (str.empty()) {
-        return str;
-    }
+	if (str.empty()) {
+		return str;
+	}
 
-    size_t start = 0;
-    while (start < str.size() && std::isspace(static_cast<unsigned char>(str[start]))) {
-        ++start;
-    }
+	size_t start = 0;
+	while (start < str.size() && std::isspace(static_cast<unsigned char>(str[start]))) {
+		++start;
+	}
 
-    size_t end = str.size();
-    while (end > start && std::isspace(static_cast<unsigned char>(str[end - 1]))) {
-        --end;
-    }
+	size_t end = str.size();
+	while (end > start && std::isspace(static_cast<unsigned char>(str[end - 1]))) {
+		--end;
+	}
 
-    return str.substr(start, end - start);
+	return str.substr(start, end - start);
 }
 
 bool Headers::isTokenChar(const char b) {
-    if (b >= '0' && b <= '9') {
-        return true;
-    }
-    if (b >= 'A' && b <= 'Z') {
-        return true;
-    }
-    if (b >= 'a' && b <= 'z') {
-        return true;
-    }
-    switch (b) {
-        case '!':
-        case '#':
-        case '$':
-        case '%':
-        case '&':
-        case '\'':
-        case '*':
-        case '+':
-        case '-':
-        case '.':
-        case '^':
-        case '_':
-        case '`':
-        case '|':
-        case '~':
-            return true;
-        default:
-            return false;
-    }
+	if (b >= '0' && b <= '9') {
+		return true;
+	}
+	if (b >= 'A' && b <= 'Z') {
+		return true;
+	}
+	if (b >= 'a' && b <= 'z') {
+		return true;
+	}
+	switch (b) {
+		case '!':
+		case '#':
+		case '$':
+		case '%':
+		case '&':
+		case '\'':
+		case '*':
+		case '+':
+		case '-':
+		case '.':
+		case '^':
+		case '_':
+		case '`':
+		case '|':
+		case '~':
+			return true;
+		default:
+			return false;
+	}
 }
 
 bool Headers::isToken(const std::string& str) {
-    if (str.empty()) {
-        return false;
-    }
-    for (size_t i = 0; i < str.size(); ++i) {
-        if (!isTokenChar(str[i])) {
-            return false;
-        }
-    }
-    return true;
+	if (str.empty()) {
+		return false;
+	}
+	for (size_t i = 0; i < str.size(); ++i) {
+		if (!isTokenChar(str[i])) {
+			return false;
+		}
+	}
+	return true;
 }
 
 Headers::HeaderParseResult Headers::parseHeader(const std::string& fieldLine) {
-    // Find ": " separator
-    const std::string::size_type separatorPos = fieldLine.find(": ");
+	// Find ": " separator
+	const std::string::size_type separatorPos = fieldLine.find(": ");
 
-    if (separatorPos == std::string::npos) {
-        return HeaderParseResult("", "", "malformed field line");
-    }
+	if (separatorPos == std::string::npos) {
+		return HeaderParseResult("", "", "malformed field line");
+	}
 
-    const std::string name = fieldLine.substr(0, separatorPos);
-    std::string value = fieldLine.substr(separatorPos + 2);
-    value = trim(value);
+	const std::string name = fieldLine.substr(0, separatorPos);
+	std::string value = fieldLine.substr(separatorPos + 2);
+	value = trim(value);
 
-    // Check if name ends with space
-    if (!name.empty() && name[name.size() - 1] == ' ') {
-        return HeaderParseResult("", "", "malformed field name");
-    }
+	// Check if name ends with space
+	if (!name.empty() && name[name.size() - 1] == ' ') {
+		return HeaderParseResult("", "", "malformed field name");
+	}
 
-    return HeaderParseResult(name, value, "");
+	return HeaderParseResult(name, value, "");
 }
 
 std::string Headers::get(const std::string& name) const {
-    const std::string lowerName = toLower(name);
-    const std::multimap<std::string, std::string>::const_iterator it = headers.find(lowerName);
-    if (it != headers.end()) {
-        return it->second;
-    }
-    return "";
+	const std::string lowerName = toLower(name);
+	const std::multimap<std::string, std::string>::const_iterator it = headers.find(lowerName);
+	if (it != headers.end()) {
+		return it->second;
+	}
+	return "";
 }
 
 void Headers::set(const std::string& name, const std::string& value) {
-    const std::string lowerName = toLower(name);
-    const std::multimap<std::string, std::string>::iterator it = headers.find(lowerName);
-    if (it != headers.end()) {
-        it->second = it->second + ", " + value;
-    } else {
-        headers.insert(std::make_pair(lowerName, value));
-    }
+	const std::string lowerName = toLower(name);
+	const std::multimap<std::string, std::string>::iterator it = headers.find(lowerName);
+	if (it != headers.end()) {
+		it->second = it->second + ", " + value;
+	} else {
+		headers.insert(std::make_pair(lowerName, value));
+	}
 }
 
 void Headers::add(const std::string& name, const std::string& value) {
-    headers.insert(std::make_pair(toLower(name), value));
+	headers.insert(std::make_pair(toLower(name), value));
 }
 
 void Headers::replace(const std::string& name, const std::string& value) {
-    const std::string lowerName = toLower(name);
-    headers.erase(lowerName);
-    headers.insert(std::make_pair(lowerName, value));
+	const std::string lowerName = toLower(name);
+	headers.erase(lowerName);
+	headers.insert(std::make_pair(lowerName, value));
 }
 
 void Headers::remove(const std::string& name) {
-    const std::string lowerName = toLower(name);
-    headers.erase(lowerName);
+	const std::string lowerName = toLower(name);
+	headers.erase(lowerName);
 }
 
 Headers::ParseResult Headers::parse(const std::string& data) {
-    // Find CRLF
-    const std::string::size_type idx = data.find(CRLF);
+	// Find CRLF
+	const std::string::size_type idx = data.find(CRLF);
 
-    if (idx == std::string::npos) {
-        // No CRLF found, need more data
-        return ParseResult(0, false, "");
-    }
+	if (idx == std::string::npos) {
+		// No CRLF found, need more data
+		return ParseResult(0, false, "");
+	}
 
-    // CRLF at start means end of headers
-    if (idx == 0) {
-        return ParseResult(CRLF_LEN, true, "");
-    }
+	// CRLF at start means end of headers
+	if (idx == 0) {
+		return ParseResult(CRLF_LEN, true, "");
+	}
 
-    // Parse single header
-    const HeaderParseResult headerResult = parseHeader(data.substr(0, idx));
-    if (!headerResult.error.empty()) {
-        return ParseResult(0, false, headerResult.error);
-    }
+	// Parse single header
+	const HeaderParseResult headerResult = parseHeader(data.substr(0, idx));
+	if (!headerResult.error.empty()) {
+		return ParseResult(0, false, headerResult.error);
+	}
 
-    if (!isToken(headerResult.name)) {
-        return ParseResult(0, false, "malformed header name");
-    }
+	if (!isToken(headerResult.name)) {
+		return ParseResult(0, false, "malformed header name");
+	}
 
-    set(headerResult.name, headerResult.value);
+	set(headerResult.name, headerResult.value);
 
-    return ParseResult(static_cast<int>(idx + CRLF_LEN), false, "");
+	return ParseResult(static_cast<int>(idx + CRLF_LEN), false, "");
 }

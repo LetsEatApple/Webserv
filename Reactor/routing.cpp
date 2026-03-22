@@ -76,7 +76,8 @@ std::string removeDotSegments(std::string input){
 				input.replace(0, 2, "/");
 		}
 
-		// C: begins with "/../" or "/.." replace with "/" and remove last segment and its preceding "/" from output
+		// C: begins with "/../" or "/.." replace with "/"
+		// and remove last segment and its preceding "/" from output
 		else if (input.rfind("/../", 0) == 0 || input.rfind("/..", 0) == 0){
 			if (input.rfind("/../", 0) == 0)
 				input.replace(0, 4, "/");
@@ -91,7 +92,9 @@ std::string removeDotSegments(std::string input){
 		else if (input == ".." || input == ".")
 			input.clear();
 
-		// E: move first path segment to end of output buffer, including initial "/" and any subsequent chars up to, but not incl next "/" or the end of input
+		// E: move first path segment to end of output buffer,
+		// including initial "/" and any subsequent chars up to,
+		// but not incl next "/" or the end of input
 		else{
 			const size_t n = input.find('/', 1);
 			if (n != std::string::npos){
@@ -150,16 +153,16 @@ bool	findLocation(const std::vector<config::Server>& servers, const Request &req
 bool	isCGI(const std::string& path, const std::map<std::string, std::string>& cgi) {
   size_t searchFrom = 0;
   while (searchFrom < path.size()) {
-    const size_t dot = path.find('.', searchFrom);
-    if (dot == std::string::npos)
-      return false;
-    size_t extEnd = path.find('/', dot);
-    if (extEnd == std::string::npos)
-      extEnd = path.size();
-    std::string ext = path.substr(dot, extEnd - dot);
-    if (cgi.find(ext) != cgi.end())
-      return true;
-    searchFrom = extEnd;
+	const size_t dot = path.find('.', searchFrom);
+	if (dot == std::string::npos)
+	  return false;
+	size_t extEnd = path.find('/', dot);
+	if (extEnd == std::string::npos)
+	  extEnd = path.size();
+	std::string ext = path.substr(dot, extEnd - dot);
+	if (cgi.find(ext) != cgi.end())
+	  return true;
+	searchFrom = extEnd;
   }
   return false;
 }

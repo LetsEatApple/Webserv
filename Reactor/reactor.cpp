@@ -139,12 +139,12 @@ void Reactor::handleEvents(){
 		if (_handlers.find(fd) == _handlers.end())
 			continue;
 
-    const uint32_t ev = _evlist[i].events;
+	const uint32_t ev = _evlist[i].events;
 
-    if (ev & (EPOLLIN | EPOLLHUP | EPOLLERR))
-      _handlers[fd]->handleRead();
-    if ((ev & EPOLLOUT) && _handlers.find(fd) != _handlers.end())
-      _handlers[fd]->handleWrite();
+	if (ev & (EPOLLIN | EPOLLHUP | EPOLLERR))
+	  _handlers[fd]->handleRead();
+	if ((ev & EPOLLOUT) && _handlers.find(fd) != _handlers.end())
+	  _handlers[fd]->handleWrite();
 	}
 	checkTimeouts();
 }
@@ -152,13 +152,13 @@ void Reactor::handleEvents(){
 void Reactor::checkTimeouts() {
   std::vector<EventHandler*> timedOut;
   for (std::map<int, EventHandler*>::iterator it = _handlers.begin(); it != _handlers.end(); ++it) {
-    if (it->second->checkTimeout())
-      timedOut.push_back(it->second);
+	if (it->second->checkTimeout())
+	  timedOut.push_back(it->second);
   }
   for (size_t i = 0; i < timedOut.size(); ++i) {
-    int fd = timedOut[i]->get_fd();
-    if (_handlers.find(fd) != _handlers.end())
-      removeHandler(timedOut[i], 0);
+	int fd = timedOut[i]->get_fd();
+	if (_handlers.find(fd) != _handlers.end())
+	  removeHandler(timedOut[i], 0);
   }
 }
 

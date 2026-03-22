@@ -18,7 +18,9 @@ public:
 	int serveUpload() const;
 	int serveMultipart(const std::string& boundary) const;
 	int sendError(Response::StatusCode code) const;
-	int serveAutoindex(const std::string &fsPath, const std::string &reqPath, const std::string &reqMethod) const;
+	int serveAutoindex(const std::string &fsPath,
+		const std::string &reqPath,
+		const std::string &reqMethod) const;
 
 	struct dirEntry
 	{

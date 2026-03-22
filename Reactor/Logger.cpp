@@ -100,7 +100,9 @@ void logDisconnect(const Endpoint& listener, const Endpoint& client){
 	#endif
 }
 
-void logRequest(const Endpoint& listener, const Endpoint& client, const Request& req, const std::string& locationPath){
+void logRequest(const Endpoint& listener,
+	const Endpoint& client, const Request& req,
+	const std::string& locationPath){
 
 	(void) listener;
 	(void) client;
