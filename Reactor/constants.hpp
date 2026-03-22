@@ -10,8 +10,8 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#ifndef LIB_HPP
-# define LIB_HPP
+#ifndef CONSTANTS_HPP
+# define CONSTANTS_HPP
 
 # define MAX 65536
 # define SET 1
