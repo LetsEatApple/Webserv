@@ -33,7 +33,7 @@ std::string Headers::trim(const std::string& str) {
     return str.substr(start, end - start);
 }
 
-bool Headers::isTokenChar(char b) {
+bool Headers::isTokenChar(const char b) {
     if (b >= '0' && b <= '9') {
         return true;
     }
@@ -60,9 +60,9 @@ bool Headers::isTokenChar(char b) {
         case '|':
         case '~':
             return true;
+        default:
+            return false;
     }
-
-    return false;
 }
 
 bool Headers::isToken(const std::string& str) {
@@ -79,13 +79,13 @@ bool Headers::isToken(const std::string& str) {
 
 Headers::HeaderParseResult Headers::parseHeader(const std::string& fieldLine) {
     // Find ": " separator
-    std::string::size_type separatorPos = fieldLine.find(": ");
+    const std::string::size_type separatorPos = fieldLine.find(": ");
 
     if (separatorPos == std::string::npos) {
         return HeaderParseResult("", "", "malformed field line");
     }
 
-    std::string name = fieldLine.substr(0, separatorPos);
+    const std::string name = fieldLine.substr(0, separatorPos);
     std::string value = fieldLine.substr(separatorPos + 2);
     value = trim(value);
 
@@ -98,8 +98,8 @@ Headers::HeaderParseResult Headers::parseHeader(const std::string& fieldLine) {
 }
 
 std::string Headers::get(const std::string& name) const {
-    std::string lowerName = toLower(name);
-    std::multimap<std::string, std::string>::const_iterator it = headers.find(lowerName);
+    const std::string lowerName = toLower(name);
+    const std::multimap<std::string, std::string>::const_iterator it = headers.find(lowerName);
     if (it != headers.end()) {
         return it->second;
     }
@@ -107,8 +107,8 @@ std::string Headers::get(const std::string& name) const {
 }
 
 void Headers::set(const std::string& name, const std::string& value) {
-    std::string lowerName = toLower(name);
-    std::multimap<std::string, std::string>::iterator it = headers.find(lowerName);
+    const std::string lowerName = toLower(name);
+    const std::multimap<std::string, std::string>::iterator it = headers.find(lowerName);
     if (it != headers.end()) {
         it->second = it->second + ", " + value;
     } else {
@@ -121,19 +121,19 @@ void Headers::add(const std::string& name, const std::string& value) {
 }
 
 void Headers::replace(const std::string& name, const std::string& value) {
-    std::string lowerName = toLower(name);
+    const std::string lowerName = toLower(name);
     headers.erase(lowerName);
     headers.insert(std::make_pair(lowerName, value));
 }
 
 void Headers::remove(const std::string& name) {
-    std::string lowerName = toLower(name);
+    const std::string lowerName = toLower(name);
     headers.erase(lowerName);
 }
 
 Headers::ParseResult Headers::parse(const std::string& data) {
     // Find CRLF
-    std::string::size_type idx = data.find(CRLF);
+    const std::string::size_type idx = data.find(CRLF);
 
     if (idx == std::string::npos) {
         // No CRLF found, need more data
@@ -146,7 +146,7 @@ Headers::ParseResult Headers::parse(const std::string& data) {
     }
 
     // Parse single header
-    HeaderParseResult headerResult = parseHeader(data.substr(0, idx));
+    const HeaderParseResult headerResult = parseHeader(data.substr(0, idx));
     if (!headerResult.error.empty()) {
         return ParseResult(0, false, headerResult.error);
     }

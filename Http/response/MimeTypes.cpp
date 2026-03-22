@@ -1,17 +1,17 @@
 #include "MimeTypes.hpp"
 
 static std::string getExtension(const std::string& path) {
-	std::string::size_type dot = path.rfind('.');
+	const std::string::size_type dot = path.rfind('.');
 	if (dot == std::string::npos)
 		return "";
-	std::string::size_type slash = path.rfind('/');
+	const std::string::size_type slash = path.rfind('/');
 	if (slash != std::string::npos && dot < slash)
 		return "";
 	return path.substr(dot);
 }
 
 std::string getMimeType(const std::string& path) {
-	std::string ext = getExtension(path);
+	const std::string ext = getExtension(path);
 
 	if (ext == ".html" || ext == ".htm") return "text/html";
 	if (ext == ".css")  return "text/css";

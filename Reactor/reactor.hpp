@@ -12,7 +12,9 @@
 
 #pragma once
 
-#include "lib.hpp"
+#include <sys/epoll.h>
+
+#include "constants.hpp"
 #include "server.hpp"
 #include "handler.hpp"
 
@@ -27,10 +29,10 @@ public:
 	Reactor();
 	int		init(const activeSessions &sessions);
 	int		registerHandler (EventHandler *handler, uint32_t event);
-	int		removeHandler (EventHandler *handler, uint32_t event);
-	int		modifyHandler (EventHandler *handler, uint32_t event);
-	int		handleEvents();
-  void  checkTimeouts();
+	int		removeHandler (const EventHandler *handler, uint32_t event);
+	int		modifyHandler (const EventHandler *handler, uint32_t event);
+	void	handleEvents();
+	void	checkTimeouts();
 	bool	stop (int mode);
 	~Reactor();
 };

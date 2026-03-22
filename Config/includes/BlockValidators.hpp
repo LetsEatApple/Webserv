@@ -4,8 +4,8 @@
 #include "AST.hpp"
 
 namespace validator {
-typedef unsigned int ContextMask;
-typedef unsigned int ValidationMask;
+typedef int ContextMask;
+typedef int ValidationMask;
 
 enum ContextType { CTX_HTTP = 1 << 0, CTX_SERVER = 1 << 1, CTX_LOCATION = 1 << 2 };
 
@@ -30,10 +30,10 @@ enum ValidationFlag {
 	HAS_LOCATION = 1 << 2,
 	HAS_LISTEN = 1 << 3,
 	HAS_LIMIT_EXCEPT = 1 << 4,
-  HAS_SERVER_NAME = 1 << 5,
+	HAS_SERVER_NAME = 1 << 5,
 	HAS_ERROR_PAGE = 1 << 6,
 	HAS_ALIAS = 1 << 7,
-  HAS_AUTOINDEX = 1 << 8,
+	HAS_AUTOINDEX = 1 << 8,
 	HAS_INDEX = 1 << 9,
 	HAS_RETURN = 1 << 10,
 	HAS_UPLOAD = 1 << 11,
@@ -41,6 +41,6 @@ enum ValidationFlag {
 };
 
 void validate(const Block &http);
-};// namespace validator
+} // namespace validator
 
 #endif // !VALIDATOR_HPP

@@ -27,17 +27,17 @@ namespace Response {
     StatusCode intToStatusCode(int code);
     const char* statusCodeToLine(StatusCode code);
 
-    Headers getDefaultHeaders(int contentLen);
+    Headers getDefaultHeaders(size_t contentLen);
     std::string getDefaultErrorPage(StatusCode code);
 
     class Writer {
     public:
-        Writer(std::string& buf);
-        bool writeStatusLine(StatusCode statusCode) const;
-        bool writeHeaders(const Headers& h) const;
-        bool writeBody(const char* data, size_t len) const;
-        bool writeChunkedBody(const char* data, size_t len) const;
-        bool writeChunkedBodyDone() const;
+        explicit Writer(std::string& buf);
+        void writeStatusLine(StatusCode statusCode) const;
+        void writeHeaders(const Headers& h) const;
+        void writeBody(const char* data, size_t len) const;
+        void writeChunkedBody(const char* data, size_t len) const;
+        void writeChunkedBodyDone() const;
 
     private:
         std::string* _buf;

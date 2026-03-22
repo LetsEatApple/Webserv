@@ -77,7 +77,7 @@ namespace validator
             throw std::runtime_error(
                 utils::errorMsg("Unknown directive '" + d.name + "'", d.line));
         }
-    };
+    }
 
     static void validateLocation(const Block& b)
     {

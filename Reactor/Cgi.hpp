@@ -21,7 +21,7 @@ private:
 
 class CgiProcess {
 public:
-  CgiProcess(Connection& conn);
+  explicit CgiProcess(Connection& conn);
   ~CgiProcess();
 
   bool start();

@@ -1,7 +1,3 @@
-//
-// Created by mkugan on 3/3/26.
-//
-
 #include "ValidationHelpers.hpp"
 
 #include <AST.hpp>

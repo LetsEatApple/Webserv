@@ -1,6 +1,12 @@
 #include "Logger.hpp"
 
-int	error(const std::string& err, int errno_on){
+#include <cerrno>
+#include <cstring>
+#include <iostream>
+#include <sstream>
+#include <netinet/in.h>
+
+int	error(const std::string& err, const int errno_on){
 
 	std::cout << "\033[0;31mError: ";
 	std::cout << err;
@@ -13,7 +19,7 @@ int	error(const std::string& err, int errno_on){
 	return 0;
 }
 
-std::string str(uint16_t port){
+std::string str(const int port){
 
 	std::stringstream ss;
 	ss << port;
@@ -21,7 +27,7 @@ std::string str(uint16_t port){
 	return s_port;
 }
 
-void logDebug(const std::string& err, int errno_on){
+void logDebug(const std::string& err, const int errno_on){
 
 	(void) err;
 	(void) errno_on;
@@ -48,21 +54,21 @@ void logInfo(const std::string& info, const std::string& arg){
 
 }
 
-std::string IP_port(sockaddr_in &c_addr){
+std::string IP_port(const sockaddr_in &c_addr){
 
-	unsigned long ip_raw = ntohl(c_addr.sin_addr.s_addr);
-	unsigned char b1 = (ip_raw >> 24) & 0xFF;
-	unsigned char b2 = (ip_raw >> 16) & 0xFF;
-	unsigned char b3 = (ip_raw >> 8)  & 0xFF;
-	unsigned char b4 = ip_raw & 0xFF;
+	const unsigned long ip_raw = ntohl(c_addr.sin_addr.s_addr);
+	const unsigned char b1 = (ip_raw >> 24) & 0xFF;
+	const unsigned char b2 = (ip_raw >> 16) & 0xFF;
+	const unsigned char b3 = (ip_raw >> 8)  & 0xFF;
+	const unsigned char b4 = ip_raw & 0xFF;
 
-	int port = ntohs(c_addr.sin_port);
+	const int port = ntohs(c_addr.sin_port);
 
 	std::ostringstream oss;
-	oss << (int)b1 << "."
-		<< (int)b2 << "."
-		<< (int)b3 << "."
-		<< (int)b4
+	oss << static_cast<int>(b1) << "."
+		<< static_cast<int>(b2) << "."
+		<< static_cast<int>(b3) << "."
+		<< static_cast<int>(b4)
 		<< "\033[95m:\033[0;36m" << port;
 
 	return oss.str();

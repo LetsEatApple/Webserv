@@ -11,39 +11,32 @@
 /* ************************************************************************** */
 
 #include "AEventHandler.hpp"
-#include "lib.hpp"
+#include "constants.hpp"
 #include "reactor.hpp"
+
+#include <cerrno>
+#include <csignal>
+#include <Logger.hpp>
 #include <map>
 #include <sys/epoll.h>
-#include <sys/socket.h>
 #include <vector>
+#include <unistd.h>
 
 static int g_signal_fd = -1;
 
 void on_signal(int sig) {
-
 	(void) sig;
-	int savedErrno = errno;
-	write(g_signal_fd, "x", 1);
+	const int savedErrno = errno;
+	const ssize_t n = write(g_signal_fd, "x", 1);
+	if (n < 0)
+		logDebug("write failed", 1);
 	errno = savedErrno;
-};
+}
 
 int set_signalfd(){
-
 	int pfd[2];
-  //if (socketpair(AF_UNIX, SOCK_STREAM, 0, pfd) == -1)
-  //  return -1;
-  
 	if (pipe(pfd) == -1)
 		return -1;
-	/*int ret1 = fcntl(pfd[0], F_SETFL, O_NONBLOCK); // read end, watched by epoll
-	int ret2 = fcntl(pfd[1], F_SETFL, O_NONBLOCK); // write end, signalHandler writes here
-	if (ret1 == -1 || ret2 == -1){
-		close(pfd[0]);
-		close(pfd[1]);
-		return -1;
-	}
-  */
 	g_signal_fd = pfd[1];
 	return pfd[0];
 }
@@ -62,9 +55,9 @@ int Reactor::init(const activeSessions &sessions){
 	logInfo("Reactor initialized: \033[0;36mepoll (fd=", str(_epfd).append(")"));
 
 	// set fd for signals and register handler
-	int sfd = set_signalfd();
+	const int sfd = set_signalfd();
 	if (sfd == -1)
-		return error("creatig signal fd failed", 1);
+		return error("creating signal fd failed", 1);
 	Signal* sig = new Signal(sfd);
 	if (!registerHandler(sig, EPOLLIN)) {
 		delete sig;
@@ -90,10 +83,9 @@ int Reactor::init(const activeSessions &sessions){
 	return true;
 }
 
-int Reactor::registerHandler(EventHandler *handler, uint32_t event){
+int Reactor::registerHandler(EventHandler *handler, const uint32_t event){
 
-	epoll_event ev;
-	std::memset(&ev, 0, sizeof(ev));
+	epoll_event ev = {};
 	ev.data.fd = handler->get_fd();
 	handler->reactor(this);
 	ev.events = event;
@@ -105,10 +97,9 @@ int Reactor::registerHandler(EventHandler *handler, uint32_t event){
 	return true;
 }
 
-int Reactor::modifyHandler(EventHandler *handler, uint32_t event){
+int Reactor::modifyHandler(const EventHandler *handler, const uint32_t event){
 
-	epoll_event ev;
-	std::memset(&ev, 0, sizeof(ev));
+	epoll_event ev = {};
 	ev.data.fd = handler->get_fd();
 	ev.events = event;
 	if (epoll_ctl(_epfd, EPOLL_CTL_MOD, ev.data.fd, &ev) < 0){
@@ -119,10 +110,10 @@ int Reactor::modifyHandler(EventHandler *handler, uint32_t event){
 	return true;
 }
 
-int Reactor::removeHandler (EventHandler *handler, uint32_t event){
+int Reactor::removeHandler (const EventHandler *handler, const uint32_t event){
 
 	(void) event;
-	int fd = handler->get_fd();
+	const int fd = handler->get_fd();
 
 	if (epoll_ctl(_epfd, EPOLL_CTL_DEL, fd, NULL) == -1)
 		logDebug("Epoll_ctl failed", 1);
@@ -135,12 +126,12 @@ int Reactor::removeHandler (EventHandler *handler, uint32_t event){
 	return true;
 }
 
-int Reactor::handleEvents(){
+void Reactor::handleEvents(){
 
-	int nfds = epoll_wait(_epfd, _evlist, MAX, 1000);
+	const int nfds = epoll_wait(_epfd, _evlist, MAX, 1000);
 	if (nfds == 0) {
-    checkTimeouts();
-		return true;
+		checkTimeouts();
+		return;
   }
 
 	for (int i = 0; i < nfds; i++){
@@ -148,15 +139,14 @@ int Reactor::handleEvents(){
 		if (_handlers.find(fd) == _handlers.end())
 			continue;
 
-    uint32_t ev = _evlist[i].events;
+    const uint32_t ev = _evlist[i].events;
 
     if (ev & (EPOLLIN | EPOLLHUP | EPOLLERR))
       _handlers[fd]->handleRead();
     if ((ev & EPOLLOUT) && _handlers.find(fd) != _handlers.end())
       _handlers[fd]->handleWrite();
 	}
-  checkTimeouts();
-	return true;
+	checkTimeouts();
 }
 
 void Reactor::checkTimeouts() {
@@ -172,7 +162,7 @@ void Reactor::checkTimeouts() {
   }
 }
 
-bool Reactor::stop(int mode){
+bool Reactor::stop(const int mode){
 
 	if (mode == SET)
 		_sig = true;
@@ -181,10 +171,7 @@ bool Reactor::stop(int mode){
 }
 
 Reactor::~Reactor(){
-
-	std::map<int, EventHandler *>::iterator it;
-
-	for (it = _handlers.begin(); it != _handlers.end(); ++it){
+	for (std::map<int, EventHandler*>::iterator it = _handlers.begin(); it != _handlers.end(); ++it){
 		close (it->first); // close fd
 		delete (it->second); // delete handler
 	}

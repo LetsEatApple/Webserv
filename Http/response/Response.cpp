@@ -6,27 +6,27 @@
 
 struct HeaderAppender {
     std::string& buf;
-    HeaderAppender(std::string& b) : buf(b) {}
+    explicit HeaderAppender(std::string& b) : buf(b) {}
     void operator()(const std::string& name, const std::string& value) const {
         buf += name + ": " + value + "\r\n";
     }
 };
 
-Headers Response::getDefaultHeaders(int contentLen) {
+Headers Response::getDefaultHeaders(const size_t contentLen) {
     Headers h;
     std::ostringstream oss;
     oss << contentLen;
     h.set("Content-Length", oss.str());
     h.set("Connection", "keep-alive");
     h.set("Content-Type", "text/plain");
-    std::time_t now = std::time(NULL);
+    const std::time_t now = std::time(NULL);
     char dateBuf[30];
     std::strftime(dateBuf, sizeof(dateBuf), "%a, %d %b %Y %H:%M:%S GMT", std::gmtime(&now));
     h.set("Date", dateBuf);
     return h;
 }
 
-std::string Response::getDefaultErrorPage(StatusCode code) {
+std::string Response::getDefaultErrorPage(const StatusCode code) {
     const char* line = statusCodeToLine(code);
     // extract "404 Not Found" from "HTTP/1.1 404 Not Found\r\n"
     std::string reason(line + 9);
@@ -36,7 +36,7 @@ std::string Response::getDefaultErrorPage(StatusCode code) {
 
 Response::Writer::Writer(std::string& buf) : _buf(&buf) {}
 
-const char* Response::statusCodeToLine(StatusCode code) {
+const char* Response::statusCodeToLine(const StatusCode code) {
     switch (code) {
         case StatusOk:                return "HTTP/1.1 200 OK\r\n";
         case StatusNoContent:         return "HTTP/1.1 204 No Content\r\n";
@@ -54,11 +54,11 @@ const char* Response::statusCodeToLine(StatusCode code) {
         case StatusNotImplemented:    return "HTTP/1.1 501 Not Implemented\r\n"; 
         case StatusBadGateway:        return "HTTP/1.1 502 Bad Gateway\r\n";
         case StatusGatewayTimeout:  return "HTTP/1.1 504 Gateway Timeout\r\n";
-        default:                      return NULL; // AddressSanitizer error if NULL;
+        default:                      return "HTTP/1.1 500 Internal Server Error\r\n";
     }
 }
 
-Response::StatusCode Response::intToStatusCode(int code) {
+Response::StatusCode Response::intToStatusCode(const int code) {
     switch (code) {
         case 200: return StatusOk;
         case 204: return StatusNoContent;
@@ -77,39 +77,30 @@ Response::StatusCode Response::intToStatusCode(int code) {
     }
 }
 
-bool Response::Writer::writeStatusLine(StatusCode statusCode) const {
+void Response::Writer::writeStatusLine(const StatusCode statusCode) const {
     const char* statusLine = statusCodeToLine(statusCode);
-    if (!statusLine)
-        return false;
     _buf->append(statusLine, std::strlen(statusLine));
-    return true;
 }
 
-bool Response::Writer::writeHeaders(const Headers& h) const {
+void Response::Writer::writeHeaders(const Headers& h) const {
     std::string buf;
     h.forEach(HeaderAppender(buf));
     buf += "\r\n";
     _buf->append(buf);
-    return true;
 }
 
-bool Response::Writer::writeBody(const char* data, size_t len) const {
+void Response::Writer::writeBody(const char* data, const size_t len) const {
     _buf->append(data, len);
-    return true;
 }
 
-bool Response::Writer::writeChunkedBody(const char* data, size_t len) const {
+void Response::Writer::writeChunkedBody(const char* data, const size_t len) const {
     char hexBuf[32];
-    int hexLen = std::sprintf(hexBuf, "%x\r\n", static_cast<unsigned int>(len));
-    if (!writeBody(hexBuf, hexLen)) {
-        return false;
-    }
-    if (!writeBody(data, len)) {
-        return false;
-    }
-    return writeBody("\r\n", 2);
+    const int hexLen = std::sprintf(hexBuf, "%x\r\n", static_cast<unsigned int>(len));
+    writeBody(hexBuf, static_cast<unsigned int>(hexLen));
+    writeBody(data, len);
+    writeBody("\r\n", 2);
 }
 
-bool Response::Writer::writeChunkedBodyDone() const {
-    return writeBody("0\r\n\r\n", 5);
+void Response::Writer::writeChunkedBodyDone() const {
+    writeBody("0\r\n\r\n", 5);
 }

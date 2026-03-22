@@ -5,6 +5,7 @@
 #include "ResponseDispatcher.hpp"
 
 #include <algorithm>
+#include <sstream>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/un.h>
@@ -33,7 +34,7 @@ static std::string toLower(const std::string& str) {
 }
 
 static std::string dirNameOf(const std::string& p) {
-  size_t pos = p.find_last_of('/');
+  const size_t pos = p.find_last_of('/');
   if (pos == std::string::npos) return ".";
   if (pos == 0) return "/";
   return p.substr(0, pos);
@@ -46,13 +47,13 @@ static void addEnv(std::vector<std::string>& env,
 
 struct AddHttpEnv {
   std::vector<std::string>& env;
-  AddHttpEnv(std::vector<std::string>& e) : env(e) {}
+  explicit AddHttpEnv(std::vector<std::string>& e) : env(e) {}
   void operator()(const std::string& name, const std::string& value) const {
     if (name == "content-length" || name == "content-type")
       return;
     std::string envName = "HTTP_";
     for (size_t i = 0; i < name.size(); ++i) {
-      char c = name[i];
+      const char c = name[i];
       if (c == '-') envName += '_';
       else if (c >= 'a' && c <= 'z') envName += static_cast<char>(c - 32);
       else envName += c;
@@ -67,7 +68,7 @@ static bool findCgiScript(const std::string& path,
                           std::string& interpreter,
                           std::string& pathInfo) {
   for (size_t pos = 0; pos < path.size();) {
-    size_t dot = path.find('.', pos);
+    const size_t dot = path.find('.', pos);
     if (dot == std::string::npos) return false;
     size_t extEnd = path.find('/', dot);
     if (extEnd == std::string::npos) extEnd = path.size();
@@ -75,7 +76,7 @@ static bool findCgiScript(const std::string& path,
     std::map<std::string, std::string>::const_iterator it = cgi.find(ext);
     if (it != cgi.end()) {
       interpreter = it->second;
-      size_t slash = path.rfind('/', dot);
+      const size_t slash = path.rfind('/', dot);
       script = (slash == std::string::npos)
         ? path.substr(0, extEnd)
         : path.substr(slash, extEnd - slash);
@@ -265,7 +266,7 @@ void CgiProcess::closeInputIfDone() {
   _inClosed = true;
 }
 
-void CgiProcess::onHandlerClosed(CgiFdHandler::Kind kind) {
+void CgiProcess::onHandlerClosed(const CgiFdHandler::Kind kind) {
   if (_conn.state() == StateClosing)
     return;
   if (kind == CgiFdHandler::CGI_IN) {
@@ -289,7 +290,7 @@ bool CgiProcess::trySendCgiHeaders() {
   if (sep == std::string::npos)
     return false;
 
-  std::string rawHeaders = _outBuffer.substr(0, sep);
+  const std::string rawHeaders = _outBuffer.substr(0, sep);
   _outBuffer.erase(0, sep + sepLen);
 
   int status = 200;
@@ -304,7 +305,7 @@ bool CgiProcess::trySendCgiHeaders() {
     if (line.empty())
       continue;
 
-    size_t colon = line.find(':');
+    const size_t colon = line.find(':');
     if (colon == std::string::npos)
       continue;
 
@@ -337,8 +338,8 @@ bool CgiProcess::trySendCgiHeaders() {
   if (!hasContentType)
     cgiHeaders.set("Content-Type", "text/html");
 
-  Response::StatusCode code = Response::intToStatusCode(status);
-  Response::Writer w(_conn.writeBuffer());
+  const Response::StatusCode code = Response::intToStatusCode(status);
+  const Response::Writer w(_conn.writeBuffer());
   w.writeStatusLine(code);
   w.writeHeaders(cgiHeaders);
 
@@ -347,7 +348,7 @@ bool CgiProcess::trySendCgiHeaders() {
 }
 
 void CgiProcess::pauseRead() {
-  if (_outPaused || !_outHandler || _outFd < 0) return;
+  if (_outPaused || !_outHandler) return;
   _conn.reactor()->modifyHandler(_outHandler, 0);
   _outPaused = true;
 }
@@ -379,21 +380,20 @@ void CgiProcess::pauseClientRead() {
   if (_clientPaused) return;
   _clientPaused = true;
   _conn.setWantRead(false);
-  _conn.updateEvents();
+  (void)_conn.updateEvents();
 }
 
 void CgiProcess::resumeClientRead() {
-  if (!_clientPaused) return;
   _clientPaused = false;
   _conn.setWantRead(true);
-  _conn.updateEvents();
+  (void)_conn.updateEvents();
 }
 
 int CgiProcess::onWritable() {
-  if (_inFd < 0) return true;
+  if (_inFd < 0) return false;
 
   while (_inOffset < _inBuffer.size()) {
-    ssize_t n = send(_inFd, _inBuffer.c_str() + _inOffset,
+    const ssize_t n = send(_inFd, _inBuffer.c_str() + _inOffset,
                      _inBuffer.size() - _inOffset, MSG_DONTWAIT);
     if (n > 0) {
       _inOffset += static_cast<size_t>(n);
@@ -419,25 +419,25 @@ int CgiProcess::onReadable() {
 
   char buf[MAX];
   for (;;) {
-    ssize_t n = recv(_outFd, buf, sizeof(buf), MSG_DONTWAIT);
+    const ssize_t n = recv(_outFd, buf, sizeof(buf), MSG_DONTWAIT);
     if (n > 0) {
       if (!_headersSent) {
         _outBuffer.append(buf, static_cast<size_t>(n));
         if (trySendCgiHeaders()) {
           if (!_outBuffer.empty()) {
             Response::Writer w(_conn.writeBuffer());
-            w.writeChunkedBody(_outBuffer.c_str(), _outBuffer.size());
+            w.writeChunkedBody(_outBuffer.c_str(), static_cast<unsigned int>(_outBuffer.size()));
             _outBuffer.clear();
           }
           _conn.setState(StateCgiStreaming);
         }
       } else {
         Response::Writer w(_conn.writeBuffer());
-        w.writeChunkedBody(buf, static_cast<size_t>(n));
+        w.writeChunkedBody(buf, static_cast<unsigned int>(n));
       }
       if (_headersSent) {
         _conn.setWantWrite(true);
-        _conn.updateEvents();
+        (void)_conn.updateEvents();
       }
       if (_headersSent && _conn.writePending() > MAX_CGI_BUFFER) {
         pauseRead();
@@ -449,10 +449,10 @@ int CgiProcess::onReadable() {
       if (!_headersSent) {
         _conn.setCloseAfterResponse(true);
         Response::Writer w(_conn.writeBuffer());
-        ResponseDispatcher(w, _conn.request(), _conn.location())
+        (void)ResponseDispatcher(w, _conn.request(), _conn.location())
           .sendError(Response::StatusBadGateway);
       } else {
-        Response::Writer w(_conn.writeBuffer());
+        const Response::Writer w(_conn.writeBuffer());
         w.writeChunkedBodyDone();
       }
       stop();

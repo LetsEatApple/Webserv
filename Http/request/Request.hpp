@@ -38,7 +38,7 @@ public:
     const std::string&	getTarget() const;
 	const std::string&	getPath() const;
 	const std::string&	getQuery() const;
-	const std::string	getHost() const;
+	std::string	getHost() const;
 	size_t				getContentLen() const;
     const std::string&	getHttpVersion() const;
     const ::Headers&	getHeaders() const;

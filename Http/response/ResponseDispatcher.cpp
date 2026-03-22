@@ -24,23 +24,24 @@ static bool hasPathTraversal(const std::string& path) {
 }
 
 static std::string resolvePath(const config::Location& loc, const std::string& reqPath) {
-	std::string rel = reqPath.substr(loc.path.size());
+	const std::string rel = reqPath.substr(loc.path.size());
 	if (hasPathTraversal(rel))
 		return "";
 	return loc.alias + "/" + rel;
 }
 
-static bool isRedirect(int code) {
+static bool isRedirect(const int code) {
 	return code == 301 || code == 302 || code == 307 || code == 308;
 }
 
 ResponseDispatcher::ResponseDispatcher(Response::Writer& w, const Request& req, const config::Location& loc)
 	: _w(w), _req(req), _loc(loc) {}
 
-int ResponseDispatcher::sendError(Response::StatusCode code) {
+int ResponseDispatcher::sendError(Response::StatusCode code) const
+{
 	std::string body;
 	std::string contentType = "text/html";
-	std::map<int, std::string>::const_iterator it = _loc.error_page.find(static_cast<int>(code));
+	std::map<int, std::string>::const_iterator it = _loc.error_page.find(code);
 	if (it != _loc.error_page.end()) {
 		std::ifstream file(it->second.c_str(), std::ios::binary);
 		if (file) {
@@ -57,15 +58,16 @@ int ResponseDispatcher::sendError(Response::StatusCode code) {
 	_w.writeHeaders(h);
 	if (_req.getMethod() != "HEAD")
 		_w.writeBody(body.c_str(), body.size());
-	return static_cast<int>(code);
+	return code;
 }
 
-int ResponseDispatcher::serveMultipart(const std::string& boundary) {
+int ResponseDispatcher::serveMultipart(const std::string& boundary) const
+{
 	std::string uploadDir = _loc.upload;
 	if (uploadDir.empty() || uploadDir[uploadDir.size() - 1] != '/')
 		uploadDir += "/";
 
-	struct stat dirSt;
+	struct stat dirSt = {};
 	if (stat(uploadDir.c_str(), &dirSt) < 0 || !S_ISDIR(dirSt.st_mode))
 		return sendError(Response::StatusInternalServerError);
 
@@ -79,12 +81,13 @@ int ResponseDispatcher::serveMultipart(const std::string& boundary) {
 		resp << "- " << parser.getUploadedFiles()[i] << "\n";
 	const std::string respStr = resp.str();
 	_w.writeStatusLine(Response::StatusOk);
-	_w.writeHeaders(Response::getDefaultHeaders(static_cast<int>(respStr.size())));
+	_w.writeHeaders(Response::getDefaultHeaders(respStr.size()));
 	_w.writeBody(respStr.c_str(), respStr.size());
 	return 200;
 }
 
-int ResponseDispatcher::serve(int* fileFd, size_t* fileSize) {
+int ResponseDispatcher::serve(int* fileFd, size_t* fileSize) const
+{
 	if (!_loc.ret.empty())
 		return serveReturn();
 	if (_req.getMethod() == "DELETE")
@@ -103,12 +106,13 @@ int ResponseDispatcher::serve(int* fileFd, size_t* fileSize) {
 	return serveFile(fileFd, fileSize);
 }
 
-int ResponseDispatcher::serveReturn() {
-	std::map<int, std::string>::const_iterator it = _loc.ret.begin();
-	int code = it->first;
+int ResponseDispatcher::serveReturn() const
+{
+	const std::map<int, std::string>::const_iterator it = _loc.ret.begin();
+	const int code = it->first;
 	const std::string& value = it->second;
 
-	Response::StatusCode status = Response::intToStatusCode(code);
+	const Response::StatusCode status = Response::intToStatusCode(code);
 	_w.writeStatusLine(status);
 
 	if (isRedirect(code)) {
@@ -185,7 +189,7 @@ static std::string encode(std::string src)
 	return os.str();
 }
 
-int ResponseDispatcher::serveAutoindex(const std::string &fsPath, const std::string &reqPath, const std::string &reqMethod)
+int ResponseDispatcher::serveAutoindex(const std::string &fsPath, const std::string &reqPath, const std::string &reqMethod) const
 {
 	DIR *dir = opendir(fsPath.c_str());
 	if (!dir)
@@ -230,7 +234,7 @@ int ResponseDispatcher::serveAutoindex(const std::string &fsPath, const std::str
 		else
 		{
 			html << "<a href=\"" + encode(it->name) + "\">" + htmlEscape(it->name) + "</a>";
-			html << std::setw(50 - it->name.size()) << " ";
+			html << std::setw(50 - static_cast<int>(it->name.size())) << " ";
 		}
 		char buf[18];
 		strftime(buf, 18, "%d-%b-%Y %H:%M", localtime(&it->mod_time));
@@ -249,7 +253,7 @@ int ResponseDispatcher::serveAutoindex(const std::string &fsPath, const std::str
 		else
 		{
 			html << "<a href=\"" + encode(it->name) + "\">" + htmlEscape(it->name) + "</a>";
-			html << std::setw(50 - it->name.size()) << " ";
+			html << std::setw(50 - static_cast<int>(it->name.size())) << " ";
 		}
 		char buf[18];
 		strftime(buf, 18, "%d-%b-%Y %H:%M", localtime(&it->mod_time));
@@ -268,12 +272,13 @@ int ResponseDispatcher::serveAutoindex(const std::string &fsPath, const std::str
 	return 200;
 }
 
-int ResponseDispatcher::serveFile(int* fileFd, size_t* fileSize) {
+int ResponseDispatcher::serveFile(int* fileFd, size_t* fileSize) const
+{
 	// 1. resolve filesystem path from alias + request path
     std::string fsPath = resolvePath(_loc, _req.getPath());
-	struct stat st;
+	struct stat st = {};
     // 2. stat() the path (not found -> 404)
-	if (stat(fsPath.c_str(), &st) < 0)
+	if (stat(fsPath.c_str(), &st) < 0 || st.st_size < 0)
 		return sendError(Response::StatusNotFound);
 	// 3. directory -> redirect 301 if missing trailing /, else try index, else autoindex, else 403
 	if (S_ISDIR(st.st_mode)) {
@@ -283,7 +288,7 @@ int ResponseDispatcher::serveFile(int* fileFd, size_t* fileSize) {
 		bool hasIndex = false;
 		if (!_loc.index.empty()) {
 			std::string indexPath = dirPath + _loc.index;
-			struct stat idxSt;
+			struct stat idxSt = {};
 			hasIndex = (stat(indexPath.c_str(), &idxSt) == 0 && S_ISREG(idxSt.st_mode));
 		}
 		if (fsPath[fsPath.size() - 1] != '/') {
@@ -306,7 +311,7 @@ int ResponseDispatcher::serveFile(int* fileFd, size_t* fileSize) {
 	}
 	// 4. regular file -> write status 200 + Content-Type, stream body
 	_w.writeStatusLine(Response::StatusOk);
-	Headers h = Response::getDefaultHeaders(static_cast<int>(st.st_size));
+	Headers h = Response::getDefaultHeaders(static_cast<size_t>(st.st_size));
 	h.replace("Content-Type", getMimeType(fsPath));
 	_w.writeHeaders(h);
 	// 5. HEAD -> same headers, skip body
@@ -331,7 +336,8 @@ int ResponseDispatcher::serveFile(int* fileFd, size_t* fileSize) {
 	return 200;
 }
 
-int ResponseDispatcher::serveUpload() {
+int ResponseDispatcher::serveUpload() const
+{
 	// Extract filename from the request path (last segment after /)
 	std::string path = _req.getPath();
 	size_t lastSlash = path.rfind('/');
@@ -345,7 +351,7 @@ int ResponseDispatcher::serveUpload() {
 	if (uploadDir[uploadDir.size() - 1] != '/')
 		uploadDir += "/";
 
-	struct stat dirSt;
+	struct stat dirSt = {};
 	if (stat(uploadDir.c_str(), &dirSt) < 0 || !S_ISDIR(dirSt.st_mode))
 		return sendError(Response::StatusInternalServerError);
 
@@ -355,7 +361,7 @@ int ResponseDispatcher::serveUpload() {
 		return sendError(Response::StatusForbidden);
 
 	const std::string& body = _req.getBody();
-	out.write(body.c_str(), body.size());
+	out.write(body.c_str(), static_cast<long int>(body.size()));
 	out.close();
 
 	std::string resp = "File uploaded: " + filename + "\n";
@@ -365,9 +371,10 @@ int ResponseDispatcher::serveUpload() {
 	return 200;
 }
 
-int ResponseDispatcher::serveDelete() {
-	std::string fsPath = resolvePath(_loc, _req.getPath());
-	struct stat st;
+int ResponseDispatcher::serveDelete() const
+{
+	const std::string fsPath = resolvePath(_loc, _req.getPath());
+	struct stat st = {};
 	if (stat(fsPath.c_str(), &st) < 0)
 		return sendError(Response::StatusNotFound);
 	if (std::remove(fsPath.c_str()) != 0)

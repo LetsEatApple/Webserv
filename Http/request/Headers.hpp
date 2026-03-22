@@ -29,7 +29,7 @@ public:
         std::string error;
 
         ParseResult() : bytesConsumed(0), done(false) {}
-        ParseResult(int b, bool d, const std::string& e) : bytesConsumed(b), done(d), error(e) {}
+        ParseResult(const int b, const bool d, const std::string& e) : bytesConsumed(b), done(d), error(e) {}
     };
 
     ParseResult parse(const std::string& data);

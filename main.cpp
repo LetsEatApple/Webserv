@@ -10,9 +10,11 @@
 /*                                                                            */
 /* ************************************************************************** */
 
+#include <iostream>
+#include <Logger.hpp>
+
 #include "server.hpp"
 #include "reactor.hpp"
-#include "AEventHandler.hpp"
 #include "handler.hpp"
 
 int main(int ac, char **av) {
@@ -37,7 +39,7 @@ int main(int ac, char **av) {
 	catch (const std::exception &e) {
 		return error(e.what(), 0);
 	}
-	logInfo("Loaded cofiguration file: ", av[1]);
+	logInfo("Loaded configuration file: ", av[1]);
 	// LOW-LEVEL NETWORKING
 	try {
 		Server server(listeners);
@@ -51,11 +53,7 @@ int main(int ac, char **av) {
 
 		// Event loop
 		for(;;) {
-			if (!reactor.handleEvents()){
-				if (errno == EINTR)
-					continue ;
-				return error("epoll_wait failed", 1);
-			}
+			reactor.handleEvents();
 			if (reactor.stop(GET))
 				break ;
 		}

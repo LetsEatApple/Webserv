@@ -12,6 +12,12 @@
 
 #include "handler.hpp"
 
+#include <csignal>
+#include <iostream>
+#include <Logger.hpp>
+#include <unistd.h>
+#include <netinet/in.h>
+
 #include "Response.hpp"
 #include "reactor.hpp"
 #include "ResponseDispatcher.hpp"
@@ -36,17 +42,17 @@ Connection::~Connection() {
   }
 }
 
-int Connection::sendErrorAndClose(Response::StatusCode code) {
+int Connection::sendErrorAndClose(const Response::StatusCode code) {
   _closeAfterResponse = true;
   _writeBuffer.clear();
   _writeOffset = 0;
   Response::Writer w(_writeBuffer);
-  ResponseDispatcher(w, _request, _location).sendError(code);
+  (void)ResponseDispatcher(w, _request, _location).sendError(code);
   // Fix connection header: we're closing, not keeping alive
   {
     const std::string old_h = "connection: keep-alive\r\n";
     const std::string new_h = "connection: close\r\n";
-    size_t pos = _writeBuffer.find(old_h);
+    const size_t pos = _writeBuffer.find(old_h);
     if (pos != std::string::npos)
       _writeBuffer.replace(pos, old_h.size(), new_h);
   }
@@ -69,17 +75,18 @@ const config::Location& Connection::location() const { return _location; }
 std::string& Connection::writeBuffer() { return _writeBuffer; }
 size_t Connection::writePending() const { return _writeBuffer.size() - _writeOffset; }
 bool Connection::writeEmpty() const { return _writeOffset >= _writeBuffer.size(); }
-Reactor* Connection::reactor() { return _reactor; }
+Reactor* Connection::reactor() const { return _reactor; }
 ConnState Connection::state() const { return _state; }
-void Connection::setState(ConnState s) { _state = s; }
-void Connection::setCloseAfterResponse(bool v) { _closeAfterResponse = v; }
+void Connection::setState(const ConnState s) { _state = s; }
+void Connection::setCloseAfterResponse(const bool v) { _closeAfterResponse = v; }
 
-void Connection::setFileResponse(int fd, size_t size) {
+void Connection::setFileResponse(const int fd, const size_t size) {
   _fileFd = fd;
   _fileRemaining = size;
 }
 
-int Connection::updateEvents() {
+int Connection::updateEvents() const
+{
   uint32_t ev = 0;
   if (_wantRead) ev |= EPOLLIN;
   if (_wantWrite) ev |= EPOLLOUT;
@@ -87,7 +94,7 @@ int Connection::updateEvents() {
 }
 
 uint16_t Connection::serverPort() const {
-  struct sockaddr_in addr;
+  struct sockaddr_in addr = {};
   socklen_t len = sizeof(addr);
   if (getsockname(_fd, reinterpret_cast<struct sockaddr*>(&addr), &len) == 0)
     return ntohs(addr.sin_port);
@@ -95,7 +102,7 @@ uint16_t Connection::serverPort() const {
 }
 
 bool Connection::checkTimeout() {
-  std::time_t now = std::time(NULL);
+  const std::time_t now = std::time(NULL);
   if ((_state == StateCgiRunning || _state == StateCgiStreaming) && _cgi && _cgi->startTime() > 0
       && now - _cgi->startTime() >= CGI_TIMEOUT_SEC) {
     logInfo("CGI timeout after ", str(CGI_TIMEOUT_SEC).append("s - killing process"));
@@ -126,7 +133,7 @@ ProcessResult Connection::processRequest(){
 	if (consumed < 0)
 		return (errorMsg == "Payload Too Large") ? PayloadTooLarge : RequestError;
 	if (consumed > 0) {
-		_readOffset += consumed;
+		_readOffset += static_cast<std::size_t>(consumed);
 		compactReadBuffer();
 	}
 	if (_request.headersDone() && !_routed){
@@ -152,7 +159,7 @@ ProcessResult Connection::processRequest(){
 			if (consumed < 0)
 				return (errorMsg == "Payload Too Large") ? PayloadTooLarge : RequestError;
 			if (consumed > 0) {
-				_readOffset += consumed;
+				_readOffset += static_cast<std::size_t>(consumed);
 				compactReadBuffer();
 			}
 		}
@@ -171,57 +178,55 @@ ProcessResult Connection::processRequest(){
 
 int Connection::handleRead(){
 
-  if (_state == StateCgiRunning || _state == StateCgiStreaming) {
-    char buf[MAX];
-    ssize_t n = recv(_fd, buf, MAX - 1, MSG_DONTWAIT);
-    if (n == 0) {
-      stopCgi();
-      logDisconnect(_session.listener, _session.client);
-      return (_reactor->removeHandler(this, 0));
-    }
-    if (n > 0) {
-      _lastActivity = std::time(NULL);
-      if (!_request.done()) {
-        _readBuffer.append(buf, n);
-        std::string errorMsg;
-        int consumed = _request.parse(_readBuffer, _readOffset, errorMsg);
-        if (consumed < 0) {
-          stopCgi();
-          return sendErrorAndClose(errorMsg == "Payload Too Large"
-            ? Response::StatusPayloadTooLarge : Response::StatusBadRequest);
-        }
-        if (consumed > 0) {
-          _readOffset += consumed;
-          compactReadBuffer();
-        }
-        if (_cgi && !_request.getBody().empty())
-          _cgi->feedBody(_request.bodyRef());
-        if (_request.done() && _cgi)
-          _cgi->notifyBodyComplete();
-      }
-    }
-    return true;
-  }
+	if (_state == StateCgiRunning || _state == StateCgiStreaming) {
+		char buf[MAX];
+		const ssize_t n = recv(_fd, buf, MAX - 1, MSG_DONTWAIT);
+		if (n == 0) {
+			stopCgi();
+			logDisconnect(_session.listener, _session.client);
+			return (_reactor->removeHandler(this, 0));
+		}
+		if (n > 0) {
+			_lastActivity = std::time(NULL);
+			if (!_request.done()) {
+				_readBuffer.append(buf, static_cast<std::size_t>(n));
+				std::string errorMsg;
+				const int consumed = _request.parse(_readBuffer, _readOffset, errorMsg);
+				if (consumed < 0) {
+					stopCgi();
+					return sendErrorAndClose(errorMsg == "Payload Too Large"
+						? Response::StatusPayloadTooLarge : Response::StatusBadRequest);
+				}
+				if (consumed > 0) {
+					_readOffset += static_cast<std::size_t>(consumed);
+					compactReadBuffer();
+				}
+				if (_cgi && !_request.getBody().empty())
+					_cgi->feedBody(_request.bodyRef());
+				if (_request.done() && _cgi)
+					_cgi->notifyBodyComplete();
+			}
+		}
+	} else {
+		char buf[MAX];
+		const ssize_t n = recv(_fd, buf, MAX - 1, MSG_DONTWAIT);
+		if (n == 0){ // client disconnected
+			stopCgi();
+			logDisconnect(_session.listener, _session.client);
+			return (_reactor->removeHandler(this, 0));
+		}
+		if (n > 0) {
+			_readBuffer.append(buf, static_cast<std::size_t>(n));
+			_lastActivity = std::time(NULL);
+		} else if (_readOffset >= _readBuffer.size()) // Error occurred and buffer empty, epoll decides what to do
+			return false;
+		if (_state == StateReadingHeaders && !_request.headersDone()
+			&& _readBuffer.size() > MAX_HEADER_SIZE
+			&& _readBuffer.find("\r\n\r\n") == std::string::npos)
+			return sendErrorAndClose(Response::StatusBadRequest);
+		const ProcessResult result = processRequest();
 
-	char buf[MAX];
-	ssize_t n = recv(_fd, buf, MAX - 1, MSG_DONTWAIT);
-	if (n == 0){ // client disconnected
-    stopCgi();
-		logDisconnect(_session.listener, _session.client);
-		return (_reactor->removeHandler(this, 0));
-	}
-	if (n > 0) {
-		_readBuffer.append(buf, n);
-		_lastActivity = std::time(NULL);
-	} else if (_readOffset >= _readBuffer.size()) // Error occured and buffer empty, epoll decides what to do
-		return false;
-	if (_state == StateReadingHeaders && !_request.headersDone()
-		&& _readBuffer.size() > MAX_HEADER_SIZE
-		&& _readBuffer.find("\r\n\r\n") == std::string::npos)
-		return sendErrorAndClose(Response::StatusBadRequest);
-	const ProcessResult result = processRequest();
-
-	switch (result){
+		switch (result){
 		case RequestError:
 			return sendErrorAndClose(Response::StatusBadRequest);
 		case PayloadTooLarge:
@@ -229,28 +234,29 @@ int Connection::handleRead(){
 		case MethodNotAllowed:
 			return sendErrorAndClose(Response::StatusMethodNotAllowed);
 		case RequestDone: {
-			Response::Writer w(_writeBuffer);
-			if (_request.error())
-				return sendErrorAndClose(Response::StatusBadRequest);
-			logRequest(_session.listener, _session.client, _request, _location.path);
-			int fileFd = -1;
-			size_t fileSize = 0;
-			ResponseDispatcher(w, _request, _location).serve(&fileFd, &fileSize);
-			if (fileFd >= 0)
-				setFileResponse(fileFd, fileSize);
-			_state = StateSendingResponse;
-			_wantRead = false;
-			_wantWrite = true;
-			return updateEvents();
+				Response::Writer w(_writeBuffer);
+				if (_request.error())
+					return sendErrorAndClose(Response::StatusBadRequest);
+				logRequest(_session.listener, _session.client, _request, _location.path);
+				int fileFd = -1;
+				size_t fileSize = 0;
+				ResponseDispatcher(w, _request, _location).serve(&fileFd, &fileSize);
+				if (fileFd >= 0)
+					setFileResponse(fileFd, fileSize);
+				_state = StateSendingResponse;
+				_wantRead = false;
+				_wantWrite = true;
+				return updateEvents();
 		}
 		case NeedMoreData:
 			return true;
+		}
 	}
 	return true;
 }
 
 
-// if send returns 0 -> dead connection remove socket, if -1 -> error but do not decide anything here just wait for epoll to tell whats wrong
+// if send returns 0 -> dead connection remove socket, if -1 -> error but do not decide anything here just wait for epoll to tell what's wrong
 // if (n < 0) {
 // Do nothing here
  // epoll will report EPOLLERR / EPOLLHUP if it's fatal
@@ -273,13 +279,13 @@ int Connection::handleWrite() {
 	if (_fileFd >= 0 && writeEmpty()) {
 		char buf[MAX];
 		while (_fileRemaining > 0) {
-			size_t toRead = _fileRemaining < MAX ? _fileRemaining : MAX;
-			ssize_t nr = read(_fileFd, buf, toRead);
+			const size_t toRead = _fileRemaining < MAX ? _fileRemaining : MAX;
+			const ssize_t nr = read(_fileFd, buf, toRead);
 			if (nr <= 0) break;
 			_fileRemaining -= static_cast<size_t>(nr);
 			size_t off = 0;
 			while (off < static_cast<size_t>(nr)) {
-				ssize_t ns = send(_fd, buf + off, static_cast<size_t>(nr) - off, MSG_DONTWAIT);
+				const ssize_t ns = send(_fd, buf + off, static_cast<size_t>(nr) - off, MSG_DONTWAIT);
 				if (ns > 0) {
 					off += static_cast<size_t>(ns);
 				} else {
@@ -311,7 +317,6 @@ int Connection::handleWrite() {
 		logDisconnect(_session.listener, _session.client);
 		return _reactor->removeHandler(this, 0);
 	}
-	stopCgi();
 	if (_fileFd >= 0) { close(_fileFd); _fileFd = -1; }
 	_writeBuffer.clear();
 	_writeOffset = 0;
@@ -322,21 +327,20 @@ int Connection::handleWrite() {
 	_wantWrite = false;
 	if (_readOffset < _readBuffer.size())
 		return handleRead();
+	stopCgi();
 	return updateEvents();
 }
 
 // ACCEPT HANDLER
-Acceptor::Acceptor(const SessionInfo &session) : EventHandler(session.listener.socket), _session(session) {};
+Acceptor::Acceptor(const SessionInfo &session) : EventHandler(session.listener.socket), _session(session) {}
 
 int Acceptor::handleRead() {
-
-	struct sockaddr_in c_addr;
+	sockaddr_in c_addr = {};
 	socklen_t c_addrlen;
-	std::memset(&c_addr, 0, sizeof(c_addr));
 	c_addrlen = sizeof(c_addr);
 
 	for (;;){
-		int cfd = accept(_fd, (struct sockaddr *)&c_addr, &c_addrlen);
+		const int cfd = accept(_fd, reinterpret_cast<struct sockaddr*>(&c_addr), &c_addrlen);
 		if (cfd < 0)
 			break; // accept() may return -1 with EAGAIN if no connections are pending (not an error)
 		_session.client.portPair = IP_port(c_addr);
@@ -357,17 +361,19 @@ int Acceptor::handleWrite() {
 }
 
 // SIGNAL HANDLER
-Signal::Signal(int fd) : EventHandler(fd){
+Signal::Signal(const int fd) : EventHandler(fd){
 	signal(SIGINT, on_signal);
 	signal(SIGTERM, on_signal);
-};
+}
 
 int Signal::handleRead(){
 
 	char buffer[MAX];
-  read(_fd, buffer, sizeof(buffer));
-	//while (read(_fd, buffer, sizeof(buffer)) > 0) {}
-	std::cout << "\n\033[95mSignal detected: Shutting down ...\033[0;37m" << std::endl;
+	const ssize_t n = read(_fd, buffer, sizeof(buffer));
+	if (n < 0)
+		std::cout << "\n\033[95mError during signal handling: Shutting down ...\033[0;37m" << std::endl;
+	else
+		std::cout << "\n\033[95mSignal detected: Shutting down ...\033[0;37m" << std::endl;
 	return (_reactor->stop(SET));
 }
 
@@ -377,15 +383,15 @@ int Signal::handleWrite(){
 
 
 // STDIN HANDLER
-Stdin::Stdin(int fd) : EventHandler(fd){}
+Stdin::Stdin(const int fd) : EventHandler(fd){}
 
 int Stdin::handleRead(){
 
 	char buffer[MAX];
-	ssize_t size = read(STDIN_FILENO, buffer, MAX - 1);
+	const ssize_t size = read(STDIN_FILENO, buffer, MAX - 1);
 	if (size <= 0)
 		return true;
-	std::string input(buffer, size);
+	std::string input(buffer, static_cast<std::size_t>(size));
 	if (!input.empty() && input[input.size() - 1] == '\n')
 		input.erase(input.size() - 1);
 	if (input == "quit"){

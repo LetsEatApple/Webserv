@@ -1,7 +1,6 @@
 #ifndef CONFIG_HPP
 #define CONFIG_HPP
 
-#include <cstddef>
 #include <map>
 #include <set>
 #include <stdint.h>

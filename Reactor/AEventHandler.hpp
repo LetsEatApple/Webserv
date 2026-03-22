@@ -12,8 +12,6 @@
 
 #pragma once
 
-#include "lib.hpp"
-
 class Reactor;
 
 class EventHandler{
@@ -24,11 +22,10 @@ protected:
 
 public:
 	EventHandler();
-	EventHandler(int fd);
+	explicit EventHandler(int fd);
 	void			reactor(Reactor *reactor);
 	void			set_fd(int fd);
-	int				get_fd();
-	//int			fd(int mode, int fd);
+	int				get_fd() const;
 	virtual int		handleRead() = 0;
 	virtual int		handleWrite() = 0;
   virtual bool  checkTimeout();

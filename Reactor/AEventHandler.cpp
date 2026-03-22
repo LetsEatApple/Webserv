@@ -11,35 +11,23 @@
 /* ************************************************************************** */
 
 #include "AEventHandler.hpp"
-#include "handler.hpp"
 
-EventHandler::EventHandler() : _fd(-1){};
+EventHandler::EventHandler() : _fd(-1), _reactor(){}
 
-EventHandler::EventHandler(int fd) : _fd(fd) {};
+EventHandler::EventHandler(const int fd) : _fd(fd), _reactor() {}
 
-void EventHandler::set_fd(int fd){
-
+void EventHandler::set_fd(const int fd){
 	_fd = fd;
-};
+}
 
-int EventHandler::get_fd(){
-
+int EventHandler::get_fd() const{
 	return _fd;
-};
+}
 
 void	EventHandler::reactor(Reactor *reactor){
-
 	_reactor = reactor;
 }
 
 EventHandler::~EventHandler(){}
-
-/* int EventHandler::fd(int mode, int fd){
-
-	if (mode == SET)
-		_fd = fd;
-
-	return _fd;
-} */
 
 bool EventHandler::checkTimeout() { return false; }

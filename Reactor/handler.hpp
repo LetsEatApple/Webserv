@@ -12,7 +12,6 @@
 
 #pragma once
 
-#include "lib.hpp"
 #include "AEventHandler.hpp"
 #include "Config.hpp"
 #include "Request.hpp"
@@ -59,7 +58,7 @@ private:
   int sendErrorAndClose(Response::StatusCode code);
 	ProcessResult	processRequest();
 public:
-	Connection(const SessionInfo &session);
+	explicit Connection(const SessionInfo &session);
   ~Connection();
 	int	handleRead();
 	int	handleWrite();
@@ -70,14 +69,14 @@ public:
   std::string& writeBuffer();
   size_t writePending() const;
   bool writeEmpty() const;
-  Reactor* reactor();
+  Reactor* reactor() const;
   ConnState state() const;
   void setState(ConnState s);
   void setCloseAfterResponse(bool v);
   void setFileResponse(int fd, size_t size);
-  void setWantRead(bool v)  { _wantRead = v; }
-  void setWantWrite(bool v) { _wantWrite = v; }
-  int updateEvents();
+  void setWantRead(const bool v)  { _wantRead = v; }
+  void setWantWrite(const bool v) { _wantWrite = v; }
+  int updateEvents() const;
   uint16_t serverPort() const;
 };
 
@@ -86,7 +85,7 @@ class Acceptor : public EventHandler{
 private:
 	SessionInfo	_session;
 public:
-	Acceptor(const SessionInfo &session);
+	explicit Acceptor(const SessionInfo &session);
 	int handleRead();
 	int handleWrite();
 };
@@ -95,7 +94,7 @@ public:
 class Signal : public EventHandler{
 
 public:
-	Signal(int fd);
+	explicit Signal(int fd);
 	int handleRead();
 	int handleWrite();
 };
@@ -104,7 +103,7 @@ public:
 class Stdin : public EventHandler{
 
 public:
-	Stdin(int fd);
+	explicit Stdin(int fd);
 	int handleRead();
 	int handleWrite();
 };

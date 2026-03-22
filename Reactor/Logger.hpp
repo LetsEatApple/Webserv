@@ -1,6 +1,6 @@
 #pragma once
 
-//#include "lib.hpp"
+#include <netinet/in.h>
 #include "server.hpp"
 #include "Headers.hpp"
 #include "Request.hpp"
@@ -13,8 +13,8 @@ int				error(const std::string& err, int errno_on);
 // logDebug used on client specific error -> server continues
 void			logDebug(const std::string& err, int errno_on);
 void			logInfo(const std::string& info, const std::string& arg);
-std::string		IP_port(sockaddr_in &c_addr);
-std::string		str(uint16_t port);
+std::string		IP_port(const sockaddr_in &c_addr);
+std::string		str(int port);
 void			logConnection(const Endpoint& listener, const Endpoint& client);
 void			logDisconnect(const Endpoint& listener, const Endpoint& client);
 void			logRequest(const Endpoint& listener, const Endpoint& client, const Request& req, const std::string& locationPath);

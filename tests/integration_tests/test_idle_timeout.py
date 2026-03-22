@@ -32,7 +32,7 @@ def test_idle_connection_closed():
     """A client that connects but sends nothing should get 408 and be closed."""
     if TIMEOUT_SEC > 10:
         print(f"SKIP: CLIENT_TIMEOUT_SEC={TIMEOUT_SEC}s too long for test"
-              " (set CLIENT_TIMEOUT_SEC=3 in lib.hpp and env to run)")
+              " (set CLIENT_TIMEOUT_SEC=3 in constants.hpp and env to run)")
         return
     proc = start_server(conf_path("method.conf"))
     try:

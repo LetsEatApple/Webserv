@@ -1,7 +1,3 @@
-//
-// Created by mkugan on 3/5/26.
-//
-
 #ifndef DIRECTIVEAPPLIER_HPP
 #define DIRECTIVEAPPLIER_HPP
 

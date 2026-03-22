@@ -1,7 +1,3 @@
-//
-// Created by mkugan on 3/3/26.
-//
-
 #ifndef WEBSERV_DIRECTIVEVALIDATORS_HPP
 #define WEBSERV_DIRECTIVEVALIDATORS_HPP
 

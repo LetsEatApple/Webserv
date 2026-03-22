@@ -42,7 +42,10 @@ Http/response/MimeTypes.cpp \
 Http/response/Multipart.cpp
 
 CXX = c++
-CXXFLAGS = -std=c++98 -Wall -Werror -Wextra -MMD -MP
+CXXFLAGS = -std=c++98 -pedantic -Wall -Werror -Wextra -Wformat -Wformat=2 -MMD -MP \
+		   -Wconversion -Wsign-conversion -Wimplicit-fallthrough -fno-delete-null-pointer-checks \
+		   -fno-strict-overflow -Wdouble-promotion -Wno-unused-parameter -Wno-unused-function \
+		   -Wshadow
 
 INCLUDES = \
 -I./Config/includes \
@@ -55,7 +58,8 @@ DEBUG ?= 0
 CPPFLAGS = $(INCLUDES)
 
 ifeq ($(DEBUG),1)
-	CPPFLAGS += -DDEBUG
+	CPPFLAGS += -DDEBUG -fsanitize=address,undefined
+	CXXFLAGS += -O3 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -fsanitize=address,undefined
 endif
 
 OBJ_DIR = obj

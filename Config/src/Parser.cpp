@@ -8,9 +8,7 @@
 #include <Utils.hpp>
 #include <vector>
 
-Parser::Parser(Lexer& lexer) : _lexer(lexer), _current(lexer.next())
-{
-}
+Parser::Parser(Lexer& lexer) : _lexer(lexer), _current(lexer.next()) {}
 
 // Yield next token
 void Parser::advance() { _current = _lexer.next(); }
@@ -78,7 +76,7 @@ Block Parser::parseBlock(const std::string& name,
     return block;
 }
 
-// Create root 'http' block and parse derictives inside it
+// Create root 'http' block and parse directives inside it
 Block Parser::parse()
 {
     if (_current.type == token::TOK_EOF)

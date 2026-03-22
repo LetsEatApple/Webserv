@@ -11,14 +11,14 @@
 class ResponseDispatcher {
 public:
 	ResponseDispatcher(Response::Writer& w, const Request& req, const config::Location& loc);
-	int serve(int* fileFd = 0, size_t* fileSize = 0);
-	int serveReturn();
-	int serveFile(int* fileFd = 0, size_t* fileSize = 0);
-	int serveDelete();
-	int serveUpload();
-	int serveMultipart(const std::string& boundary);
-	int sendError(Response::StatusCode code);
-	int serveAutoindex(const std::string &fsPath, const std::string &reqPath, const std::string &reqMethod);
+	int serve(int* fileFd = 0, size_t* fileSize = 0) const;
+	int serveReturn() const;
+	int serveFile(int* fileFd = 0, size_t* fileSize = 0) const;
+	int serveDelete() const;
+	int serveUpload() const;
+	int serveMultipart(const std::string& boundary) const;
+	int sendError(Response::StatusCode code) const;
+	int serveAutoindex(const std::string &fsPath, const std::string &reqPath, const std::string &reqMethod) const;
 
 	struct dirEntry
 	{

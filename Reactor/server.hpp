@@ -12,7 +12,6 @@
 
 #pragma once
 
-#include "lib.hpp"
 #include "Config.hpp"
 
 //typedef std::pair< int, std::vector<config::Server> > ListenerSocket;
@@ -48,11 +47,11 @@ private:
 	Server();
 
 public:
-	Server(config::Listeners &configlisteners);
+	explicit Server(config::Listeners &listeners);
 
 	const activeSessions	&get_sessions() const;
 	int						createServer();
-	int						error_close(const std::string& err, int index);
+	int						error_close(const std::string& err, std::vector<server>::size_type index) const;
 
 	class InvalidAddrException : public std::exception{
 	public:

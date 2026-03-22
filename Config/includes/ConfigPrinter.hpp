@@ -1,7 +1,3 @@
-//
-// Created by mkugan on 3/5/26.
-//
-
 #ifndef CONFIGPRINTER_HPP
 #define CONFIGPRINTER_HPP
 
