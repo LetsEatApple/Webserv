@@ -132,19 +132,20 @@ void Reactor::handleEvents(){
 	if (nfds == 0) {
 		checkTimeouts();
 		return;
-  }
+	}
 
 	for (int i = 0; i < nfds; i++){
 		int fd = _evlist[i].data.fd;
 		if (_handlers.find(fd) == _handlers.end())
 			continue;
 
-	const uint32_t ev = _evlist[i].events;
+		const uint32_t ev = _evlist[i].events;
 
-	if (ev & (EPOLLIN | EPOLLHUP | EPOLLERR))
-	  _handlers[fd]->handleRead();
-	if ((ev & EPOLLOUT) && _handlers.find(fd) != _handlers.end())
-	  _handlers[fd]->handleWrite();
+		if (ev & (EPOLLIN | EPOLLHUP | EPOLLERR))
+			_handlers[fd]->handleRead();
+		if ((ev & EPOLLOUT)
+			&& _handlers.find(fd) != _handlers.end())
+			_handlers[fd]->handleWrite();
 	}
 	checkTimeouts();
 }

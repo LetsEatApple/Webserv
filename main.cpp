@@ -46,7 +46,6 @@ int main(int ac, char **av) {
 		if (!server.createServer())
 			return 1;
 
-	// Reactor reactor(server, &router);
 		Reactor reactor;
 		if (!reactor.init(server.get_sessions()))
 			return 1;

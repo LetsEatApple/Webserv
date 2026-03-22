@@ -66,12 +66,6 @@ const std::string& Request::getBody() const {
 	return body;
 }
 
-std::string Request::drainBody() {
-	std::string tmp = body;
-	body.clear();
-	return tmp;
-}
-
 std::string& Request::bodyRef() {
 	return body;
 }

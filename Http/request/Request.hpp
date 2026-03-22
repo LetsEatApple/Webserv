@@ -43,7 +43,6 @@ public:
 	const std::string&	getHttpVersion() const;
 	const ::Headers&	getHeaders() const;
 	const std::string&	getBody() const;
-	std::string			drainBody();
 	std::string&		bodyRef();
 	void	setMaxBodySize(size_t size);
 	void	reset();
@@ -51,9 +50,6 @@ public:
 	// Check if Content-Type is multipart/form-data
 	bool isMultipart(std::string& boundary) const;
 	
-	template <typename Func>
-	void forEachHeader(Func func) const { headers.forEach(func); }
-
 	static const char* const ERROR_MALFORMED_REQUEST_LINE;
 	static const char* const ERROR_REQUEST_IN_ERROR_STATE;
 

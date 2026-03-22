@@ -22,7 +22,7 @@ void freeaddr(const server_list &_servers, const std::vector<server>::size_type 
 		freeaddrinfo(_servers[i].n_server);
 }
 
-Server::Server(config::Listeners &listeners) /*: listeners(listeners)*/{
+Server::Server(config::Listeners &listeners){
 
 	struct addrinfo hints = {};
 	hints.ai_family   = AF_UNSPEC; // IPv4 or IPv6
