@@ -178,14 +178,15 @@ ProcessResult Connection::processRequest(){
 
 int Connection::handleRead(){
 
+	char buf[MAX];
+	const ssize_t n = recv(_fd, buf, MAX - 1, MSG_DONTWAIT);
+	if (n == 0) { // client disconnected
+		stopCgi();
+		logDisconnect(_session.listener, _session.client);
+		return (_reactor->removeHandler(this, 0));
+	}
+
 	if (_state == StateCgiRunning || _state == StateCgiStreaming) {
-		char buf[MAX];
-		const ssize_t n = recv(_fd, buf, MAX - 1, MSG_DONTWAIT);
-		if (n == 0) {
-			stopCgi();
-			logDisconnect(_session.listener, _session.client);
-			return (_reactor->removeHandler(this, 0));
-		}
 		if (n > 0) {
 			_lastActivity = std::time(NULL);
 			if (!_request.done()) {
@@ -208,13 +209,6 @@ int Connection::handleRead(){
 			}
 		}
 	} else {
-		char buf[MAX];
-		const ssize_t n = recv(_fd, buf, MAX - 1, MSG_DONTWAIT);
-		if (n == 0){ // client disconnected
-			stopCgi();
-			logDisconnect(_session.listener, _session.client);
-			return (_reactor->removeHandler(this, 0));
-		}
 		if (n > 0) {
 			_readBuffer.append(buf, static_cast<std::size_t>(n));
 			_lastActivity = std::time(NULL);

@@ -71,12 +71,7 @@ std::string& Request::bodyRef() {
 }
 
 bool Request::hasBody() const {
-	const std::string lengthStr = headers.get("content-length");
-	if (lengthStr.empty()) {
-		return false;
-	}
-	const std::size_t length = std::strtoul(lengthStr.c_str(), NULL, 10);
-	return length > 0;
+	return getContentLen() > 0;
 }
 
 bool Request::isChunkedEncoding() const {
