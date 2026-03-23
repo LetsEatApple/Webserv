@@ -19,13 +19,12 @@ mkdir -p /tmp/www /tmp/www/YoupiBanane/nop /tmp/www/YoupiBanane/Yeah
 [ -f /tmp/www/YoupiBanane/Yeah/not_happy.bad_extension ] || echo 'not_happy.bad_extension' > /tmp/www/YoupiBanane/Yeah/not_happy.bad_extension
 
 # Build server (only if binary doesn't exist)
-if [ ! -f ../../cmake-build-debug/webserv ]; then
-    cmake -S ../.. -B ../../cmake-build-debug -DCMAKE_BUILD_TYPE=Debug > /dev/null 2>&1
-    cmake --build ../../cmake-build-debug --target webserv || exit 1
+if [ ! -f ../../webserv ]; then
+    make -C ../.. || exit 1
 fi
 
 # Start server
-sleep infinity | ../../cmake-build-debug/webserv webserv_tester.conf &
+sleep infinity | ../../webserv webserv_tester.conf &
 PID=$!
 sleep 1
 
